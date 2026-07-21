@@ -18,6 +18,7 @@
             { "value": "MariaDB", "label": "MariaDB" },
             { "value": "MongoDB", "label": "MongoDB" },
             { "value": "Cassandra", "label": "Cassandra" },
+            { "value": "SybaseASE", "label": "SAP Sybase ASE" },
             { "value": "Other", "label": "Other (specify)" }
           ]
         },
@@ -38,7 +39,17 @@
             { "value": "AzureVM", "label": "Azure Virtual Machine" },
             { "value": "AWS_RDS", "label": "AWS RDS / Aurora" },
             { "value": "GCP_CloudSQL", "label": "GCP Cloud SQL" },
-            { "value": "AzurePaaS", "label": "Azure PaaS (Single Server)" },
+            { "value": "AzurePaaS_SingleServer", "label": "Azure PaaS - Single Server (PostgreSQL/MySQL)" },
+            { "value": "AzurePaaS_MariaDB", "label": "Azure Database for MariaDB (PaaS)" },
+            { "value": "AzureArc", "label": "Azure Arc-enabled SQL Server" },
+            { "value": "ODAA", "label": "Oracle Database@Azure (Exadata)" },
+            { "value": "OracleCloud", "label": "Oracle Cloud Infrastructure (OCI)" },
+            { "value": "AWS_EC2", "label": "AWS EC2" },
+            { "value": "AWS_RDS", "label": "AWS RDS" },
+            { "value": "AWS_Aurora", "label": "AWS Aurora" },
+            { "value": "AWS_DocumentDB", "label": "AWS DocumentDB" },
+            { "value": "GCP_CloudSQL", "label": "GCP Cloud SQL" },
+            { "value": "GCP_GCE", "label": "GCP Compute Engine" },
             { "value": "Other", "label": "Other cloud / hosted" }
           ]
         },
@@ -79,7 +90,8 @@
             { "value": "Azure MySQL Flexible", "label": "Azure Database for MySQL Flexible" },
             { "value": "Azure Cosmos DB MongoDB", "label": "Azure Cosmos DB for MongoDB" },
             { "value": "Azure Managed Cassandra", "label": "Azure Managed Instance for Cassandra" },
-            { "value": "Undecided", "label": "Not sure – recommend me one" }
+            { "value": "MongoDB Atlas on Azure", "label": "MongoDB Atlas on Azure" },
+            { "value": "Undecided", "label": "Not sure - recommend me one" }
           ]
         },
         {
@@ -235,6 +247,17 @@
       "id": "operational-readiness",
       "title": "Operational Readiness",
       "questions": [
+        {
+          "id": "q17b",
+          "text": "Does the migration require GitHub Copilot (heterogeneous Oracle/Sybase migrations)?",
+          "type": "single-choice",
+          "required": false,
+          "options": [
+            { "value": "yes_licensed", "label": "Yes, GHCP license already procured" },
+            { "value": "yes_needed", "label": "Yes, but license not yet procured" },
+            { "value": "no", "label": "No (homogeneous migration)" }
+          ]
+        },
         {
           "id": "q18",
           "text": "Does the team have Azure database administration skills?",

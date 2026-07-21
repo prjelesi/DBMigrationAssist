@@ -1,6 +1,8 @@
 {
   "version": "1.0",
   "maxScore": 100,
+  "heterogeneousSourceTypes": ["Oracle", "SybaseASE"],
+  "ghcpRequiredSourceTypes": ["Oracle", "SybaseASE"],
   "categories": [
     {
       "id": "migration-path",
@@ -8,8 +10,9 @@
       "weight": 20,
       "rules": [
         { "condition": "targetKnown && !isHeterogeneous", "score": 20, "label": "Clear homogeneous path" },
-        { "condition": "targetKnown && isHeterogeneous", "score": 10, "label": "Heterogeneous – schema conversion required" },
-        { "condition": "!targetKnown", "score": 5, "label": "Target undecided – recommendation needed" }
+        { "condition": "targetKnown && isHeterogeneous && ghcpLicensed", "score": 12, "label": "Heterogeneous path - GHCP licensed, schema conversion required" },
+        { "condition": "targetKnown && isHeterogeneous && !ghcpLicensed", "score": 4, "label": "Heterogeneous path - GHCP license missing (required for Oracle/Sybase)" },
+        { "condition": "!targetKnown", "score": 5, "label": "Target undecided - recommendation needed" }
       ]
     },
     {
