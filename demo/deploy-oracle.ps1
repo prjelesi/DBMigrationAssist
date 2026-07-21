@@ -87,12 +87,15 @@ $out = az deployment group create `
         adminPassword=$AdminPassword `
         allowedSourceIp=$myIp `
         oracleSysPassword=$OracleSysPassword `
+        existingVnetName=vnet-demo `
+        existingSubnetName=subnet-demo `
     --query "properties.outputs" -o json | ConvertFrom-Json
 
 if ($LASTEXITCODE -ne 0) { throw "Deployment failed" }
 
-$fqdn = $out.vmFqdn.value
-$ip   = $out.vmPublicIp.value
+$fqdn      = $out.vmFqdn.value
+$ip        = $out.vmPublicIp.value
+$privateIp = $out.vmPrivateIp.value
 
 Write-OK "Oracle VM deployed: $fqdn ($ip)"
 
@@ -112,8 +115,9 @@ Write-Host ""
 Write-Host $sep -ForegroundColor Green
 Write-Host "  ORACLE XE 21c VM DEPLOYED" -ForegroundColor Green
 Write-Host $sep -ForegroundColor Green
-Write-Host "  IP / FQDN : $ip / $fqdn"
-Write-Host "  SSH       : ssh demoadmin@$fqdn"
+Write-Host "  IP / FQDN   : $ip / $fqdn"
+Write-Host "  Private IP  : $privateIp  (same VNet as other demo DBs: vnet-demo)"
+Write-Host "  SSH         : ssh demoadmin@$fqdn"
 Write-Host ""
 Write-Host "  Oracle connection (after ~20 min install):" -ForegroundColor Cyan
 Write-Host "  Service   : XEPDB1 (pluggable DB for demo user)"
