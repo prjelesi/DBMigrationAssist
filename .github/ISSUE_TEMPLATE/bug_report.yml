@@ -1,0 +1,35 @@
+name: Bug Report
+description: Report a problem with the assessment engine, API, or scripts
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Assessment Engine (PowerShell)
+        - Docker / FastAPI
+        - Factory Scripts (PostgreSQL/MySQL/Oracle/etc.)
+        - Power Apps Custom Connector
+        - Dataverse
+        - Copilot Studio Agent
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      placeholder: Describe the bug
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run Invoke-Assessment.ps1 with...
+        2. See error...
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour

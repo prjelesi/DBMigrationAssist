@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r api/requirements.txt -r tests/requirements-test.txt
+
+      - name: Set test env vars
+        run: |
+          echo "API_KEY=dev-local-key-change-me" >> $GITHUB_ENV
+          echo "DATAVERSE_URL=" >> $GITHUB_ENV
+
+      - name: Run API + unit tests
+        run: python -m pytest tests/ -v --cov=api --cov-report=term-missing
+
+      - name: Run PowerShell assessment smoke test
+        run: |
+          pwsh -NonInteractive -ExecutionPolicy Bypass \
+               -File Invoke-Assessment.ps1 \
+               -InputFile input/sample-db-inventory.csv \
+               -OutputDir /tmp/ci-output \
+               -SkipInfoGather
+
+      - name: Validate smoke test report
+        run: |
+          report=$(ls /tmp/ci-output/assessment-report-*.json | head -1)
+          count=$(python -c "import json; d=json.load(open('$report')); print(len(d))")
+          echo "Report contains $count database assessments"
+          [ "$count" -eq "5" ] || (echo "Expected 5 databases in report" && exit 1)
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t db-migration-assessment:ci .
+
+      - name: Smoke test container health endpoint
+        run: |
+          docker run -d \
+            -e API_KEY=ci-test-key \
+            -e DATAVERSE_URL= \
+            -e AZURE_CLIENT_ID= \
+            -e AZURE_CLIENT_SECRET= \
+            -e AZURE_TENANT_ID= \
+            -p 8000:8000 \
+            --name assessment-ci \
+            db-migration-assessment:ci
+
+          # Wait for container to be healthy
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8000/health; then
+              echo "Container healthy"
+              break
+            fi
+            echo "Waiting... ($i/15)"
+            sleep 3
+          done
+
+          curl -sf http://localhost:8000/health || exit 1
+          docker stop assessment-ci

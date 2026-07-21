@@ -6,10 +6,10 @@ and pushes results to Dataverse.
 """
 
 import asyncio
+import csv
+import io
 import json
 import os
-import subprocess
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +17,7 @@ from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, HTTPException, Security, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Security, UploadFile
 from fastapi.security.api_key import APIKeyHeader
 from msal import ConfidentialClientApplication
 from pydantic import BaseModel, Field
@@ -62,9 +62,9 @@ def verify_api_key(key: str = Security(api_key_header)) -> str:
 
 class DatabaseEntry(BaseModel):
     DatabaseName: str
-    SourceType: str = Field(..., description="SQL Server | Oracle | PostgreSQL | MySQL | MariaDB | MongoDB | Cassandra")
+    SourceType: str = Field(..., description="SQL Server | Oracle | PostgreSQL | MySQL | MariaDB | MongoDB | Cassandra | SybaseASE")
     SourceVersion: str
-    SourceEnvironment: str = Field(..., description="OnPrem | AzureVM | AWS_RDS | GCP_CloudSQL | AzurePaaS")
+    SourceEnvironment: str = Field(..., description="OnPrem | AzureVM | AzureVM_Windows | AzureVM_Linux | AzureArc | AzurePaaS_SingleServer | AzurePaaS_MariaDB | ODAA | OracleCloud | AWS_EC2 | AWS_RDS | AWS_Aurora | AWS_DocumentDB | GCP_CloudSQL | GCP_GCE")
     TargetType: str = Field(default="Undecided")
     MaxDowntime: str = Field(..., description="zero | hours | days")
     Connectivity: str = Field(..., description="expressroute | vpn | internet | none")
@@ -298,7 +298,7 @@ async def health():
 @app.post("/assess", response_model=AssessmentResponse, status_code=202)
 async def start_assessment(
     request: AssessmentRequest,
-    background_tasks,
+    background_tasks: BackgroundTasks,
     _key: str = Depends(verify_api_key),
 ):
     """
@@ -306,7 +306,6 @@ async def start_assessment(
     Returns immediately with a jobId; use GET /status/{jobId} to poll.
     Power Automate can also receive a callback via CALLBACK_WEBHOOK_URL.
     """
-    from fastapi import BackgroundTasks
     job_id = str(uuid.uuid4())
     jobs[job_id] = {
         "jobId": job_id,
@@ -357,17 +356,16 @@ async def get_report(job_id: str, _key: str = Depends(verify_api_key)):
 
 @app.post("/assess/bulk", response_model=AssessmentResponse, status_code=202)
 async def start_bulk_assessment(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="CSV file matching the sample-db-inventory.csv format"),
     customer_name: str = "BulkUpload",
     requested_by: str = "PowerApps",
-    background_tasks = None,
     _key: str = Depends(verify_api_key),
 ):
     """
     Upload a CSV file (bulk DB inventory) directly from Power Apps.
     Power Apps file upload control sends the file here.
     """
-    from fastapi import BackgroundTasks
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted")
 
@@ -377,7 +375,6 @@ async def start_bulk_assessment(
         raise HTTPException(status_code=400, detail="CSV must have a header row and at least one data row")
 
     # Parse CSV into DatabaseEntry list
-    import csv, io
     reader = csv.DictReader(io.StringIO("\n".join(lines)))
     databases = []
     for row in reader:

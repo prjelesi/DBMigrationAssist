@@ -87,16 +87,44 @@ if (-not (Test-Path $OutputDir)) {
 
 # ── Resolve Migration Path ────────────────────────────────────────────────────
 function Resolve-MigrationPath {
-    param($SourceType, $TargetType)
+    param($SourceType, $TargetType, $SourceEnv)
 
-    $candidates = $migrationPaths.paths | Where-Object {
-        $_.sourceType -ieq $SourceType -and (
-            $TargetType -eq "Undecided" -or $_.targetType -ilike "*$TargetType*"
-        )
+    # Normalise environment variants so the CSV column doesn't need to be exact
+    $envMap = @{
+        'AzureVM'           = @('AzureVM','AzureVM_Windows','AzureVM_Linux')
+        'OnPrem'            = @('OnPrem','OnPremises','On-Premises','Physical')
+        'AWS_RDS'           = @('AWS_RDS','AWS RDS')
+        'AWS_EC2'           = @('AWS_EC2','AWS EC2')
+        'AWS_Aurora'        = @('AWS_Aurora','AWS Aurora')
+        'AWS_DocumentDB'    = @('AWS_DocumentDB','AWS DocumentDB')
+        'GCP_CloudSQL'      = @('GCP_CloudSQL','GCP CloudSQL')
+        'GCP_GCE'           = @('GCP_GCE','GCP GCE','GCP Compute Engine')
+        'AzurePaaS_SingleServer' = @('AzurePaaS','AzurePaaS_SingleServer','SingleServer')
     }
 
+    # Find normalised env key
+    $normEnv = $SourceEnv
+    foreach ($key in $envMap.Keys) {
+        if ($envMap[$key] -icontains $SourceEnv) { $normEnv = $key; break }
+    }
+
+    # 1. Try exact source + env + target match
+    $candidates = $migrationPaths.paths | Where-Object {
+        $_.sourceType -ieq $SourceType -and
+        ($_.sourceEnvironments -icontains $normEnv -or $_.sourceEnvironments -icontains $SourceEnv) -and
+        ($TargetType -eq 'Undecided' -or $_.targetType -ilike "*$TargetType*")
+    }
+
+    # 2. Relax: source + target only
     if (-not $candidates) {
-        # Fallback: find any path for source type
+        $candidates = $migrationPaths.paths | Where-Object {
+            $_.sourceType -ieq $SourceType -and
+            ($TargetType -eq 'Undecided' -or $_.targetType -ilike "*$TargetType*")
+        }
+    }
+
+    # 3. Fallback: any path for this source type
+    if (-not $candidates) {
         $candidates = $migrationPaths.paths | Where-Object { $_.sourceType -ieq $SourceType }
     }
 
@@ -112,8 +140,10 @@ function Get-ReadinessScore {
     $blockers   = @()
 
     # Derive boolean flags from answers
-    $isHeterogeneous       = $Path.migrationType -eq "Heterogeneous"
-    $onlineMigrationOK     = $Path.onlineMigration
+    $isHeterogeneous   = $Path -and $Path.migrationType -eq 'Heterogeneous'
+    $requiresGHCP      = $Path -and $Path.PSObject.Properties['requiresGHCP'] -and $Path.requiresGHCP
+    $ghcpLicensed      = $Answers.ghcpStatus -eq 'yes_licensed'
+    $onlineMigrationOK = $Path -and $Path.onlineMigration
     $storedProcs           = $Answers.storedProcs
     $hasLinkedServers      = $Answers.dependencies -contains "linked_servers"
     $hasSSIS               = $Answers.dependencies -contains "ssis"
@@ -122,11 +152,14 @@ function Get-ReadinessScore {
 
     # Migration Path score
     if ($Path -and -not $isHeterogeneous) {
-        $totalScore += 20; $findings += "Clear homogeneous migration path identified (+20)"
-    } elseif ($Path -and $isHeterogeneous) {
-        $totalScore += 10; $findings += "Heterogeneous path – schema conversion required (+10)"
+        $totalScore += 20; $findings += 'Clear homogeneous migration path identified (+20)'
+    } elseif ($Path -and $isHeterogeneous -and $ghcpLicensed) {
+        $totalScore += 12; $findings += 'Heterogeneous path - GHCP licensed, schema conversion required (+12)'
+    } elseif ($Path -and $isHeterogeneous -and -not $ghcpLicensed) {
+        $totalScore += 4; $findings += 'Heterogeneous path - GHCP license missing (required for Oracle/Sybase) (+4)'
+        if ($requiresGHCP) { $blockers += 'BLOCKER: Oracle/Sybase migration requires GitHub Copilot license (agentic schema conversion)' }
     } else {
-        $totalScore += 5; $findings += "No migration path found – manual review needed (+5)"
+        $totalScore += 5; $findings += 'No migration path found - manual review needed (+5)'
     }
 
     # Downtime Tolerance
@@ -249,15 +282,16 @@ foreach ($db in $databases) {
         landingZone   = $db.LandingZone
         dataSize      = $db.DataSize
         storedProcs   = $db.StoredProcs
-        dependencies  = if ($db.Dependencies) { $db.Dependencies -split "\|" } else { @() }
-        features      = if ($db.SpecialFeatures) { $db.SpecialFeatures -split "\|" } else { @() }
+        dependencies  = if ($db.Dependencies)    { $db.Dependencies    -split '\|' } else { @() }
+        features      = if ($db.SpecialFeatures)  { $db.SpecialFeatures  -split '\|' } else { @() }
+        ghcpStatus    = if ($db.PSObject.Properties['GHCPStatus']) { $db.GHCPStatus } else { 'no' }
         teamSkill     = $db.TeamSkill
         rollback      = $db.RollbackPlan
         dbCount       = [int]($db.DatabaseCount ?? 1)
     }
 
     # Resolve migration path
-    $path = Resolve-MigrationPath -SourceType $answers.sourceType -TargetType $answers.targetType
+    $path = Resolve-MigrationPath -SourceType $answers.sourceType -TargetType $answers.targetType -SourceEnv $answers.sourceEnv
 
     if (-not $path) {
         Write-Log "No migration path found for $($answers.sourceType) → $($answers.targetType)" "WARN"
