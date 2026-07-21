@@ -1,13 +1,13 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "DB Migration Assessment Engine",
-    "description": "Custom connector for Power Apps to submit database migration readiness assessments and retrieve results from the local Docker assessment engine.",
-    "version": "1.0.0"
+    "title": "DB Migration Assessment Hub",
+    "description": "Connects Power Apps to the DB Migration Readiness Assessment Hub. Supports questionnaire-based assessment, live data collection via registered agents, and report retrieval.",
+    "version": "2.0.0"
   },
   "host": "localhost:8000",
   "basePath": "/",
-  "schemes": ["http", "https"],
+  "schemes": ["https", "http"],
   "consumes": ["application/json"],
   "produces": ["application/json"],
   "securityDefinitions": {
@@ -22,11 +22,11 @@
     "/health": {
       "get": {
         "summary": "Health Check",
-        "description": "Check if the assessment engine container is running.",
         "operationId": "HealthCheck",
+        "x-ms-visibility": "internal",
         "responses": {
           "200": {
-            "description": "Engine is healthy",
+            "description": "OK",
             "schema": {
               "type": "object",
               "properties": {
@@ -39,156 +39,171 @@
         }
       }
     },
-    "/assess": {
-      "post": {
-        "summary": "Start Assessment",
-        "description": "Submit one or more databases for migration readiness assessment. Returns a jobId to poll for results.",
-        "operationId": "StartAssessment",
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": { "$ref": "#/definitions/AssessmentRequest" }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Assessment queued successfully",
-            "schema": { "$ref": "#/definitions/AssessmentResponse" }
-          },
-          "403": { "description": "Invalid API key" },
-          "422": { "description": "Validation error in input data" }
-        }
-      }
-    },
-    "/assess/bulk": {
-      "post": {
-        "summary": "Bulk Upload Assessment",
-        "description": "Upload a CSV file containing multiple databases for assessment. Used by the Power Apps file upload control.",
-        "operationId": "BulkAssessment",
-        "consumes": ["multipart/form-data"],
-        "parameters": [
-          { "in": "formData", "name": "file", "type": "file", "required": true },
-          { "in": "query", "name": "customer_name", "type": "string", "required": false },
-          { "in": "query", "name": "requested_by", "type": "string", "required": false }
-        ],
-        "responses": {
-          "202": {
-            "description": "Bulk assessment queued",
-            "schema": { "$ref": "#/definitions/AssessmentResponse" }
-          }
-        }
-      }
-    },
-    "/status/{jobId}": {
+    "/questionnaire": {
       "get": {
-        "summary": "Get Assessment Status",
-        "description": "Poll job status. Use in a Power Automate 'Do Until' loop until status is 'completed' or 'failed'.",
-        "operationId": "GetAssessmentStatus",
-        "parameters": [
-          { "in": "path", "name": "jobId", "type": "string", "required": true }
-        ],
-        "responses": {
-          "200": {
-            "description": "Job status",
-            "schema": { "$ref": "#/definitions/JobStatus" }
-          },
-          "404": { "description": "Job not found" }
-        }
-      }
-    },
-    "/report/{jobId}": {
-      "get": {
-        "summary": "Get Assessment Report",
-        "description": "Retrieve the full JSON assessment report for a completed job.",
-        "operationId": "GetReport",
-        "parameters": [
-          { "in": "path", "name": "jobId", "type": "string", "required": true }
-        ],
-        "responses": {
-          "200": {
-            "description": "Full assessment report array"
-          },
-          "404": { "description": "Job not found" },
-          "409": { "description": "Job not yet completed" }
-        }
+        "summary": "Get Assessment Questionnaire",
+        "operationId": "GetQuestionnaire",
+        "x-ms-visibility": "important",
+        "responses": { "200": { "description": "Questionnaire", "schema": { "type": "object" } } }
       }
     },
     "/migration-paths": {
       "get": {
         "summary": "Get Migration Paths",
-        "description": "Returns all supported migration paths for Power Apps dropdown population.",
         "operationId": "GetMigrationPaths",
-        "responses": {
-          "200": { "description": "Migration paths JSON" }
-        }
+        "x-ms-visibility": "important",
+        "responses": { "200": { "description": "Migration paths", "schema": { "type": "array", "items": { "type": "object" } } } }
       }
     },
-    "/questionnaire": {
+    "/assess": {
+      "post": {
+        "summary": "Start Assessment",
+        "operationId": "StartAssessment",
+        "x-ms-visibility": "important",
+        "parameters": [{ "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/AssessmentRequest" } }],
+        "responses": { "202": { "description": "Queued", "schema": { "$ref": "#/definitions/AssessmentResponse" } } }
+      }
+    },
+    "/status/{jobId}": {
       "get": {
-        "summary": "Get Questionnaire",
-        "description": "Returns the assessment questionnaire definition for Power Apps dynamic form rendering.",
-        "operationId": "GetQuestionnaire",
-        "responses": {
-          "200": { "description": "Questionnaire JSON" }
-        }
+        "summary": "Get Assessment Status",
+        "operationId": "GetAssessmentStatus",
+        "x-ms-visibility": "important",
+        "parameters": [{ "in": "path", "name": "jobId", "type": "string", "required": true }],
+        "responses": { "200": { "description": "Status", "schema": { "$ref": "#/definitions/JobStatus" } } }
+      }
+    },
+    "/report/{jobId}": {
+      "get": {
+        "summary": "Get Assessment Report",
+        "operationId": "GetAssessmentReport",
+        "x-ms-visibility": "important",
+        "parameters": [{ "in": "path", "name": "jobId", "type": "string", "required": true }],
+        "responses": { "200": { "description": "Report", "schema": { "type": "array", "items": { "type": "object" } } } }
+      }
+    },
+    "/agents": {
+      "get": {
+        "summary": "List Agents",
+        "operationId": "ListAgents",
+        "x-ms-visibility": "important",
+        "parameters": [{ "in": "query", "name": "role", "type": "string", "required": false }],
+        "responses": { "200": { "description": "Agents", "schema": { "type": "array", "items": { "$ref": "#/definitions/AgentRecord" } } } }
+      }
+    },
+    "/collect": {
+      "post": {
+        "summary": "Create Collection Job",
+        "operationId": "CreateCollectionJob",
+        "x-ms-visibility": "important",
+        "parameters": [{ "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/CreateCollectionJobRequest" } }],
+        "responses": { "202": { "description": "Created", "schema": { "type": "object" } } }
+      },
+      "get": {
+        "summary": "List Collection Jobs",
+        "operationId": "ListCollectionJobs",
+        "x-ms-visibility": "important",
+        "parameters": [
+          { "in": "query", "name": "status", "type": "string", "required": false },
+          { "in": "query", "name": "role", "type": "string", "required": false }
+        ],
+        "responses": { "200": { "description": "Jobs", "schema": { "type": "array", "items": { "$ref": "#/definitions/CollectionJob" } } } }
+      }
+    },
+    "/collect/{jobId}": {
+      "get": {
+        "summary": "Get Collection Job",
+        "operationId": "GetCollectionJob",
+        "x-ms-visibility": "important",
+        "parameters": [{ "in": "path", "name": "jobId", "type": "string", "required": true }],
+        "responses": { "200": { "description": "Job", "schema": { "$ref": "#/definitions/CollectionJob" } } }
       }
     }
   },
   "definitions": {
     "DatabaseEntry": {
       "type": "object",
-      "required": ["DatabaseName", "SourceType", "SourceVersion", "SourceEnvironment", "MaxDowntime", "Connectivity", "LandingZone", "DataSize", "TeamSkill", "RollbackPlan"],
+      "required": ["DatabaseName","SourceType","SourceVersion","SourceEnvironment","MaxDowntime","Connectivity","LandingZone","DataSize","TeamSkill","RollbackPlan"],
       "properties": {
-        "DatabaseName":      { "type": "string", "description": "Friendly name for this database" },
-        "SourceType":        { "type": "string", "description": "SQL Server | Oracle | PostgreSQL | MySQL | MariaDB | MongoDB | Cassandra", "enum": ["SQL Server","Oracle","PostgreSQL","MySQL","MariaDB","MongoDB","Cassandra"] },
-        "SourceVersion":     { "type": "string", "description": "e.g. 2016, 19c, 14, 8.0" },
-        "SourceEnvironment": { "type": "string", "description": "Where the source DB is hosted", "enum": ["OnPrem","AzureVM","AWS_RDS","GCP_CloudSQL","AzurePaaS"] },
-        "TargetType":        { "type": "string", "description": "Preferred Azure target", "default": "Undecided" },
-        "MaxDowntime":       { "type": "string", "description": "Acceptable migration downtime", "enum": ["zero","hours","days"] },
-        "Connectivity":      { "type": "string", "description": "Network connectivity to Azure", "enum": ["expressroute","vpn","internet","none"] },
-        "LandingZone":       { "type": "string", "description": "Azure Landing Zone status", "enum": ["yes","partial","no"] },
-        "DataSize":          { "type": "string", "description": "Total data size", "enum": ["small","medium","large"] },
-        "StoredProcs":       { "type": "string", "description": "Stored procedure volume", "enum": ["none","few","many","extensive"], "default": "none" },
-        "Dependencies":      { "type": "string", "description": "Pipe-separated: linked_servers|ssis|replication|cdc", "default": "" },
-        "SpecialFeatures":   { "type": "string", "description": "Pipe-separated: plsql|oracle_specific|sql_agent|clr", "default": "" },
-        "TeamSkill":         { "type": "string", "description": "Azure DB admin skill level", "enum": ["expert","moderate","beginner"] },
-        "RollbackPlan":      { "type": "string", "description": "Rollback readiness", "enum": ["yes_tested","yes_untested","partial","no"] },
-        "DatabaseCount":     { "type": "integer", "description": "Number of instances", "default": 1 }
+        "DatabaseName":      { "type": "string" },
+        "SourceType":        { "type": "string", "enum": ["SQL Server","Oracle","PostgreSQL","MySQL","MariaDB","MongoDB","Cassandra","SybaseASE"] },
+        "SourceVersion":     { "type": "string" },
+        "SourceEnvironment": { "type": "string", "enum": ["OnPrem","AzureVM","AzureVM_Windows","AzureVM_Linux","AzureArc","AzurePaaS_SingleServer","AzurePaaS_MariaDB","ODAA","OracleCloud","AWS_EC2","AWS_RDS","AWS_Aurora","AWS_DocumentDB","GCP_CloudSQL","GCP_GCE"] },
+        "TargetType":        { "type": "string", "default": "Undecided" },
+        "MaxDowntime":       { "type": "string", "enum": ["zero","hours","days"] },
+        "Connectivity":      { "type": "string", "enum": ["expressroute","vpn","internet","none"] },
+        "LandingZone":       { "type": "string", "enum": ["yes","partial","no"] },
+        "DataSize":          { "type": "string", "enum": ["small","medium","large"] },
+        "StoredProcs":       { "type": "string", "enum": ["none","few","many","extensive"], "default": "none" },
+        "Dependencies":      { "type": "string", "default": "" },
+        "SpecialFeatures":   { "type": "string", "default": "" },
+        "TeamSkill":         { "type": "string", "enum": ["expert","moderate","beginner"] },
+        "RollbackPlan":      { "type": "string", "enum": ["yes_tested","yes_untested","partial","no"] },
+        "DatabaseCount":     { "type": "integer", "default": 1 }
       }
     },
     "AssessmentRequest": {
       "type": "object",
-      "required": ["customerName", "requestedBy", "databases"],
+      "required": ["customerName","requestedBy","databases"],
       "properties": {
-        "customerName":  { "type": "string" },
-        "requestedBy":   { "type": "string" },
-        "databases":     { "type": "array", "items": { "$ref": "#/definitions/DatabaseEntry" } },
-        "runInfoGather": { "type": "boolean", "default": false, "description": "Set true to also execute factory info-gather scripts against live databases" }
+        "customerName": { "type": "string" },
+        "requestedBy":  { "type": "string" },
+        "databases":    { "type": "array", "items": { "$ref": "#/definitions/DatabaseEntry" } },
+        "runInfoGather": { "type": "boolean", "default": false }
       }
     },
     "AssessmentResponse": {
       "type": "object",
       "properties": {
-        "jobId":     { "type": "string" },
-        "status":    { "type": "string" },
-        "message":   { "type": "string" },
-        "statusUrl": { "type": "string" }
+        "jobId": { "type": "string" }, "status": { "type": "string" },
+        "message": { "type": "string" }, "statusUrl": { "type": "string" }
       }
     },
     "JobStatus": {
       "type": "object",
       "properties": {
-        "jobId":             { "type": "string" },
-        "status":            { "type": "string", "description": "queued | running | completed | failed" },
-        "createdAt":         { "type": "string" },
-        "completedAt":       { "type": "string" },
-        "customerName":      { "type": "string" },
-        "dbCount":           { "type": "integer" },
-        "reportUrl":         { "type": "string" },
-        "dataverseRecordId": { "type": "string" },
-        "error":             { "type": "string" }
+        "jobId": { "type": "string" }, "status": { "type": "string" },
+        "createdAt": { "type": "string" }, "completedAt": { "type": "string" },
+        "customerName": { "type": "string" }, "dbCount": { "type": "integer" },
+        "reportUrl": { "type": "string" }, "dataverseRecordId": { "type": "string" },
+        "error": { "type": "string" }
+      }
+    },
+    "AgentRecord": {
+      "type": "object",
+      "properties": {
+        "agentId": { "type": "string" }, "name": { "type": "string" },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["online","offline","busy"] },
+        "hostname": { "type": "string" }, "version": { "type": "string" },
+        "registeredAt": { "type": "string" }, "lastHeartbeat": { "type": "string" },
+        "activeJobCount": { "type": "integer" }
+      }
+    },
+    "CreateCollectionJobRequest": {
+      "type": "object",
+      "required": ["role","databaseName","host"],
+      "properties": {
+        "role":             { "type": "string", "enum": ["sqlserver","oracle","postgresql","mysql","mariadb","mongodb","cassandra"] },
+        "databaseName":     { "type": "string" },
+        "host":             { "type": "string" },
+        "port":             { "type": "integer" },
+        "username":         { "type": "string" },
+        "password":         { "type": "string", "format": "password" },
+        "additionalParams": { "type": "object" },
+        "assessmentJobId":  { "type": "string" }
+      }
+    },
+    "CollectionJob": {
+      "type": "object",
+      "properties": {
+        "jobId": { "type": "string" }, "assessmentJobId": { "type": "string" },
+        "role": { "type": "string" }, "databaseName": { "type": "string" },
+        "host": { "type": "string" }, "port": { "type": "integer" },
+        "username": { "type": "string" }, "status": { "type": "string" },
+        "assignedAgentId": { "type": "string" },
+        "createdAt": { "type": "string" }, "startedAt": { "type": "string" },
+        "completedAt": { "type": "string" }, "error": { "type": "string" }
       }
     }
   }

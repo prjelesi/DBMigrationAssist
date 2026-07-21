@@ -1,0 +1,387 @@
+HomeScreen As screen:
+    Fill: =gColorNeutral
+
+    // ═══════════════════════════════════════════════════════════
+    // HEADER
+    // ═══════════════════════════════════════════════════════════
+    Header_Rect As rectangle:
+        X: =0
+        Y: =0
+        Width: =Parent.Width
+        Height: =64
+        Fill: =gColorHeader
+        BorderThickness: =0
+
+    AppIcon_Lbl As label:
+        X: =16
+        Y: =0
+        Width: =40
+        Height: =64
+        Text: ="🗄️"
+        Size: =22
+        Align: =Align.Center
+        VerticalAlign: =VerticalAlign.Middle
+
+    AppTitle_Lbl As label:
+        X: =60
+        Y: =0
+        Width: =500
+        Height: =64
+        Text: ="DB Migration Readiness Assessment"
+        Color: =gColorWhite
+        Size: =18
+        FontWeight: =FontWeight.Bold
+        VerticalAlign: =VerticalAlign.Middle
+
+    UserName_Lbl As label:
+        X: =Parent.Width - 220
+        Y: =0
+        Width: =210
+        Height: =64
+        Text: =User().FullName
+        Color: =RGBA(200, 220, 255, 1)
+        Size: =13
+        Align: =Align.Right
+        VerticalAlign: =VerticalAlign.Middle
+
+    // ═══════════════════════════════════════════════════════════
+    // NAVIGATION TABS
+    // ═══════════════════════════════════════════════════════════
+    NavBar_Rect As rectangle:
+        X: =0
+        Y: =64
+        Width: =Parent.Width
+        Height: =48
+        Fill: =RGBA(16, 110, 190, 1)
+        BorderThickness: =0
+
+    NavHome_Btn As button:
+        X: =0
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="🏠  Dashboard"
+        Fill: =RGBA(0, 90, 158, 1)
+        Color: =gColorWhite
+        FontWeight: =FontWeight.Bold
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(HomeScreen, ScreenTransition.None)
+
+    NavAssess_Btn As button:
+        X: =160
+        Y: =64
+        Width: =180
+        Height: =48
+        Text: ="➕  New Assessment"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(NewAssessmentScreen, ScreenTransition.None)
+
+    NavAgents_Btn As button:
+        X: =340
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="🤖  Agents"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(AgentsScreen, ScreenTransition.None)
+
+    NavJobs_Btn As button:
+        X: =500
+        Y: =64
+        Width: =180
+        Height: =48
+        Text: ="⚡  Collection Jobs"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(CollectJobsScreen, ScreenTransition.None)
+
+    NavReports_Btn As button:
+        X: =680
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="📊  Reports"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(ReportsScreen, ScreenTransition.None)
+
+    // ═══════════════════════════════════════════════════════════
+    // STATS CARDS ROW  (Y offset from top of content = 64+48+24 = 136)
+    // ═══════════════════════════════════════════════════════════
+
+    // Card 1 — Online Agents
+    AgentCard_Rect As rectangle:
+        X: =24
+        Y: =136
+        Width: =280
+        Height: =110
+        Fill: =gColorWhite
+        BorderColor: =gColorBorder
+        BorderThickness: =1
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+
+    AgentCard_Icon As label:
+        X: =36
+        Y: =148
+        Width: =50
+        Height: =50
+        Text: ="🤖"
+        Size: =28
+        VerticalAlign: =VerticalAlign.Middle
+
+    AgentCard_Count As label:
+        X: =96
+        Y: =148
+        Width: =100
+        Height: =50
+        Text: =Text(CountIf(DBMigrationHub.ListAgents(), status = "online"))
+        Size: =32
+        FontWeight: =FontWeight.Bold
+        Color: =gColorSuccess
+        VerticalAlign: =VerticalAlign.Middle
+
+    AgentCard_Title As label:
+        X: =36
+        Y: =200
+        Width: =250
+        Height: =36
+        Text: ="Agents Online"
+        Color: =gColorSubtext
+        Size: =13
+        VerticalAlign: =VerticalAlign.Middle
+
+    // Card 2 — Pending Jobs
+    JobCard_Rect As rectangle:
+        X: =328
+        Y: =136
+        Width: =280
+        Height: =110
+        Fill: =gColorWhite
+        BorderColor: =gColorBorder
+        BorderThickness: =1
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+
+    JobCard_Icon As label:
+        X: =340
+        Y: =148
+        Width: =50
+        Height: =50
+        Text: ="⚡"
+        Size: =28
+        VerticalAlign: =VerticalAlign.Middle
+
+    JobCard_Count As label:
+        X: =400
+        Y: =148
+        Width: =100
+        Height: =50
+        Text: =Text(CountIf(DBMigrationHub.ListCollectionJobs(), status = "pending" || status = "running"))
+        Size: =32
+        FontWeight: =FontWeight.Bold
+        Color: =gColorWarning
+        VerticalAlign: =VerticalAlign.Middle
+
+    JobCard_Title As label:
+        X: =340
+        Y: =200
+        Width: =250
+        Height: =36
+        Text: ="Jobs Active"
+        Color: =gColorSubtext
+        Size: =13
+        VerticalAlign: =VerticalAlign.Middle
+
+    // Card 3 — Completed Assessments
+    ReportCard_Rect As rectangle:
+        X: =632
+        Y: =136
+        Width: =280
+        Height: =110
+        Fill: =gColorWhite
+        BorderColor: =gColorBorder
+        BorderThickness: =1
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+
+    ReportCard_Icon As label:
+        X: =644
+        Y: =148
+        Width: =50
+        Height: =50
+        Text: ="📊"
+        Size: =28
+        VerticalAlign: =VerticalAlign.Middle
+
+    ReportCard_Count As label:
+        X: =704
+        Y: =148
+        Width: =100
+        Height: =50
+        Text: =Text(CountRows(colReports))
+        Size: =32
+        FontWeight: =FontWeight.Bold
+        Color: =gColorPrimary
+        VerticalAlign: =VerticalAlign.Middle
+
+    ReportCard_Title As label:
+        X: =644
+        Y: =200
+        Width: =250
+        Height: =36
+        Text: ="Assessments Done"
+        Color: =gColorSubtext
+        Size: =13
+        VerticalAlign: =VerticalAlign.Middle
+
+    // Card 4 — Quick Action
+    QuickAction_Rect As rectangle:
+        X: =936
+        Y: =136
+        Width: =280
+        Height: =110
+        Fill: =gColorPrimary
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+
+    QuickAction_Btn As button:
+        X: =936
+        Y: =136
+        Width: =280
+        Height: =110
+        Text: ="➕  New Assessment"
+        Fill: =gColorPrimary
+        Color: =gColorWhite
+        Size: =16
+        FontWeight: =FontWeight.Bold
+        BorderThickness: =0
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+        OnSelect: =Navigate(NewAssessmentScreen, ScreenTransition.Fade)
+
+    // ═══════════════════════════════════════════════════════════
+    // RECENT ASSESSMENTS (simple gallery placeholder)
+    // ═══════════════════════════════════════════════════════════
+    RecentTitle_Lbl As label:
+        X: =24
+        Y: =272
+        Width: =500
+        Height: =32
+        Text: ="Recent Assessments"
+        FontWeight: =FontWeight.Bold
+        Size: =16
+        Color: =gColorText
+
+    RefreshHome_Btn As button:
+        X: =Parent.Width - 140
+        Y: =272
+        Width: =120
+        Height: =32
+        Text: ="🔄 Refresh"
+        Fill: =gColorWhite
+        Color: =gColorPrimary
+        BorderColor: =gColorPrimary
+        BorderThickness: =1
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+        OnSelect: =ClearCollect(colReports, DBMigrationHub.ListCollectionJobs())
+
+    RecentGallery As gallery:
+        X: =24
+        Y: =312
+        Width: =Parent.Width - 48
+        Height: =400
+        Items: =colReports
+        TemplateSize: =64
+        TemplatePadding: =2
+
+        Separator_Rect As rectangle:
+            X: =0
+            Y: =ThisItem.TemplateHeight - 1
+            Width: =Parent.TemplateWidth
+            Height: =1
+            Fill: =gColorBorder
+
+        DBName_Lbl As label:
+            X: =12
+            Y: =8
+            Width: =300
+            Height: =24
+            Text: =ThisItem.databaseName
+            FontWeight: =FontWeight.Bold
+            Size: =14
+            Color: =gColorText
+
+        Role_Lbl As label:
+            X: =12
+            Y: =34
+            Width: =200
+            Height: =22
+            Text: =ThisItem.role
+            Size: =12
+            Color: =gColorSubtext
+
+        Status_Lbl As label:
+            X: =Parent.TemplateWidth - 160
+            Y: =20
+            Width: =140
+            Height: =24
+            Text: =ThisItem.status
+            Align: =Align.Right
+            Size: =13
+            FontWeight: =FontWeight.Bold
+            Color: =Switch(
+                ThisItem.status,
+                "completed", gColorSuccess,
+                "failed",    gColorDanger,
+                "running",   gColorWarning,
+                gColorSubtext
+            )
+
+        Arrow_Lbl As label:
+            X: =Parent.TemplateWidth - 16
+            Y: =20
+            Width: =16
+            Height: =24
+            Text: ="›"
+            Size: =18
+            Color: =gColorSubtext

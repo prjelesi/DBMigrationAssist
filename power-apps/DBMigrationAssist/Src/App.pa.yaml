@@ -1,0 +1,32 @@
+App As appinfo:
+    BackEnabled: =false
+    MinScreenWidth: =640
+
+    OnStart: |-
+        =// ── Global config ──────────────────────────────────────────────────────────
+        Set(gHubUrl,   "http://localhost:8000");
+        Set(gApiKey,   "dev-local-key-change-me");
+        Set(gCustomer, User().FullName);
+
+        // ── Colour palette (Fluent UI) ───────────────────────────────────────────
+        Set(gColorPrimary,   RGBA(0,   102, 204, 1));
+        Set(gColorSuccess,   RGBA(16,  124,  16, 1));
+        Set(gColorWarning,   RGBA(255, 140,   0, 1));
+        Set(gColorDanger,    RGBA(196,  43,  28, 1));
+        Set(gColorNeutral,   RGBA(243, 242, 241, 1));
+        Set(gColorHeader,    RGBA(0,    90, 158, 1));
+        Set(gColorText,      RGBA(32,   31,  30, 1));
+        Set(gColorSubtext,   RGBA(96,   94,  92, 1));
+        Set(gColorWhite,     RGBA(255, 255, 255, 1));
+        Set(gColorBorder,    RGBA(210, 208, 206, 1));
+
+        // ── Navigation state ─────────────────────────────────────────────────────
+        Set(gCurrentScreen, "Home");
+
+        // ── Init collections ─────────────────────────────────────────────────────
+        ClearCollect(colAgents,      []);
+        ClearCollect(colCollectJobs, []);
+        ClearCollect(colReports,     []);
+
+        // ── Load initial data ────────────────────────────────────────────────────
+        Navigate(HomeScreen, ScreenTransition.Fade)

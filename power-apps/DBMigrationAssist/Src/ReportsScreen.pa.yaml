@@ -1,0 +1,441 @@
+ReportsScreen As screen:
+    Fill: =gColorNeutral
+    OnVisible: =Set(gSelectedReport, Blank())
+
+    // ═══════════════════════════════════════════════════════════
+    // HEADER + NAV
+    // ═══════════════════════════════════════════════════════════
+    Header_Rect As rectangle:
+        X: =0
+        Y: =0
+        Width: =Parent.Width
+        Height: =64
+        Fill: =gColorHeader
+        BorderThickness: =0
+
+    AppTitle_Lbl As label:
+        X: =60
+        Y: =0
+        Width: =500
+        Height: =64
+        Text: ="DB Migration Readiness Assessment"
+        Color: =gColorWhite
+        Size: =18
+        FontWeight: =FontWeight.Bold
+        VerticalAlign: =VerticalAlign.Middle
+
+    NavBar_Rect As rectangle:
+        X: =0
+        Y: =64
+        Width: =Parent.Width
+        Height: =48
+        Fill: =RGBA(16, 110, 190, 1)
+        BorderThickness: =0
+
+    NavHome_Btn As button:
+        X: =0
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="🏠  Dashboard"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(HomeScreen, ScreenTransition.None)
+
+    NavAssess_Btn As button:
+        X: =160
+        Y: =64
+        Width: =180
+        Height: =48
+        Text: ="➕  New Assessment"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(NewAssessmentScreen, ScreenTransition.None)
+
+    NavAgents_Btn As button:
+        X: =340
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="🤖  Agents"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(AgentsScreen, ScreenTransition.None)
+
+    NavJobs_Btn As button:
+        X: =500
+        Y: =64
+        Width: =180
+        Height: =48
+        Text: ="⚡  Collection Jobs"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(CollectJobsScreen, ScreenTransition.None)
+
+    NavReports_Btn As button:
+        X: =680
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="📊  Reports"
+        Fill: =RGBA(0, 90, 158, 1)
+        Color: =gColorWhite
+        FontWeight: =FontWeight.Bold
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+
+    // ═══════════════════════════════════════════════════════════
+    // LIST PANEL (LEFT)
+    // ═══════════════════════════════════════════════════════════
+    ListPanel_Rect As rectangle:
+        X: =0
+        Y: =112
+        Width: =420
+        Height: =Parent.Height - 112
+        Fill: =gColorWhite
+        BorderColor: =gColorBorder
+        BorderThickness: =1
+
+    ListTitle_Lbl As label:
+        X: =16
+        Y: =124
+        Width: =300
+        Height: =30
+        Text: ="📊 Assessment Reports"
+        FontWeight: =FontWeight.Bold
+        Size: =15
+        Color: =gColorText
+
+    JobIdSearch_Input As textinput:
+        X: =16
+        Y: =160
+        Width: =280
+        Height: =36
+        HintText: ="Enter Job ID to load report…"
+        BorderColor: =gColorBorder
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+
+    LoadReport_Btn As button:
+        X: =302
+        Y: =160
+        Width: =100
+        Height: =36
+        Text: ="Load"
+        Fill: =gColorPrimary
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+        OnSelect: |-
+            =If(
+                !IsBlank(JobIdSearch_Input.Text),
+                Sequence(
+                    Set(gLoadingReport, true),
+                    ClearCollect(colReportItems, DBMigrationHub.GetAssessmentReport(JobIdSearch_Input.Text)),
+                    Set(gLoadedJobId, JobIdSearch_Input.Text),
+                    Set(gLoadingReport, false)
+                )
+            )
+
+    // Recent jobs list (from colCollectJobs completed)
+    RecentList_Lbl As label:
+        X: =16
+        Y: =210
+        Width: =390
+        Height: =24
+        Text: ="— Recent Completed Jobs —"
+        Size: =11
+        Color: =gColorSubtext
+        Align: =Align.Center
+
+    RecentJobsGallery As gallery:
+        X: =0
+        Y: =236
+        Width: =420
+        Height: =Parent.Height - 350
+        Items: =Filter(colCollectJobs, status = "completed")
+        TemplateSize: =60
+        TemplatePadding: =0
+
+        Row_Bg As rectangle:
+            X: =0
+            Y: =0
+            Width: =Parent.TemplateWidth
+            Height: =Parent.TemplateHeight - 1
+            Fill: =If(ThisItem.jobId = gLoadedJobId, RGBA(237, 246, 255, 1), If(IsOdd(ThisItem.ItemIndex), gColorWhite, RGBA(250, 249, 248, 1)))
+
+        Row_Border As rectangle:
+            X: =0
+            Y: =Parent.TemplateHeight - 1
+            Width: =Parent.TemplateWidth
+            Height: =1
+            Fill: =gColorBorder
+
+        DB_Lbl As label:
+            X: =12
+            Y: =8
+            Width: =300
+            Height: =22
+            Text: =ThisItem.databaseName
+            FontWeight: =FontWeight.Bold
+            Size: =13
+            Color: =gColorText
+
+        Role_Lbl As label:
+            X: =12
+            Y: =32
+            Width: =180
+            Height: =18
+            Text: =Upper(ThisItem.role) & "  •  " & Text(DateTimeValue(ThisItem.completedAt), "[$-en-US]dd/mm hh:mm")
+            Size: =11
+            Color: =gColorSubtext
+
+        ViewBtn As button:
+            X: =340
+            Y: =16
+            Width: =72
+            Height: =28
+            Text: ="View"
+            Fill: =If(ThisItem.jobId = gLoadedJobId, gColorPrimary, gColorWhite)
+            Color: =If(ThisItem.jobId = gLoadedJobId, gColorWhite, gColorPrimary)
+            BorderColor: =gColorPrimary
+            BorderThickness: =1
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+            OnSelect: |-
+                =Sequence(
+                    Set(gLoadingReport, true),
+                    ClearCollect(colReportItems, DBMigrationHub.GetAssessmentReport(ThisItem.assessmentJobId)),
+                    Set(gLoadedJobId, ThisItem.assessmentJobId),
+                    Set(gLoadingReport, false)
+                )
+
+    // ═══════════════════════════════════════════════════════════
+    // DETAIL PANEL (RIGHT)
+    // ═══════════════════════════════════════════════════════════
+    DetailPanel_Rect As rectangle:
+        X: =420
+        Y: =112
+        Width: =Parent.Width - 420
+        Height: =Parent.Height - 112
+        Fill: =gColorNeutral
+
+    Loading_Lbl As label:
+        X: =600
+        Y: =380
+        Width: =400
+        Height: =40
+        Text: ="Loading report…"
+        Size: =16
+        Color: =gColorSubtext
+        Align: =Align.Center
+        Visible: =gLoadingReport
+
+    EmptyDetail_Lbl As label:
+        X: =420
+        Y: =320
+        Width: =Parent.Width - 420
+        Height: =120
+        Text: ="Select or load a report to view results"
+        Size: =16
+        Color: =gColorSubtext
+        Align: =Align.Center
+        VerticalAlign: =VerticalAlign.Middle
+        Visible: =CountRows(colReportItems) = 0 && !gLoadingReport
+
+    // Report header (when loaded)
+    ReportHeader_Rect As rectangle:
+        X: =436
+        Y: =124
+        Width: =Parent.Width - 456
+        Height: =72
+        Fill: =gColorWhite
+        BorderColor: =gColorBorder
+        BorderThickness: =1
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+        Visible: =CountRows(colReportItems) > 0
+
+    ReportJobId_Lbl As label:
+        X: =448
+        Y: =132
+        Width: =700
+        Height: =24
+        Text: ="Job ID: " & gLoadedJobId
+        FontWeight: =FontWeight.Bold
+        Size: =13
+        Color: =gColorText
+        Visible: =CountRows(colReportItems) > 0
+
+    ReportCount_Lbl As label:
+        X: =448
+        Y: =158
+        Width: =500
+        Height: =28
+        Text: =Text(CountRows(colReportItems)) & " database(s) assessed"
+        Size: =13
+        Color: =gColorSubtext
+        Visible: =CountRows(colReportItems) > 0
+
+    // Report items gallery
+    ReportItemsGallery As gallery:
+        X: =436
+        Y: =208
+        Width: =Parent.Width - 456
+        Height: =Parent.Height - 224
+        Items: =colReportItems
+        TemplateSize: =120
+        TemplatePadding: =4
+        Visible: =CountRows(colReportItems) > 0
+
+        ItemCard_Rect As rectangle:
+            X: =0
+            Y: =4
+            Width: =Parent.TemplateWidth
+            Height: =Parent.TemplateHeight - 8
+            Fill: =gColorWhite
+            BorderColor: =gColorBorder
+            BorderThickness: =1
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+
+        DBName_Lbl As label:
+            X: =12
+            Y: =14
+            Width: =340
+            Height: =26
+            Text: =ThisItem.DatabaseName
+            FontWeight: =FontWeight.Bold
+            Size: =15
+            Color: =gColorText
+
+        SourceType_Lbl As label:
+            X: =12
+            Y: =42
+            Width: =200
+            Height: =20
+            Text: =ThisItem.SourceType & " → " & ThisItem.TargetType
+            Size: =12
+            Color: =gColorSubtext
+
+        MigType_Lbl As label:
+            X: =12
+            Y: =64
+            Width: =200
+            Height: =20
+            Text: =ThisItem.MigrationType
+            Size: =11
+            Color: =gColorSubtext
+
+        // Readiness Score — large badge
+        Score_Rect As rectangle:
+            X: =Parent.TemplateWidth - 130
+            Y: =10
+            Width: =90
+            Height: =90
+            Fill: =Switch(
+                true,
+                ThisItem.ReadinessScore >= 70, RGBA(240, 255, 240, 1),
+                ThisItem.ReadinessScore >= 40, RGBA(255, 252, 235, 1),
+                RGBA(255, 242, 242, 1)
+            )
+            BorderColor: =Switch(
+                true,
+                ThisItem.ReadinessScore >= 70, gColorSuccess,
+                ThisItem.ReadinessScore >= 40, gColorWarning,
+                gColorDanger
+            )
+            BorderThickness: =2
+            RadiusTopLeft: =8
+            RadiusTopRight: =8
+            RadiusBottomLeft: =8
+            RadiusBottomRight: =8
+
+        Score_Lbl As label:
+            X: =Parent.TemplateWidth - 130
+            Y: =18
+            Width: =90
+            Height: =50
+            Text: =Text(ThisItem.ReadinessScore) & "/100"
+            FontWeight: =FontWeight.Bold
+            Size: =18
+            Align: =Align.Center
+            VerticalAlign: =VerticalAlign.Middle
+            Color: =Switch(
+                true,
+                ThisItem.ReadinessScore >= 70, gColorSuccess,
+                ThisItem.ReadinessScore >= 40, gColorWarning,
+                gColorDanger
+            )
+
+        Band_Lbl As label:
+            X: =Parent.TemplateWidth - 130
+            Y: =68
+            Width: =90
+            Height: =28
+            Text: =ThisItem.ReadinessBand
+            Size: =10
+            FontWeight: =FontWeight.Bold
+            Align: =Align.Center
+            Color: =Switch(
+                true,
+                ThisItem.ReadinessScore >= 70, gColorSuccess,
+                ThisItem.ReadinessScore >= 40, gColorWarning,
+                gColorDanger
+            )
+
+        Effort_Lbl As label:
+            X: =220
+            Y: =42
+            Width: =220
+            Height: =20
+            Text: ="Effort: " & Text(ThisItem.EffortTotalDays) & " days  (" & Text(ThisItem.EffortWeeks) & " wks)"
+            Size: =12
+            Color: =gColorText
+
+        Blockers_Lbl As label:
+            X: =12
+            Y: =86
+            Width: =600
+            Height: =22
+            Text: =If(
+                CountRows(ThisItem.Blockers) = 0,
+                "✅  No blockers",
+                "⚠️  Blockers: " & Concat(ThisItem.Blockers, Value, ", ")
+            )
+            Size: =12
+            Color: =If(CountRows(ThisItem.Blockers) = 0, gColorSuccess, gColorDanger)

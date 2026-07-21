@@ -1,0 +1,28 @@
+{
+    "FormatVersion": 1,
+    "SavedFromPAVersion": "3.24054.12",
+    "Properties": {
+        "Name": "DBMigrationAssist",
+        "Id": "dbmigrationassist-canvas-app-v1",
+        "Description": "DB Migration Readiness Assessment — assess databases, manage collector agents, track collection jobs and view readiness reports.",
+        "DocumentAppType": "CanvasApp",
+        "ScreenWidth": 1366,
+        "ScreenHeight": 768,
+        "LocalConnectionReferences": {
+            "DBMigrationHub": {
+                "id": "/providers/Microsoft.PowerApps/apis/shared_dbmigrationhub",
+                "source": "Invoker",
+                "dependencyId": ""
+            }
+        },
+        "LocalDatasourceReferences": {},
+        "TemplateIcons": {}
+    },
+    "Screens": {
+        "HomeScreen": {},
+        "NewAssessmentScreen": {},
+        "AgentsScreen": {},
+        "CollectJobsScreen": {},
+        "ReportsScreen": {}
+    }
+}

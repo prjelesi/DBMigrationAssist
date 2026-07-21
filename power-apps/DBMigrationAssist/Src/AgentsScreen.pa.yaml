@@ -1,0 +1,365 @@
+AgentsScreen As screen:
+    Fill: =gColorNeutral
+    OnVisible: =ClearCollect(colAgents, DBMigrationHub.ListAgents())
+
+    // ═══════════════════════════════════════════════════════════
+    // HEADER + NAV
+    // ═══════════════════════════════════════════════════════════
+    Header_Rect As rectangle:
+        X: =0
+        Y: =0
+        Width: =Parent.Width
+        Height: =64
+        Fill: =gColorHeader
+        BorderThickness: =0
+
+    AppTitle_Lbl As label:
+        X: =60
+        Y: =0
+        Width: =500
+        Height: =64
+        Text: ="DB Migration Readiness Assessment"
+        Color: =gColorWhite
+        Size: =18
+        FontWeight: =FontWeight.Bold
+        VerticalAlign: =VerticalAlign.Middle
+
+    NavBar_Rect As rectangle:
+        X: =0
+        Y: =64
+        Width: =Parent.Width
+        Height: =48
+        Fill: =RGBA(16, 110, 190, 1)
+        BorderThickness: =0
+
+    NavHome_Btn As button:
+        X: =0
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="🏠  Dashboard"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(HomeScreen, ScreenTransition.None)
+
+    NavAssess_Btn As button:
+        X: =160
+        Y: =64
+        Width: =180
+        Height: =48
+        Text: ="➕  New Assessment"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(NewAssessmentScreen, ScreenTransition.None)
+
+    NavAgents_Btn As button:
+        X: =340
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="🤖  Agents"
+        Fill: =RGBA(0, 90, 158, 1)
+        Color: =gColorWhite
+        FontWeight: =FontWeight.Bold
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+
+    NavJobs_Btn As button:
+        X: =500
+        Y: =64
+        Width: =180
+        Height: =48
+        Text: ="⚡  Collection Jobs"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(CollectJobsScreen, ScreenTransition.None)
+
+    NavReports_Btn As button:
+        X: =680
+        Y: =64
+        Width: =160
+        Height: =48
+        Text: ="📊  Reports"
+        Fill: =RGBA(16, 110, 190, 1)
+        Color: =gColorWhite
+        BorderThickness: =0
+        RadiusTopLeft: =0
+        RadiusTopRight: =0
+        RadiusBottomLeft: =0
+        RadiusBottomRight: =0
+        OnSelect: =Navigate(ReportsScreen, ScreenTransition.None)
+
+    // ═══════════════════════════════════════════════════════════
+    // PAGE TITLE + STATS + REFRESH
+    // ═══════════════════════════════════════════════════════════
+    PageTitle_Lbl As label:
+        X: =24
+        Y: =128
+        Width: =500
+        Height: =36
+        Text: ="🤖  Collector Agent Registry"
+        FontWeight: =FontWeight.Bold
+        Size: =20
+        Color: =gColorText
+
+    OnlineCount_Lbl As label:
+        X: =24
+        Y: =168
+        Width: =600
+        Height: =24
+        Text: =Text(CountIf(colAgents, status = "online")) & " online  |  " & Text(CountIf(colAgents, status = "busy")) & " busy  |  " & Text(CountIf(colAgents, status = "offline")) & " offline  |  " & Text(CountRows(colAgents)) & " total"
+        Color: =gColorSubtext
+        Size: =13
+
+    RefreshAgents_Btn As button:
+        X: =Parent.Width - 140
+        Y: =134
+        Width: =120
+        Height: =36
+        Text: ="🔄 Refresh"
+        Fill: =gColorWhite
+        Color: =gColorPrimary
+        BorderColor: =gColorPrimary
+        BorderThickness: =1
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+        OnSelect: =ClearCollect(colAgents, DBMigrationHub.ListAgents())
+
+    // Auto-refresh timer (every 30s)
+    AutoRefresh_Timer As timer:
+        Duration: =30000
+        Repeat: =true
+        Start: =true
+        OnTimerEnd: =ClearCollect(colAgents, DBMigrationHub.ListAgents())
+
+    // ═══════════════════════════════════════════════════════════
+    // COLUMN HEADERS
+    // ═══════════════════════════════════════════════════════════
+    ColHeader_Rect As rectangle:
+        X: =24
+        Y: =198
+        Width: =Parent.Width - 48
+        Height: =36
+        Fill: =RGBA(237, 235, 233, 1)
+        BorderColor: =gColorBorder
+        BorderThickness: =1
+
+    Col_Name_Hdr As label:
+        X: =36
+        Y: =207
+        Width: =200
+        Height: =18
+        Text: ="AGENT NAME"
+        FontWeight: =FontWeight.Bold
+        Size: =11
+        Color: =gColorSubtext
+
+    Col_Status_Hdr As label:
+        X: =240
+        Y: =207
+        Width: =90
+        Height: =18
+        Text: ="STATUS"
+        FontWeight: =FontWeight.Bold
+        Size: =11
+        Color: =gColorSubtext
+
+    Col_Roles_Hdr As label:
+        X: =340
+        Y: =207
+        Width: =400
+        Height: =18
+        Text: ="ROLES"
+        FontWeight: =FontWeight.Bold
+        Size: =11
+        Color: =gColorSubtext
+
+    Col_ActiveJobs_Hdr As label:
+        X: =750
+        Y: =207
+        Width: =80
+        Height: =18
+        Text: ="JOBS"
+        FontWeight: =FontWeight.Bold
+        Size: =11
+        Color: =gColorSubtext
+
+    Col_Heartbeat_Hdr As label:
+        X: =840
+        Y: =207
+        Width: =200
+        Height: =18
+        Text: ="LAST HEARTBEAT"
+        FontWeight: =FontWeight.Bold
+        Size: =11
+        Color: =gColorSubtext
+
+    Col_Host_Hdr As label:
+        X: =1050
+        Y: =207
+        Width: =260
+        Height: =18
+        Text: ="HOST / VERSION"
+        FontWeight: =FontWeight.Bold
+        Size: =11
+        Color: =gColorSubtext
+
+    // ═══════════════════════════════════════════════════════════
+    // AGENTS GALLERY
+    // ═══════════════════════════════════════════════════════════
+    AgentsGallery As gallery:
+        X: =24
+        Y: =234
+        Width: =Parent.Width - 48
+        Height: =Parent.Height - 250
+        Items: =colAgents
+        TemplateSize: =64
+        TemplatePadding: =0
+
+        Row_Rect As rectangle:
+            X: =0
+            Y: =0
+            Width: =Parent.TemplateWidth
+            Height: =Parent.TemplateHeight - 1
+            Fill: =If(IsOdd(ThisItem.ItemIndex), gColorWhite, RGBA(250, 249, 248, 1))
+            BorderColor: =gColorBorder
+            BorderThickness: =0
+
+        Row_Border As rectangle:
+            X: =0
+            Y: =Parent.TemplateHeight - 1
+            Width: =Parent.TemplateWidth
+            Height: =1
+            Fill: =gColorBorder
+
+        StatusDot As circle:
+            X: =12
+            Y: =22
+            Width: =16
+            Height: =16
+            Fill: =Switch(
+                ThisItem.status,
+                "online",  gColorSuccess,
+                "busy",    gColorWarning,
+                "offline", gColorDanger,
+                gColorBorder
+            )
+            BorderThickness: =0
+
+        AgentName_Lbl As label:
+            X: =36
+            Y: =8
+            Width: =194
+            Height: =24
+            Text: =ThisItem.name
+            FontWeight: =FontWeight.Bold
+            Size: =13
+            Color: =gColorText
+
+        AgentId_Lbl As label:
+            X: =36
+            Y: =34
+            Width: =194
+            Height: =18
+            Text: =Left(ThisItem.agentId, 8) & "…"
+            Size: =11
+            Color: =gColorSubtext
+
+        StatusBadge As label:
+            X: =240
+            Y: =20
+            Width: =90
+            Height: =24
+            Text: =Upper(ThisItem.status)
+            FontWeight: =FontWeight.Bold
+            Size: =11
+            Align: =Align.Center
+            Color: =Switch(
+                ThisItem.status,
+                "online",  gColorSuccess,
+                "busy",    gColorWarning,
+                "offline", gColorDanger,
+                gColorSubtext
+            )
+
+        Roles_Lbl As label:
+            X: =340
+            Y: =8
+            Width: =400
+            Height: =48
+            Text: =Concat(ThisItem.roles, "  •  " & Value)
+            Size: =12
+            Color: =gColorPrimary
+            VerticalAlign: =VerticalAlign.Middle
+
+        ActiveJobs_Lbl As label:
+            X: =750
+            Y: =20
+            Width: =80
+            Height: =24
+            Text: =Text(ThisItem.activeJobCount)
+            Size: =14
+            FontWeight: =FontWeight.Bold
+            Align: =Align.Center
+            Color: =If(ThisItem.activeJobCount > 0, gColorWarning, gColorSubtext)
+
+        Heartbeat_Lbl As label:
+            X: =840
+            Y: =20
+            Width: =200
+            Height: =24
+            Text: =Text(DateTimeValue(ThisItem.lastHeartbeat), "[$-en-US]dd/mm hh:mm:ss")
+            Size: =12
+            Color: =gColorSubtext
+            VerticalAlign: =VerticalAlign.Middle
+
+        HostVersion_Lbl As label:
+            X: =1050
+            Y: =8
+            Width: =260
+            Height: =24
+            Text: =Coalesce(ThisItem.hostname, "—")
+            Size: =12
+            Color: =gColorText
+
+        Version_Lbl As label:
+            X: =1050
+            Y: =34
+            Width: =260
+            Height: =18
+            Text: ="v" & ThisItem.version
+            Size: =11
+            Color: =gColorSubtext
+
+    // Empty state
+    NoAgents_Lbl As label:
+        X: =24
+        Y: =350
+        Width: =Parent.Width - 48
+        Height: =100
+        Text: ="No agents registered yet.\n\nStart a collector agent with: docker compose up agent-relational"
+        Size: =15
+        Color: =gColorSubtext
+        Align: =Align.Center
+        VerticalAlign: =VerticalAlign.Middle
+        Visible: =CountRows(colAgents) = 0
