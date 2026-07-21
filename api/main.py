@@ -22,6 +22,8 @@ from fastapi.security.api_key import APIKeyHeader
 from msal import ConfidentialClientApplication
 from pydantic import BaseModel, Field
 
+from api.agent_registry import AgentRegistry, AgentRole, AgentStatus, CollectionJob, CollectionJobStatus
+
 load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -43,6 +45,9 @@ INPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ── In-memory job store (replace with Redis/DB for production) ─────────────────
 jobs: dict[str, dict] = {}
 
+# ── Agent registry (singleton) ───────────────────────────────────────────────
+registry = AgentRegistry()
+
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="DB Migration Readiness Assessment API",
@@ -51,12 +56,19 @@ app = FastAPI(
 )
 
 # ── API key security ──────────────────────────────────────────────────────────
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+api_key_header    = APIKeyHeader(name="X-API-Key",    auto_error=True)
+agent_token_header = APIKeyHeader(name="X-Agent-Token", auto_error=False)
 
 def verify_api_key(key: str = Security(api_key_header)) -> str:
     if key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return key
+
+def _verify_agent(agent_id: str, token: Optional[str]) -> None:
+    if not registry.verify_token(agent_id, token or ""):
+        raise HTTPException(status_code=403, detail="Invalid agent token")
+    if not registry.get_agent(agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found — re-register")
 
 # ── Request / Response models ─────────────────────────────────────────────────
 
@@ -423,3 +435,194 @@ async def get_questionnaire(_key: str = Depends(verify_api_key)):
     if not q_file.exists():
         raise HTTPException(status_code=404, detail="questionnaire.json not found")
     return json.loads(q_file.read_text(encoding="utf-8"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AGENT REGISTRY ENDPOINTS
+# Collector agents call these to register, heartbeat, and claim jobs.
+# ══════════════════════════════════════════════════════════════════════════════
+
+class AgentRegisterRequest(BaseModel):
+    name: str = Field(..., description="Human-readable agent name, e.g. 'on-prem-collector-01'")
+    roles: list[AgentRole] = Field(..., description="DB types this agent can collect from")
+    hostname: Optional[str] = None
+    version: str = "1.0.0"
+
+
+class AgentRegisterResponse(BaseModel):
+    agentId: str
+    agentToken: str
+    message: str
+
+
+class CollectionJobCompleteRequest(BaseModel):
+    success: bool
+    collectedData: Optional[dict] = None
+    error: Optional[str] = None
+    executionTimeSeconds: Optional[float] = None
+
+
+class CreateCollectionJobRequest(BaseModel):
+    role: AgentRole
+    databaseName: str
+    host: str
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    additionalParams: dict = {}
+    assessmentJobId: Optional[str] = None
+
+
+@app.post("/agents/register", response_model=AgentRegisterResponse, tags=["Agents"])
+async def register_agent(request: AgentRegisterRequest):
+    """
+    Called by a collector agent on startup.
+    No hub API key required — any Docker container can register.
+    Returns agentId + agentToken that the agent must include in all subsequent calls.
+    """
+    agent_id, token = registry.register(
+        name=request.name,
+        roles=request.roles,
+        hostname=request.hostname,
+        version=request.version,
+    )
+    return AgentRegisterResponse(
+        agentId=agent_id,
+        agentToken=token,
+        message=f"Registered '{request.name}' with roles: {[r.value for r in request.roles]}",
+    )
+
+
+@app.post("/agents/{agent_id}/heartbeat", tags=["Agents"])
+async def agent_heartbeat(
+    agent_id: str,
+    x_agent_token: Optional[str] = Security(agent_token_header),
+):
+    """Agents call this every 30 s to stay 'online'. Missed for 90 s → marked offline."""
+    _verify_agent(agent_id, x_agent_token)
+    registry.heartbeat(agent_id)
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+@app.delete("/agents/{agent_id}", tags=["Agents"])
+async def deregister_agent(
+    agent_id: str,
+    x_agent_token: Optional[str] = Security(agent_token_header),
+):
+    """Called by agent on graceful shutdown."""
+    _verify_agent(agent_id, x_agent_token)
+    registry.deregister(agent_id)
+    return {"status": "deregistered"}
+
+
+@app.get("/agents", tags=["Agents"])
+async def list_agents(
+    role: Optional[AgentRole] = None,
+    _key: str = Depends(verify_api_key),
+):
+    """List all registered agents. Power Apps admin screen / Copilot Studio can call this."""
+    agents = registry.list_agents()
+    if role:
+        agents = [a for a in agents if role in a.roles]
+    return agents
+
+
+@app.get("/agents/{agent_id}/jobs/pending", tags=["Agents"])
+async def get_pending_jobs(
+    agent_id: str,
+    x_agent_token: Optional[str] = Security(agent_token_header),
+):
+    """
+    Agent polls this endpoint every 10 s.
+    Returns pending collection jobs that match the agent's roles.
+    Automatically marks returned jobs as 'assigned' to this agent.
+    Password is included in the response (over TLS only in production).
+    """
+    _verify_agent(agent_id, x_agent_token)
+    pending = registry.get_pending_jobs_for_agent(agent_id)
+    result = []
+    for job in pending:
+        registry.assign_job(job.jobId, agent_id)
+        j = job.model_dump()
+        j["password"] = registry.get_job_password(job.jobId)
+        result.append(j)
+    return result
+
+
+@app.post("/agents/{agent_id}/jobs/{job_id}/complete", tags=["Agents"])
+async def complete_collection_job(
+    agent_id: str,
+    job_id: str,
+    request: CollectionJobCompleteRequest,
+    x_agent_token: Optional[str] = Security(agent_token_header),
+):
+    """Agent posts results here when a collection job finishes (success or failure)."""
+    _verify_agent(agent_id, x_agent_token)
+    ok = registry.complete_job(
+        job_id=job_id,
+        success=request.success,
+        result=request.collectedData,
+        error=request.error,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Collection job {job_id} not found")
+    return {"status": "ok"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COLLECTION JOB ENDPOINTS (called by Power Apps / Power Automate)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/collect", status_code=202, tags=["Collection"])
+async def create_collection_job(
+    request: CreateCollectionJobRequest,
+    _key: str = Depends(verify_api_key),
+):
+    """
+    Submit a live database collection job.
+    The hub will assign it to an online agent with the matching role.
+    Returns jobId to poll with GET /collect/{jobId}.
+    """
+    # Check at least one agent with this role is online
+    candidates = registry.agents_for_role(request.role)
+    job = registry.create_collection_job(
+        role=request.role,
+        database_name=request.databaseName,
+        host=request.host,
+        port=request.port,
+        username=request.username,
+        password=request.password,
+        additional_params=request.additionalParams,
+        assessment_job_id=request.assessmentJobId,
+    )
+    agent_warning = None if candidates else f"No online agents with role '{request.role.value}' — job queued, will run when an agent connects."
+    return {
+        "jobId": job.jobId,
+        "status": "pending",
+        "role": request.role,
+        "availableAgents": len(candidates),
+        "warning": agent_warning,
+        "pollUrl": f"/collect/{job.jobId}",
+    }
+
+
+@app.get("/collect/{job_id}", tags=["Collection"])
+async def get_collection_job(
+    job_id: str,
+    _key: str = Depends(verify_api_key),
+):
+    """Poll status of a collection job. Returns result once completed."""
+    job = registry.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Collection job {job_id} not found")
+    return job
+
+
+@app.get("/collect", tags=["Collection"])
+async def list_collection_jobs(
+    status: Optional[CollectionJobStatus] = None,
+    role: Optional[AgentRole] = None,
+    _key: str = Depends(verify_api_key),
+):
+    """List collection jobs, optionally filtered by status or role."""
+    return registry.list_jobs(status=status, role=role)
