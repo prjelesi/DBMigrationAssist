@@ -1,0 +1,170 @@
+#cloud-config
+# Installs Oracle Database XE 21c on Oracle Linux 9
+# ~15-20 minutes to complete on first boot
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - oracle-epel-release-el9
+
+runcmd:
+  # ── Configure Oracle yum repos ─────────────────────────────────────────────
+  - dnf install -y oracle-database-preinstall-21c 2>&1 | tee -a /var/log/oracle-install.log
+
+  # ── Install Oracle XE 21c ──────────────────────────────────────────────────
+  - dnf install -y oracle-database-xe-21c 2>&1 | tee -a /var/log/oracle-install.log
+
+  # ── Configure Oracle XE (set passwords, create CDB/PDB) ───────────────────
+  - |
+    echo "{{ORACLE_SYS_PASSWORD}}" | /etc/init.d/oracle-xe-21c configure 2>&1 | tee -a /var/log/oracle-install.log
+
+  # ── Start Oracle on boot ───────────────────────────────────────────────────
+  - systemctl daemon-reload
+  - systemctl enable oracle-xe-21c
+  - systemctl start oracle-xe-21c
+
+  # ── Set environment for oracle user ────────────────────────────────────────
+  - |
+    cat >> /home/oracle/.bash_profile << 'EOF'
+    export ORACLE_SID=XE
+    export ORACLE_BASE=/opt/oracle
+    export ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE
+    export PATH=$ORACLE_HOME/bin:$PATH
+    export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+    EOF
+
+  # ── Wait for listener to start ─────────────────────────────────────────────
+  - sleep 30
+
+  # ── Create demo user and schema in FREEPDB1 ────────────────────────────────
+  - |
+    su - oracle -c "
+    export ORACLE_SID=XE
+    export ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE
+    export PATH=\$ORACLE_HOME/bin:\$PATH
+    sqlplus sys/{{ORACLE_SYS_PASSWORD}}@localhost:1521/XEPDB1 as sysdba << 'SQL'
+    -- Create demo user
+    CREATE USER demouser IDENTIFIED BY Demo@Password123
+      DEFAULT TABLESPACE USERS
+      TEMPORARY TABLESPACE TEMP
+      QUOTA UNLIMITED ON USERS;
+
+    GRANT CREATE SESSION TO demouser;
+    GRANT CREATE TABLE TO demouser;
+    GRANT CREATE VIEW TO demouser;
+    GRANT CREATE SEQUENCE TO demouser;
+    GRANT CREATE PROCEDURE TO demouser;
+    GRANT CREATE TRIGGER TO demouser;
+
+    -- Switch to demo user context
+    CONNECT demouser/Demo@Password123@localhost:1521/XEPDB1;
+
+    -- Employees table (simulates on-prem Oracle HR schema)
+    CREATE SEQUENCE emp_seq START WITH 1 INCREMENT BY 1;
+    CREATE TABLE EMPLOYEES (
+      ID         NUMBER DEFAULT emp_seq.NEXTVAL PRIMARY KEY,
+      NAME       VARCHAR2(100) NOT NULL,
+      DEPARTMENT VARCHAR2(50),
+      SALARY     NUMBER(10,2),
+      HIRE_DATE  DATE
+    );
+    INSERT INTO EMPLOYEES (NAME, DEPARTMENT, SALARY, HIRE_DATE) VALUES ('Alice Smith',  'Engineering', 95000, DATE '2019-03-15');
+    INSERT INTO EMPLOYEES (NAME, DEPARTMENT, SALARY, HIRE_DATE) VALUES ('Bob Jones',    'Sales',       72000, DATE '2020-07-01');
+    INSERT INTO EMPLOYEES (NAME, DEPARTMENT, SALARY, HIRE_DATE) VALUES ('Carol Wu',     'HR',          68000, DATE '2021-01-10');
+    INSERT INTO EMPLOYEES (NAME, DEPARTMENT, SALARY, HIRE_DATE) VALUES ('David Park',   'Engineering', 105000,DATE '2018-11-22');
+    INSERT INTO EMPLOYEES (NAME, DEPARTMENT, SALARY, HIRE_DATE) VALUES ('Eve Torres',   'Finance',     88000, DATE '2017-05-30');
+
+    -- Products table with Oracle-specific types
+    CREATE SEQUENCE prod_seq START WITH 1 INCREMENT BY 1;
+    CREATE TABLE PRODUCTS (
+      ID       NUMBER DEFAULT prod_seq.NEXTVAL PRIMARY KEY,
+      NAME     VARCHAR2(100) NOT NULL,
+      CATEGORY VARCHAR2(50),
+      PRICE    NUMBER(10,2),
+      STOCK    NUMBER,
+      CREATED  TIMESTAMP DEFAULT SYSTIMESTAMP
+    );
+    INSERT INTO PRODUCTS (NAME, CATEGORY, PRICE, STOCK) VALUES ('Laptop Pro',    'Electronics', 1299.99, 45);
+    INSERT INTO PRODUCTS (NAME, CATEGORY, PRICE, STOCK) VALUES ('Office Chair',  'Furniture',    449.00, 120);
+    INSERT INTO PRODUCTS (NAME, CATEGORY, PRICE, STOCK) VALUES ('Standing Desk', 'Furniture',    699.00,  35);
+    INSERT INTO PRODUCTS (NAME, CATEGORY, PRICE, STOCK) VALUES ('Wireless Mouse','Electronics',   49.99, 200);
+    INSERT INTO PRODUCTS (NAME, CATEGORY, PRICE, STOCK) VALUES ('Monitor 4K',    'Electronics',  599.99,  60);
+
+    -- View (Oracle-style)
+    CREATE VIEW V_ENGINEERING AS
+      SELECT ID, NAME, SALARY, HIRE_DATE FROM EMPLOYEES WHERE DEPARTMENT = 'Engineering';
+
+    -- Package (PL/SQL — key complexity factor for Oracle migrations)
+    CREATE OR REPLACE PACKAGE emp_pkg AS
+      PROCEDURE get_by_dept(p_dept IN VARCHAR2);
+      FUNCTION get_headcount(p_dept IN VARCHAR2) RETURN NUMBER;
+    END emp_pkg;
+    /
+    CREATE OR REPLACE PACKAGE BODY emp_pkg AS
+      PROCEDURE get_by_dept(p_dept IN VARCHAR2) IS
+        CURSOR c_emp IS SELECT * FROM EMPLOYEES WHERE DEPARTMENT = p_dept;
+        v_emp EMPLOYEES%ROWTYPE;
+      BEGIN
+        OPEN c_emp;
+        LOOP
+          FETCH c_emp INTO v_emp;
+          EXIT WHEN c_emp%NOTFOUND;
+          DBMS_OUTPUT.PUT_LINE(v_emp.NAME || ' - ' || v_emp.SALARY);
+        END LOOP;
+        CLOSE c_emp;
+      END;
+      FUNCTION get_headcount(p_dept IN VARCHAR2) RETURN NUMBER IS
+        v_count NUMBER;
+      BEGIN
+        SELECT COUNT(*) INTO v_count FROM EMPLOYEES WHERE DEPARTMENT = p_dept;
+        RETURN v_count;
+      END;
+    END emp_pkg;
+    /
+
+    -- Trigger (another Oracle complexity factor)
+    CREATE OR REPLACE TRIGGER trg_emp_audit
+      BEFORE INSERT OR UPDATE ON EMPLOYEES
+      FOR EACH ROW
+    BEGIN
+      :NEW.HIRE_DATE := NVL(:NEW.HIRE_DATE, SYSDATE);
+    END;
+    /
+
+    COMMIT;
+    EXIT;
+    SQL
+    " 2>&1 | tee -a /var/log/oracle-install.log
+
+  # ── Enable remote connections (default listener on 1521) ──────────────────
+  - |
+    su - oracle -c "
+    export ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE
+    export PATH=\$ORACLE_HOME/bin:\$PATH
+    lsnrctl status
+    " 2>&1 | tee -a /var/log/oracle-install.log
+
+  # ── Open firewall ports ────────────────────────────────────────────────────
+  - firewall-cmd --permanent --add-port=1521/tcp
+  - firewall-cmd --permanent --add-port=5500/tcp
+  - firewall-cmd --reload
+
+  # ── Signal ready ──────────────────────────────────────────────────────────
+  - echo "ORACLE_READY=$(date)" >> /etc/environment
+  - echo "Oracle XE 21c ready" > /opt/oracle-READY
+
+write_files:
+  - path: /etc/sysctl.d/99-oracle.conf
+    content: |
+      fs.aio-max-nr = 1048576
+      fs.file-max = 6815744
+      kernel.shmall = 2097152
+      kernel.shmmax = 4294967295
+      kernel.shmmni = 4096
+      kernel.sem = 250 32000 100 128
+      net.ipv4.ip_local_port_range = 9000 65500
+      net.core.rmem_default = 262144
+      net.core.rmem_max = 4194304
+      net.core.wmem_default = 262144
+      net.core.wmem_max = 1048576
