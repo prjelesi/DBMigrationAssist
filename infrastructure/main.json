@@ -1,0 +1,291 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "7179466045444436038"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region"
+      }
+    },
+    "baseName": {
+      "type": "string",
+      "defaultValue": "dbmigassess",
+      "metadata": {
+        "description": "Base name used for all resources (ACR name must be globally unique)"
+      }
+    },
+    "apiKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "API key for the assessment engine"
+      }
+    },
+    "dataverseUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Dataverse URL (optional)"
+      }
+    },
+    "azureClientId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Entra ID client ID for Dataverse auth (optional)"
+      }
+    },
+    "azureClientSecret": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Entra ID client secret for Dataverse auth (optional)"
+      }
+    },
+    "azureTenantId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Entra ID tenant ID (optional)"
+      }
+    },
+    "callbackWebhookUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Power Automate callback webhook URL (optional)"
+      }
+    },
+    "existingVnetName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Existing VNet name to integrate with (e.g. vnet-demo)"
+      }
+    },
+    "existingSubnetName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Existing subnet name for ACA VNet integration"
+      }
+    },
+    "imageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "Container image tag to deploy"
+      }
+    }
+  },
+  "variables": {
+    "acrName": "[format('{0}acr', replace(parameters('baseName'), '-', ''))]",
+    "acaEnvName": "[format('{0}-aca-env', parameters('baseName'))]",
+    "acaAppName": "[format('{0}-app', parameters('baseName'))]",
+    "logWorkspaceName": "[format('{0}-logs', parameters('baseName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('logWorkspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('acrName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": true,
+        "publicNetworkAccess": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('acaEnvName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName')), '2023-09-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName')), '2023-09-01').primarySharedKey]"
+          }
+        },
+        "vnetConfiguration": "[if(empty(parameters('existingVnetName')), null(), createObject('infrastructureSubnetId', resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('existingVnetName'), parameters('existingSubnetName')), 'internal', false()))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('acaAppName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 8000,
+            "transport": "http",
+            "allowInsecure": false
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').username]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "api-key",
+              "value": "[parameters('apiKey')]"
+            },
+            {
+              "name": "azure-client-secret",
+              "value": "[if(empty(parameters('azureClientSecret')), 'not-set', parameters('azureClientSecret'))]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "assessment-engine",
+              "image": "[format('{0}/db-migration-assessment:{1}', reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer, parameters('imageTag'))]",
+              "resources": {
+                "cpu": "[json('1.0')]",
+                "memory": "2Gi"
+              },
+              "env": [
+                {
+                  "name": "API_KEY",
+                  "secretRef": "api-key"
+                },
+                {
+                  "name": "DATAVERSE_URL",
+                  "value": "[parameters('dataverseUrl')]"
+                },
+                {
+                  "name": "AZURE_CLIENT_ID",
+                  "value": "[parameters('azureClientId')]"
+                },
+                {
+                  "name": "AZURE_CLIENT_SECRET",
+                  "secretRef": "azure-client-secret"
+                },
+                {
+                  "name": "AZURE_TENANT_ID",
+                  "value": "[parameters('azureTenantId')]"
+                },
+                {
+                  "name": "CALLBACK_WEBHOOK_URL",
+                  "value": "[parameters('callbackWebhookUrl')]"
+                }
+              ],
+              "probes": [
+                {
+                  "type": "Liveness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8000
+                  },
+                  "initialDelaySeconds": 20,
+                  "periodSeconds": 30
+                },
+                {
+                  "type": "Readiness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8000
+                  },
+                  "initialDelaySeconds": 10,
+                  "periodSeconds": 10
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 3,
+            "rules": [
+              {
+                "name": "http-scaling",
+                "http": {
+                  "metadata": {
+                    "concurrentRequests": "10"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]"
+    },
+    "acrName": {
+      "type": "string",
+      "value": "[variables('acrName')]"
+    },
+    "apiUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', variables('acaAppName')), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "healthUrl": {
+      "type": "string",
+      "value": "[format('https://{0}/health', reference(resourceId('Microsoft.App/containerApps', variables('acaAppName')), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "docsUrl": {
+      "type": "string",
+      "value": "[format('https://{0}/docs', reference(resourceId('Microsoft.App/containerApps', variables('acaAppName')), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "dockerPushCommand": {
+      "type": "string",
+      "value": "[format('docker push {0}/db-migration-assessment:{1}', reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer, parameters('imageTag'))]"
+    },
+    "acrCredentials": {
+      "type": "object",
+      "value": {
+        "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+        "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').username]"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+.venv/
+.git/
+.github/
+output/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+tests/
+docs/
+demo/
+*.PPTX
+*.log
+node_modules/
+.env
+docker/.env
+infrastructure/*.json
