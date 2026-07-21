@@ -1,0 +1,307 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "3327325879816764080"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all demo resources"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "demoadmin",
+      "metadata": {
+        "description": "Admin username for the demo VM"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for the demo VM"
+      }
+    },
+    "allowedSourceIp": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Your public IP address for NSG access (run: curl ifconfig.me)"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v3",
+      "metadata": {
+        "description": "VM size"
+      }
+    }
+  },
+  "variables": {
+    "$fxv#0": "#cloud-config\r\n# Installs Docker, pulls all demo DB images, starts Docker Compose\r\n# Runs on first boot — takes ~5 minutes to complete\r\n\r\npackage_update: true\r\npackage_upgrade: false\r\n\r\npackages:\r\n  - docker.io\r\n  - docker-compose-plugin\r\n  - curl\r\n  - jq\r\n\r\nruncmd:\r\n  # Enable and start Docker\r\n  - systemctl enable docker\r\n  - systemctl start docker\r\n  - usermod -aG docker demoadmin\r\n\r\n  # Create app directory\r\n  - mkdir -p /opt/demo-dbs\r\n  - cd /opt/demo-dbs\r\n\r\n  # Write docker-compose.yml\r\n  - |\r\n    cat > /opt/demo-dbs/docker-compose.yml << 'COMPOSE'\r\n    version: \"3.9\"\r\n    services:\r\n\r\n      sqlserver:\r\n        image: mcr.microsoft.com/mssql/server:2019-latest\r\n        container_name: demo-sqlserver\r\n        environment:\r\n          - ACCEPT_EULA=Y\r\n          - SA_PASSWORD=Demo@Password123\r\n          - MSSQL_PID=Developer\r\n        ports:\r\n          - \"1433:1433\"\r\n        volumes:\r\n          - sqlserver-data:/var/opt/mssql\r\n        restart: unless-stopped\r\n        healthcheck:\r\n          test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"Demo@Password123\" -Q \"SELECT 1\" || exit 1\r\n          interval: 30s\r\n          timeout: 10s\r\n          retries: 5\r\n\r\n      postgresql:\r\n        image: postgres:14-alpine\r\n        container_name: demo-postgresql\r\n        environment:\r\n          - POSTGRES_DB=demodb\r\n          - POSTGRES_USER=demouser\r\n          - POSTGRES_PASSWORD=Demo@Password123\r\n        ports:\r\n          - \"5432:5432\"\r\n        volumes:\r\n          - postgresql-data:/var/lib/postgresql/data\r\n          - /opt/demo-dbs/seed/postgresql:/docker-entrypoint-initdb.d:ro\r\n        restart: unless-stopped\r\n        healthcheck:\r\n          test: pg_isready -U demouser -d demodb\r\n          interval: 20s\r\n          timeout: 5s\r\n          retries: 5\r\n\r\n      mysql:\r\n        image: mysql:8.0\r\n        container_name: demo-mysql\r\n        environment:\r\n          - MYSQL_ROOT_PASSWORD=Demo@Root123\r\n          - MYSQL_DATABASE=demodb\r\n          - MYSQL_USER=demouser\r\n          - MYSQL_PASSWORD=Demo@Password123\r\n        ports:\r\n          - \"3306:3306\"\r\n        volumes:\r\n          - mysql-data:/var/lib/mysql\r\n          - /opt/demo-dbs/seed/mysql:/docker-entrypoint-initdb.d:ro\r\n        restart: unless-stopped\r\n        healthcheck:\r\n          test: mysqladmin ping -h localhost -u demouser -pDemo@Password123\r\n          interval: 20s\r\n          timeout: 5s\r\n          retries: 5\r\n\r\n      mariadb:\r\n        image: mariadb:10.11\r\n        container_name: demo-mariadb\r\n        environment:\r\n          - MARIADB_ROOT_PASSWORD=Demo@Root123\r\n          - MARIADB_DATABASE=demodb\r\n          - MARIADB_USER=demouser\r\n          - MARIADB_PASSWORD=Demo@Password123\r\n        ports:\r\n          - \"3307:3306\"\r\n        volumes:\r\n          - mariadb-data:/var/lib/mysql\r\n          - /opt/demo-dbs/seed/mariadb:/docker-entrypoint-initdb.d:ro\r\n        restart: unless-stopped\r\n        healthcheck:\r\n          test: healthcheck.sh --su-mysql --connect --innodb_initialized\r\n          interval: 20s\r\n          timeout: 5s\r\n          retries: 5\r\n\r\n      mongodb:\r\n        image: mongo:6.0\r\n        container_name: demo-mongodb\r\n        environment:\r\n          - MONGO_INITDB_ROOT_USERNAME=demouser\r\n          - MONGO_INITDB_ROOT_PASSWORD=Demo@Password123\r\n          - MONGO_INITDB_DATABASE=demodb\r\n        ports:\r\n          - \"27017:27017\"\r\n        volumes:\r\n          - mongodb-data:/data/db\r\n          - /opt/demo-dbs/seed/mongodb:/docker-entrypoint-initdb.d:ro\r\n        restart: unless-stopped\r\n        healthcheck:\r\n          test: mongosh --quiet --eval \"db.adminCommand('ping')\" || exit 1\r\n          interval: 30s\r\n          timeout: 10s\r\n          retries: 5\r\n\r\n      cassandra:\r\n        image: cassandra:4.1\r\n        container_name: demo-cassandra\r\n        environment:\r\n          - CASSANDRA_CLUSTER_NAME=DemoCluster\r\n          - CASSANDRA_DC=dc1\r\n          - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch\r\n        ports:\r\n          - \"9042:9042\"\r\n        volumes:\r\n          - cassandra-data:/var/lib/cassandra\r\n        restart: unless-stopped\r\n        healthcheck:\r\n          test: cqlsh -e \"describe keyspaces\" || exit 1\r\n          interval: 60s\r\n          timeout: 30s\r\n          retries: 10\r\n          start_period: 120s\r\n\r\n    volumes:\r\n      sqlserver-data:\r\n      postgresql-data:\r\n      mysql-data:\r\n      mariadb-data:\r\n      mongodb-data:\r\n      cassandra-data:\r\n    COMPOSE\r\n\r\n  # Pull images (do this before starting to avoid timeout on start)\r\n  - docker pull mcr.microsoft.com/mssql/server:2019-latest\r\n  - docker pull postgres:14-alpine\r\n  - docker pull mysql:8.0\r\n  - docker pull mariadb:10.11\r\n  - docker pull mongo:6.0\r\n  - docker pull cassandra:4.1\r\n\r\n  # Start all containers\r\n  - cd /opt/demo-dbs && docker compose up -d\r\n\r\n  # Wait for SQL Server then create demo DB/tables\r\n  - sleep 60\r\n  - |\r\n    docker exec demo-sqlserver /opt/mssql-tools/bin/sqlcmd \\\r\n      -S localhost -U sa -P \"Demo@Password123\" \\\r\n      -Q \"CREATE DATABASE DemoDB; USE DemoDB; CREATE TABLE Employees (Id INT PRIMARY KEY IDENTITY, Name NVARCHAR(100), Department NVARCHAR(50), Salary DECIMAL(10,2), HireDate DATE); INSERT INTO Employees VALUES ('Alice Smith','Engineering',95000,'2019-03-15'),('Bob Jones','Sales',72000,'2020-07-01'),('Carol Wu','HR',68000,'2021-01-10'),('David Park','Engineering',105000,'2018-11-22'),('Eve Torres','Finance',88000,'2017-05-30'); CREATE TABLE Products (Id INT PRIMARY KEY IDENTITY, Name NVARCHAR(100), Category NVARCHAR(50), Price DECIMAL(10,2), Stock INT); INSERT INTO Products VALUES ('Laptop Pro','Electronics',1299.99,45),('Office Chair','Furniture',449.00,120),('Standing Desk','Furniture',699.00,35),('Wireless Mouse','Electronics',49.99,200),('Monitor 4K','Electronics',599.99,60);\" \\\r\n      2>/dev/null || true\r\n\r\n  # Wait for Cassandra then create keyspace\r\n  - sleep 120\r\n  - |\r\n    docker exec demo-cassandra cqlsh -e \"\r\n      CREATE KEYSPACE IF NOT EXISTS demodb WITH replication = {'class':'SimpleStrategy','replication_factor':1};\r\n      USE demodb;\r\n      CREATE TABLE IF NOT EXISTS employees (id UUID PRIMARY KEY, name TEXT, department TEXT, salary DECIMAL, hire_date DATE);\r\n      INSERT INTO employees (id, name, department, salary, hire_date) VALUES (uuid(), 'Alice Smith', 'Engineering', 95000, '2019-03-15');\r\n      INSERT INTO employees (id, name, department, salary, hire_date) VALUES (uuid(), 'Bob Jones', 'Sales', 72000, '2020-07-01');\r\n      INSERT INTO employees (id, name, department, salary, hire_date) VALUES (uuid(), 'Carol Wu', 'HR', 68000, '2021-01-10');\r\n    \" 2>/dev/null || true\r\n\r\n  # Signal ready\r\n  - echo \"DEMO_READY=$(date)\" >> /etc/environment\r\n  - echo \"All demo databases started\" > /opt/demo-dbs/READY\r\n\r\nwrite_files:\r\n  - path: /opt/demo-dbs/seed/postgresql/01-init.sql\r\n    content: |\r\n      CREATE TABLE IF NOT EXISTS employees (\r\n        id SERIAL PRIMARY KEY,\r\n        name VARCHAR(100) NOT NULL,\r\n        department VARCHAR(50),\r\n        salary NUMERIC(10,2),\r\n        hire_date DATE\r\n      );\r\n      INSERT INTO employees (name, department, salary, hire_date) VALUES\r\n        ('Alice Smith',  'Engineering', 95000, '2019-03-15'),\r\n        ('Bob Jones',    'Sales',       72000, '2020-07-01'),\r\n        ('Carol Wu',     'HR',          68000, '2021-01-10'),\r\n        ('David Park',   'Engineering', 105000,'2018-11-22'),\r\n        ('Eve Torres',   'Finance',     88000, '2017-05-30');\r\n\r\n      CREATE TABLE IF NOT EXISTS products (\r\n        id SERIAL PRIMARY KEY,\r\n        name VARCHAR(100) NOT NULL,\r\n        category VARCHAR(50),\r\n        price NUMERIC(10,2),\r\n        stock INTEGER\r\n      );\r\n      INSERT INTO products (name, category, price, stock) VALUES\r\n        ('Laptop Pro',    'Electronics', 1299.99, 45),\r\n        ('Office Chair',  'Furniture',    449.00, 120),\r\n        ('Standing Desk', 'Furniture',    699.00,  35),\r\n        ('Wireless Mouse','Electronics',   49.99, 200),\r\n        ('Monitor 4K',    'Electronics',  599.99,  60);\r\n\r\n      CREATE VIEW v_engineering_team AS\r\n        SELECT * FROM employees WHERE department = 'Engineering';\r\n\r\n      CREATE OR REPLACE FUNCTION get_employees_by_dept(dept VARCHAR)\r\n      RETURNS TABLE(id INT, name VARCHAR, salary NUMERIC) AS $$\r\n        SELECT id, name, salary FROM employees WHERE department = dept;\r\n      $$ LANGUAGE SQL;\r\n\r\n  - path: /opt/demo-dbs/seed/mysql/01-init.sql\r\n    content: |\r\n      USE demodb;\r\n      CREATE TABLE IF NOT EXISTS employees (\r\n        id INT AUTO_INCREMENT PRIMARY KEY,\r\n        name VARCHAR(100) NOT NULL,\r\n        department VARCHAR(50),\r\n        salary DECIMAL(10,2),\r\n        hire_date DATE,\r\n        INDEX idx_dept (department)\r\n      );\r\n      INSERT INTO employees (name, department, salary, hire_date) VALUES\r\n        ('Alice Smith',  'Engineering', 95000, '2019-03-15'),\r\n        ('Bob Jones',    'Sales',       72000, '2020-07-01'),\r\n        ('Carol Wu',     'HR',          68000, '2021-01-10'),\r\n        ('David Park',   'Engineering', 105000,'2018-11-22'),\r\n        ('Eve Torres',   'Finance',     88000, '2017-05-30');\r\n\r\n      CREATE TABLE IF NOT EXISTS orders (\r\n        id INT AUTO_INCREMENT PRIMARY KEY,\r\n        employee_id INT,\r\n        product_name VARCHAR(100),\r\n        amount DECIMAL(10,2),\r\n        order_date DATETIME DEFAULT NOW(),\r\n        FOREIGN KEY (employee_id) REFERENCES employees(id)\r\n      );\r\n      INSERT INTO orders (employee_id, product_name, amount) VALUES\r\n        (1, 'Laptop Pro', 1299.99),\r\n        (2, 'Office Chair', 449.00),\r\n        (3, 'Wireless Mouse', 49.99);\r\n\r\n      DELIMITER //\r\n      CREATE PROCEDURE IF NOT EXISTS GetEmployeesByDept(IN dept VARCHAR(50))\r\n      BEGIN\r\n        SELECT * FROM employees WHERE department = dept;\r\n      END //\r\n      DELIMITER ;\r\n\r\n  - path: /opt/demo-dbs/seed/mariadb/01-init.sql\r\n    content: |\r\n      USE demodb;\r\n      CREATE TABLE IF NOT EXISTS customers (\r\n        id INT AUTO_INCREMENT PRIMARY KEY,\r\n        name VARCHAR(100) NOT NULL,\r\n        email VARCHAR(150) UNIQUE,\r\n        country VARCHAR(50),\r\n        created_at DATETIME DEFAULT NOW()\r\n      );\r\n      INSERT INTO customers (name, email, country) VALUES\r\n        ('Acme Corp',      'contact@acme.com',    'USA'),\r\n        ('Globex Inc',     'info@globex.com',     'Germany'),\r\n        ('Initech Ltd',    'hello@initech.com',   'UK'),\r\n        ('Umbrella Corp',  'sales@umbrella.com',  'Japan'),\r\n        ('Soylent Corp',   'info@soylent.com',    'France');\r\n\r\n      CREATE TABLE IF NOT EXISTS invoices (\r\n        id INT AUTO_INCREMENT PRIMARY KEY,\r\n        customer_id INT,\r\n        amount DECIMAL(10,2),\r\n        status ENUM('pending','paid','overdue') DEFAULT 'pending',\r\n        due_date DATE,\r\n        FOREIGN KEY (customer_id) REFERENCES customers(id)\r\n      );\r\n      INSERT INTO invoices (customer_id, amount, status, due_date) VALUES\r\n        (1, 5000.00, 'paid',    '2026-06-01'),\r\n        (2, 12500.00,'pending', '2026-08-15'),\r\n        (3, 3200.00, 'overdue', '2026-05-01'),\r\n        (4, 8900.00, 'paid',    '2026-07-01'),\r\n        (5, 1500.00, 'pending', '2026-09-01');\r\n\r\n  - path: /opt/demo-dbs/seed/mongodb/01-init.js\r\n    content: |\r\n      db = db.getSiblingDB('demodb');\r\n      db.employees.insertMany([\r\n        { name: 'Alice Smith',  department: 'Engineering', salary: 95000, hireDate: new Date('2019-03-15'), skills: ['Python','Azure','Docker'] },\r\n        { name: 'Bob Jones',    department: 'Sales',       salary: 72000, hireDate: new Date('2020-07-01'), skills: ['CRM','Excel'] },\r\n        { name: 'Carol Wu',     department: 'HR',          salary: 68000, hireDate: new Date('2021-01-10'), skills: ['Recruiting','HR Systems'] },\r\n        { name: 'David Park',   department: 'Engineering', salary: 105000,hireDate: new Date('2018-11-22'), skills: ['Kubernetes','Go','Terraform'] },\r\n        { name: 'Eve Torres',   department: 'Finance',     salary: 88000, hireDate: new Date('2017-05-30'), skills: ['SAP','Excel','PowerBI'] }\r\n      ]);\r\n      db.products.insertMany([\r\n        { name: 'Laptop Pro',    category: 'Electronics', price: 1299.99, stock: 45,  tags: ['portable','high-performance'] },\r\n        { name: 'Office Chair',  category: 'Furniture',   price: 449.00,  stock: 120, tags: ['ergonomic','adjustable'] },\r\n        { name: 'Standing Desk', category: 'Furniture',   price: 699.00,  stock: 35,  tags: ['height-adjustable','large'] },\r\n        { name: 'Wireless Mouse',category: 'Electronics', price: 49.99,   stock: 200, tags: ['wireless','compact'] },\r\n        { name: 'Monitor 4K',    category: 'Electronics', price: 599.99,  stock: 60,  tags: ['4k','27inch','hdr'] }\r\n      ]);\r\n      db.employees.createIndex({ department: 1 });\r\n      db.products.createIndex({ category: 1 });\r\n      print('MongoDB seed data inserted');\r\n",
+    "vmName": "vm-demo-dbs",
+    "nicName": "nic-demo-dbs",
+    "nsgName": "nsg-demo-dbs",
+    "vnetName": "vnet-demo",
+    "publicIpName": "pip-demo-dbs",
+    "subnetName": "subnet-demo"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('publicIpName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[format('dbmigration-demo-{0}', uniqueString(resourceGroup().id))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "allow-ssh",
+            "properties": {
+              "priority": 100,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22"
+            }
+          },
+          {
+            "name": "allow-sqlserver",
+            "properties": {
+              "priority": 200,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "1433"
+            }
+          },
+          {
+            "name": "allow-postgresql",
+            "properties": {
+              "priority": 210,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "5432"
+            }
+          },
+          {
+            "name": "allow-mysql",
+            "properties": {
+              "priority": 220,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3306"
+            }
+          },
+          {
+            "name": "allow-mariadb",
+            "properties": {
+              "priority": 230,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3307"
+            }
+          },
+          {
+            "name": "allow-mongodb",
+            "properties": {
+              "priority": 240,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "27017"
+            }
+          },
+          {
+            "name": "allow-cassandra",
+            "properties": {
+              "priority": 250,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "9042"
+            }
+          },
+          {
+            "name": "allow-assessment-api",
+            "properties": {
+              "priority": 300,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSourceIp')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "8000"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "10.0.1.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nicName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              },
+              "subnet": {
+                "id": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('subnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vmName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "customData": "[base64(variables('$fxv#0'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "0001-com-ubuntu-server-jammy",
+            "sku": "22_04-lts-gen2",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": 128,
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "vmPublicIp": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').ipAddress]"
+    },
+    "vmFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn]"
+    },
+    "sshCommand": {
+      "type": "string",
+      "value": "[format('ssh {0}@{1}', parameters('adminUsername'), reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]"
+    },
+    "connectionStrings": {
+      "type": "object",
+      "value": {
+        "sqlserver": "[format('Server={0},1433;Database=DemoDB;User=sa;Password=Demo@Password123', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]",
+        "postgresql": "[format('Host={0};Port=5432;Database=demodb;Username=demouser;Password=Demo@Password123', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]",
+        "mysql": "[format('Server={0};Port=3306;Database=demodb;Uid=demouser;Pwd=Demo@Password123', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]",
+        "mariadb": "[format('Server={0};Port=3307;Database=demodb;Uid=demouser;Pwd=Demo@Password123', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]",
+        "mongodb": "[format('mongodb://demouser:Demo%40Password123@{0}:27017/demodb', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]",
+        "cassandra": "[format('{0}:9042 (keyspace: demodb, user: demouser)', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-09-01').dnsSettings.fqdn)]"
+      }
+    }
+  }
+}

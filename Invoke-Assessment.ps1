@@ -301,7 +301,10 @@ foreach ($db in $databases) {
 
     # Run info-gather factory script (unless skipped)
     $infoGatherResult = $null
-    if (-not $SkipInfoGather -and $path -and $path.factoryScript.PSObject.Properties['infoGather']) {
+    if (-not $SkipInfoGather -and $path -and
+        $path.PSObject.Properties['factoryScript'] -and
+        $path.factoryScript -and
+        $path.factoryScript.PSObject.Properties['infoGather']) {
         $scriptPath = Join-Path $ScriptRoot $path.factoryScript.infoGather
         if (Test-Path $scriptPath) {
             Write-Log "Running factory info-gather script: $($path.factoryScript.infoGather)"
@@ -326,7 +329,10 @@ foreach ($db in $databases) {
     $migrTools_r      = $(if ($path) { $path.migrationTools }  else { @() })
     $onlineMigr_r     = $(if ($path) { $path.onlineMigration } else { $false })
     $prereqs_r        = $(if ($path) { $path.prerequisites }   else { @() })
-    $factScript_r     = $(if ($path -and $path.factoryScript.PSObject.Properties['infoGather']) { $path.factoryScript.infoGather } else { $null })
+    $factScript_r     = $(if ($path -and
+                              $path.PSObject.Properties['factoryScript'] -and
+                              $path.factoryScript -and
+                              $path.factoryScript.PSObject.Properties['infoGather']) { $path.factoryScript.infoGather } else { $null })
 
     $report = [ordered]@{
         AssessmentId     = [System.Guid]::NewGuid().ToString()
