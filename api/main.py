@@ -18,6 +18,7 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Security, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from msal import ConfidentialClientApplication
 from pydantic import BaseModel, Field
@@ -53,6 +54,16 @@ app = FastAPI(
     title="DB Migration Readiness Assessment API",
     description="Assessment engine for Azure database migration readiness. Integrates with Power Apps and Copilot Studio via Dataverse.",
     version="1.0.0",
+)
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── API key security ──────────────────────────────────────────────────────────
