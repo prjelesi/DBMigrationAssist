@@ -1,0 +1,26 @@
+Steps To-Do:
+Support
+
+Linux RHEL v7 or later , Ubuntu v14 or later
+MongoShell 2.x or later
+Pre-requisites
+
+MongoDB Shell
+
+Step1. Download the script
+GIT Repo: https://github.com/Azure/csu-migration-factory/blob/dev/Mongo
+curl -L -o Info-Gather-Mongo.zip https://github.com/Azure/csu-migration-factory/raw/dev/Mongo/Info-Gather-Mongo.zip
+Step2. Unzip Info-Gather-Mongo.zip , cd ./csu-mongo-mf-main/PUBLIC
+
+Execution:- If you want to get the output in text format
+ mongosh  mongodb://00.000.00.00:27017  --eval "var _printJSON=false;" getMongoData.js > /tmp/getMongoData-output.log
+
+   If you want to get the out put in json format
+ongosh  mongodb://00.000.00.00:27017 --quiet --norc getMongoData.js > /tmp/getMongoData-output.json
+ 
+Step3. Once the execution completed, you can check the Output & Logs folders.
+Step6. Zip the Output & Logs Folders and share to Factory Team
+Description
+https://github.com/mongodb/support-tools/tree/master/getMongoData
+
+Disclaimer: These scripts are intended for use of Info Gather Assessment utility and do not interact with the user databases or gather any sensitive information (e.g passwords, PI data etc.). These scripts are provided as-is to merely capture metadata information ONLY. While every effort has been made to ensure that accuracy and reliability of the scripts, it is recommended to review and test them in a non-production environment before deploying them in a production environment. It is important to note that these scripts should be modified with consultation.

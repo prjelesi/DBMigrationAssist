@@ -1,0 +1,30 @@
+services:
+  assessment-engine:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: db-migration-assessment
+    ports:
+      - "8000:8000"
+    environment:
+      # Dataverse / Power Platform connection
+      - DATAVERSE_URL=${DATAVERSE_URL}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      # API security key (shared secret with Power Apps custom connector)
+      - API_KEY=${API_KEY}
+      # Optional: callback URL for Power Automate webhook when assessment completes
+      - CALLBACK_WEBHOOK_URL=${CALLBACK_WEBHOOK_URL:-""}
+    volumes:
+      # Mount output folder so reports are accessible on host
+      - ../output:/app/output
+      # Mount input folder for bulk CSV uploads
+      - ../input:/app/input
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -1,0 +1,276 @@
+{
+  "version": "1.0",
+  "sections": [
+    {
+      "id": "source-database",
+      "title": "Source Database Details",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "What is the source database engine?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "SQL Server", "label": "SQL Server" },
+            { "value": "Oracle", "label": "Oracle" },
+            { "value": "PostgreSQL", "label": "PostgreSQL" },
+            { "value": "MySQL", "label": "MySQL" },
+            { "value": "MariaDB", "label": "MariaDB" },
+            { "value": "MongoDB", "label": "MongoDB" },
+            { "value": "Cassandra", "label": "Cassandra" },
+            { "value": "Other", "label": "Other (specify)" }
+          ]
+        },
+        {
+          "id": "q2",
+          "text": "What version is the source database?",
+          "type": "text",
+          "required": true,
+          "placeholder": "e.g. SQL Server 2016, PostgreSQL 14, Oracle 19c"
+        },
+        {
+          "id": "q3",
+          "text": "Where is the source database hosted?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "OnPrem", "label": "On-Premises (physical / VM)" },
+            { "value": "AzureVM", "label": "Azure Virtual Machine" },
+            { "value": "AWS_RDS", "label": "AWS RDS / Aurora" },
+            { "value": "GCP_CloudSQL", "label": "GCP Cloud SQL" },
+            { "value": "AzurePaaS", "label": "Azure PaaS (Single Server)" },
+            { "value": "Other", "label": "Other cloud / hosted" }
+          ]
+        },
+        {
+          "id": "q4",
+          "text": "How many database instances are in scope?",
+          "type": "number",
+          "required": true,
+          "min": 1
+        },
+        {
+          "id": "q5",
+          "text": "What is the total data size across all databases?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "small", "label": "< 100 GB" },
+            { "value": "medium", "label": "100 GB – 1 TB" },
+            { "value": "large", "label": "> 1 TB" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "target-requirements",
+      "title": "Target & Migration Requirements",
+      "questions": [
+        {
+          "id": "q6",
+          "text": "What is the preferred target Azure service?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "Azure SQL DB", "label": "Azure SQL Database" },
+            { "value": "Azure SQL MI", "label": "Azure SQL Managed Instance" },
+            { "value": "SQL on Azure VM", "label": "SQL Server on Azure VM" },
+            { "value": "Azure PostgreSQL Flexible", "label": "Azure Database for PostgreSQL Flexible" },
+            { "value": "Azure MySQL Flexible", "label": "Azure Database for MySQL Flexible" },
+            { "value": "Azure Cosmos DB MongoDB", "label": "Azure Cosmos DB for MongoDB" },
+            { "value": "Azure Managed Cassandra", "label": "Azure Managed Instance for Cassandra" },
+            { "value": "Undecided", "label": "Not sure – recommend me one" }
+          ]
+        },
+        {
+          "id": "q7",
+          "text": "What is the maximum acceptable downtime for migration?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "zero", "label": "Zero / near-zero (online migration required)" },
+            { "value": "hours", "label": "Hours (planned maintenance window)" },
+            { "value": "days", "label": "Days (offline acceptable)" }
+          ]
+        },
+        {
+          "id": "q8",
+          "text": "Is there an Azure Landing Zone already deployed?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" },
+            { "value": "partial", "label": "Partially" }
+          ]
+        },
+        {
+          "id": "q9",
+          "text": "Is ExpressRoute or VPN connectivity available to Azure?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "expressroute", "label": "ExpressRoute" },
+            { "value": "vpn", "label": "Site-to-Site VPN" },
+            { "value": "internet", "label": "Internet only" },
+            { "value": "none", "label": "Not yet established" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "database-complexity",
+      "title": "Database Complexity & Dependencies",
+      "questions": [
+        {
+          "id": "q10",
+          "text": "Does the database use stored procedures or complex business logic?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "none", "label": "No stored procedures" },
+            { "value": "few", "label": "< 50 stored procedures" },
+            { "value": "many", "label": "50–500 stored procedures" },
+            { "value": "extensive", "label": "> 500 stored procedures" }
+          ]
+        },
+        {
+          "id": "q11",
+          "text": "Are there linked servers, SSIS packages, or external integrations?",
+          "type": "multi-choice",
+          "required": false,
+          "options": [
+            { "value": "linked_servers", "label": "Linked Servers" },
+            { "value": "ssis", "label": "SSIS Packages" },
+            { "value": "replication", "label": "Database Replication" },
+            { "value": "cdc", "label": "Change Data Capture (CDC)" },
+            { "value": "external_apps", "label": "External application integrations" },
+            { "value": "none", "label": "None" }
+          ]
+        },
+        {
+          "id": "q12",
+          "text": "Does the source use database engine-specific features not natively supported in Azure PaaS?",
+          "type": "multi-choice",
+          "required": false,
+          "options": [
+            { "value": "plsql", "label": "PL/SQL (Oracle)" },
+            { "value": "oracle_specific", "label": "Oracle-specific data types / functions" },
+            { "value": "sql_agent", "label": "SQL Server Agent jobs" },
+            { "value": "fulltext", "label": "Full-text search" },
+            { "value": "clr", "label": "CLR assemblies (.NET in SQL)" },
+            { "value": "none", "label": "None known" }
+          ]
+        },
+        {
+          "id": "q13",
+          "text": "What is the read/write workload pattern?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "read_heavy", "label": "Read-heavy (>80% reads)" },
+            { "value": "write_heavy", "label": "Write-heavy (>50% writes)" },
+            { "value": "mixed", "label": "Mixed" },
+            { "value": "olap", "label": "OLAP / Analytical / Data Warehouse" }
+          ]
+        },
+        {
+          "id": "q14",
+          "text": "Are there read replicas or high availability configurations in place?",
+          "type": "multi-choice",
+          "required": false,
+          "options": [
+            { "value": "ha", "label": "High Availability / Failover" },
+            { "value": "read_replica", "label": "Read replicas" },
+            { "value": "geo_replication", "label": "Geo-replication" },
+            { "value": "none", "label": "None" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "security-compliance",
+      "title": "Security & Compliance",
+      "questions": [
+        {
+          "id": "q15",
+          "text": "Does the database store regulated or sensitive data?",
+          "type": "multi-choice",
+          "required": true,
+          "options": [
+            { "value": "pii", "label": "PII (Personal Identifiable Information)" },
+            { "value": "financial", "label": "Financial / PCI-DSS" },
+            { "value": "health", "label": "Health / HIPAA" },
+            { "value": "gdpr", "label": "GDPR-regulated data" },
+            { "value": "none", "label": "No regulated data" }
+          ]
+        },
+        {
+          "id": "q16",
+          "text": "What authentication method is used currently?",
+          "type": "multi-choice",
+          "required": true,
+          "options": [
+            { "value": "sql_auth", "label": "SQL Authentication (username/password)" },
+            { "value": "windows_auth", "label": "Windows / Active Directory Authentication" },
+            { "value": "entra_id", "label": "Microsoft Entra ID (AAD)" },
+            { "value": "certificate", "label": "Certificate-based" }
+          ]
+        },
+        {
+          "id": "q17",
+          "text": "Is data encryption at rest and in transit required?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "both", "label": "Both at rest and in transit" },
+            { "value": "transit_only", "label": "In transit only (SSL/TLS)" },
+            { "value": "rest_only", "label": "At rest only (TDE)" },
+            { "value": "neither", "label": "Not required" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational-readiness",
+      "title": "Operational Readiness",
+      "questions": [
+        {
+          "id": "q18",
+          "text": "Does the team have Azure database administration skills?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "expert", "label": "Expert (certified, experienced)" },
+            { "value": "moderate", "label": "Moderate (some Azure experience)" },
+            { "value": "beginner", "label": "Beginner (little to no Azure experience)" }
+          ]
+        },
+        {
+          "id": "q19",
+          "text": "What is the target migration timeline?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "urgent", "label": "< 1 month (urgent)" },
+            { "value": "short", "label": "1–3 months" },
+            { "value": "medium", "label": "3–6 months" },
+            { "value": "long", "label": "> 6 months" }
+          ]
+        },
+        {
+          "id": "q20",
+          "text": "Is there a rollback plan or ability to revert if migration fails?",
+          "type": "single-choice",
+          "required": true,
+          "options": [
+            { "value": "yes_tested", "label": "Yes, tested and documented" },
+            { "value": "yes_untested", "label": "Yes, documented but untested" },
+            { "value": "partial", "label": "Partially planned" },
+            { "value": "no", "label": "No rollback plan" }
+          ]
+        }
+      ]
+    }
+  ]
+}

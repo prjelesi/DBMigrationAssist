@@ -1,0 +1,2 @@
+Host_Name,Resource_Group,Port,VCore,Auth_Type,User_ID,Password,DB_Name,Tenant,Subscription_ID,Approval_Status,SSL_Mode
+host-name.postgres.database.azure.com,xx-xxxx-xxxxx-xxxx,5432,1,PostgreSQL,username@host-name,Password,postgres,xxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxx,No,prefer

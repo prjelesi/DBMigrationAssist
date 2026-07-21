@@ -1,0 +1,6 @@
+DatabaseName,SourceType,SourceVersion,SourceEnvironment,TargetType,MaxDowntime,Connectivity,LandingZone,DataSize,StoredProcs,Dependencies,SpecialFeatures,TeamSkill,RollbackPlan,DatabaseCount
+AdventureWorks,SQL Server,2016,OnPrem,Azure SQL MI,hours,vpn,partial,medium,many,linked_servers,,moderate,yes_untested,1
+HRSystem,PostgreSQL,14,AWS_RDS,Undecided,zero,expressroute,yes,small,few,,,expert,yes_tested,3
+FinanceDB,Oracle,19c,OnPrem,Azure Database for PostgreSQL Flexible,days,vpn,no,large,extensive,,,beginner,no,1
+CustomerMongo,MongoDB,6.0,AWS,Azure Cosmos DB MongoDB,hours,internet,partial,medium,none,,,moderate,partial,2
+LegacyCassandra,Cassandra,3.11,OnPrem,Azure Managed Cassandra,days,vpn,yes,small,none,,,moderate,yes_untested,1

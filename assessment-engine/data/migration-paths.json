@@ -1,0 +1,211 @@
+{
+  "version": "1.0",
+  "updated": "2026-07-21",
+  "source": "Azure Cloud Accelerate Factory",
+  "paths": [
+    {
+      "id": "postgresql-to-azure-postgresql",
+      "sourceType": "PostgreSQL",
+      "sourceVersions": ["9.5", "10", "11", "12", "13", "14", "15", "16"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS_RDS", "AWS_Aurora", "GCP_CloudSQL"],
+      "targetType": "Azure Database for PostgreSQL Flexible Server",
+      "migrationType": "Homogeneous",
+      "migrationTools": ["Azure Database Migration Service", "pgcopy", "pgdump/restore", "ora2pg (for schema)"],
+      "onlineMigration": true,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/PostgreSQL/csu-postgresql-mf-main/PUBLIC/Factory-PostgreSQL-Windows.ps1",
+        "infoGatherLinux": "factory-scripts/PostgreSQL/csu-postgresql-mf-main/PUBLIC/Factory-PostgreSQL-Linux.ps1",
+        "azureCLI": "factory-scripts/PostgreSQL/csu-postgresql-mf-main/PUBLIC/Factory-PostgreSQL-FlexiCLI-Windows.ps1",
+        "awsRDS": "factory-scripts/PostgreSQL/csu-postgresql-mf-main/PUBLIC/Factory-AWS-RDS-CLI.ps1",
+        "inputTemplate": "factory-scripts/PostgreSQL/csu-postgresql-mf-main/PUBLIC/Factory_PostgreSQL_Server_Input_file.csv",
+        "sqlTemplate": "factory-scripts/PostgreSQL/csu-postgresql-mf-main/PUBLIC/PostgreSQL_Templates/DB_Details.sql"
+      },
+      "prerequisites": [
+        "PowerShell 7.x",
+        "PostgreSQL Client (psql)",
+        "Azure CLI (for Single Server)",
+        "AWS CLI (for AWS RDS)"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 1, "medium": 3, "large": 7 }
+    },
+    {
+      "id": "mysql-to-azure-mysql",
+      "sourceType": "MySQL",
+      "sourceVersions": ["5.6", "5.7", "8.0", "8.4"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS_RDS", "AWS_Aurora", "GCP_CloudSQL"],
+      "targetType": "Azure Database for MySQL Flexible Server",
+      "migrationType": "Homogeneous",
+      "migrationTools": ["Azure Database Migration Service", "MySQL Workbench", "mydumper/myloader"],
+      "onlineMigration": true,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/MySQL/csu-mysql-mf-main/PUBLIC/Factory-MySQL-Windows.ps1",
+        "infoGatherLinux": "factory-scripts/MySQL/csu-mysql-mf-main/PUBLIC/Factory-MySQL-Linux.ps1",
+        "azureCLI": "factory-scripts/MySQL/csu-mysql-mf-main/PUBLIC/Factory-MySQL-FlexiCLI-Windows.ps1",
+        "awsRDS": "factory-scripts/MySQL/csu-mysql-mf-main/PUBLIC/Factory-AWS-RDS-CLI.ps1",
+        "inputTemplate": "factory-scripts/MySQL/csu-mysql-mf-main/PUBLIC/Factory_MySQL_Server_Input_file.csv",
+        "sqlTemplate": "factory-scripts/MySQL/csu-mysql-mf-main/PUBLIC/MySQL_Templates/dbgather.sql"
+      },
+      "prerequisites": [
+        "PowerShell 7.x",
+        "MySQL Client",
+        "Azure CLI (for Single Server)",
+        "AWS CLI (for AWS RDS)"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 1, "medium": 3, "large": 7 }
+    },
+    {
+      "id": "mariadb-to-azure-mysql",
+      "sourceType": "MariaDB",
+      "sourceVersions": ["10.2", "10.3", "10.4", "10.5", "10.6", "10.11", "11.x"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS_RDS"],
+      "targetType": "Azure Database for MySQL Flexible Server",
+      "migrationType": "Homogeneous",
+      "migrationTools": ["Azure Database Migration Service", "mysqldump", "mydumper/myloader"],
+      "onlineMigration": false,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/MariaDB/csu-mariadb-mf-main/PUBLIC/Factory-MariaDB-Windows.ps1",
+        "infoGatherLinux": "factory-scripts/MariaDB/csu-mariadb-mf-main/PUBLIC/Factory-MariaDB-Linux.ps1",
+        "azureCLI": "factory-scripts/MariaDB/csu-mariadb-mf-main/PUBLIC/Factory-MariaDB-CLI-Windows.ps1",
+        "awsRDS": "factory-scripts/MariaDB/csu-mariadb-mf-main/PUBLIC/Factory-AWS-RDS-CLI.ps1",
+        "inputTemplate": "factory-scripts/MariaDB/csu-mariadb-mf-main/PUBLIC/Factory_MariaDB_Server_Input_file.csv",
+        "sqlTemplate": "factory-scripts/MariaDB/csu-mariadb-mf-main/PUBLIC/MySQL_Templates/dbgather.sql"
+      },
+      "prerequisites": [
+        "PowerShell 7.x",
+        "MariaDB Client",
+        "Azure CLI"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 2, "medium": 5, "large": 10 }
+    },
+    {
+      "id": "mongodb-to-azure-cosmosdb",
+      "sourceType": "MongoDB",
+      "sourceVersions": ["3.6", "4.0", "4.2", "4.4", "5.0", "6.0", "7.0"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS", "GCP", "Kubernetes", "AtlasCloud"],
+      "targetType": "Azure Cosmos DB for MongoDB / MongoDB Atlas on Azure",
+      "migrationType": "Homogeneous",
+      "migrationTools": ["Azure Database Migration Service", "mongodump/mongorestore", "Azure Cosmos DB Migration for MongoDB Extension"],
+      "onlineMigration": true,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/Factory-MongoDB-Bash.sh",
+        "clusterCheck": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/getMongoData.js",
+        "dbCheck": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/CheckMongoDB.js",
+        "sizeCheck": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/Checksize.js",
+        "postValidationCount": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/PostvalidationCount.js",
+        "postValidationSize": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/PostvalidationDbsize.js",
+        "backupRestore": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/mongo-backup-restore.sh",
+        "inputTemplate": "factory-scripts/Mongo/csu-mongo-mf-main/PUBLIC/Factory_Mongo_Input_File.csv"
+      },
+      "prerequisites": [
+        "MongoDB Shell (mongosh) 2.x",
+        "PowerShell 7.x (Windows)",
+        "Git for Windows"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 2, "medium": 5, "large": 14 }
+    },
+    {
+      "id": "cassandra-to-azure-managed-cassandra",
+      "sourceType": "Cassandra",
+      "sourceVersions": ["3.11", "4.0", "4.1"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS", "GCP"],
+      "targetType": "Azure Managed Instance for Apache Cassandra",
+      "migrationType": "Homogeneous",
+      "migrationTools": ["Azure Managed Instance for Apache Cassandra dual-write proxy", "Spark Cassandra Connector", "sstableloader"],
+      "onlineMigration": true,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/Cassandra/Info-Gather-Cassandra/csu-cassandra-mf-main/PUBLIC/Factory-Cassandra-Bash.sh",
+        "dbGather": "factory-scripts/Cassandra/Info-Gather-Cassandra/csu-cassandra-mf-main/PUBLIC/Factory-Cassandra-Dbgather.sql",
+        "inputTemplate": "factory-scripts/Cassandra/Info-Gather-Cassandra/csu-cassandra-mf-main/PUBLIC/Factory_Cassandra_Input_File.csv"
+      },
+      "prerequisites": [
+        "Linux (RHEL 7+ / Ubuntu 14+)",
+        "cqlsh (Cassandra Query Language Shell)"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 3, "medium": 7, "large": 21 }
+    },
+    {
+      "id": "oracle-to-azure-postgresql",
+      "sourceType": "Oracle",
+      "sourceVersions": ["11g", "12c", "18c", "19c", "21c"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS_RDS", "AWS_Oracle", "GCP_CloudSQL"],
+      "targetType": "Azure Database for PostgreSQL Flexible Server",
+      "migrationType": "Heterogeneous",
+      "migrationTools": ["ora2pg", "AWS SCT", "Babelfish", "AI-assisted schema conversion"],
+      "onlineMigration": false,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/Heterogeneous/Oracle_Info_Gathering_Automation.ps1",
+        "sqlGather": "factory-scripts/Heterogeneous/ora_db_gather.sql",
+        "inputTemplate": "factory-scripts/Heterogeneous/Factory_Oracle_Server_Input_file.csv"
+      },
+      "prerequisites": [
+        "PowerShell 7.x",
+        "Oracle Instant Client (SQL*Plus)",
+        "Read-only Oracle user with SELECT_CATALOG_ROLE"
+      ],
+      "complexityFactors": [
+        "Stored procedures / PL/SQL conversion required",
+        "Oracle-specific data types need mapping",
+        "Sequences → PostgreSQL SERIAL/IDENTITY",
+        "Oracle packages → PostgreSQL schemas",
+        "CONNECT BY → recursive CTEs"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 10, "medium": 30, "large": 90 }
+    },
+    {
+      "id": "oracle-to-azure-sql",
+      "sourceType": "Oracle",
+      "sourceVersions": ["11g", "12c", "18c", "19c", "21c"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS_RDS", "AWS_Oracle", "GCP_CloudSQL"],
+      "targetType": "Azure SQL Database / Azure SQL Managed Instance",
+      "migrationType": "Heterogeneous",
+      "migrationTools": ["SQL Server Migration Assistant (SSMA) for Oracle", "AI-assisted conversion"],
+      "onlineMigration": false,
+      "offlineMigration": true,
+      "factoryScript": {
+        "infoGather": "factory-scripts/Heterogeneous/Oracle_Info_Gathering_Automation.ps1",
+        "sqlGather": "factory-scripts/Heterogeneous/ora_db_gather.sql",
+        "inputTemplate": "factory-scripts/Heterogeneous/Factory_Oracle_Server_Input_file.csv"
+      },
+      "prerequisites": [
+        "PowerShell 7.x",
+        "Oracle Instant Client (SQL*Plus)",
+        "SSMA for Oracle"
+      ],
+      "complexityFactors": [
+        "PL/SQL to T-SQL conversion",
+        "Oracle-specific functions need equivalents",
+        "ROWNUM → TOP / ROW_NUMBER()",
+        "Dual table references to remove"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 10, "medium": 30, "large": 90 }
+    },
+    {
+      "id": "sqlserver-to-azure-sql",
+      "sourceType": "SQL Server",
+      "sourceVersions": ["2008", "2008R2", "2012", "2014", "2016", "2017", "2019", "2022"],
+      "sourceEnvironments": ["OnPrem", "AzureVM", "AWS_RDS_SQLServer", "GCP_CloudSQL_SQLServer"],
+      "targetType": "Azure SQL Database / Azure SQL Managed Instance / SQL Server on Azure VM",
+      "migrationType": "Homogeneous",
+      "migrationTools": ["Azure Database Migration Service", "Database Experimentation Assistant", "Data Migration Assistant", "Azure Migrate"],
+      "onlineMigration": true,
+      "offlineMigration": true,
+      "factoryScript": {
+        "preMigrationCleanup": "factory-scripts/Heterogeneous/Factory_Sql_Server_PreLoad_Cleanup.ps1",
+        "note": "SQL Server info-gather uses Azure Migrate / DMA directly"
+      },
+      "prerequisites": [
+        "PowerShell 5+ or 7+",
+        "sqlcmd",
+        "SQL Server Management Objects (SMO)",
+        "Azure CLI"
+      ],
+      "estimatedEffortDaysPerDB": { "small": 1, "medium": 3, "large": 10 }
+    }
+  ]
+}

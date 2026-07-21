@@ -1,0 +1,125 @@
+# Steps To-Do:<br />
+
+**OS Support**<br />
+This script is compatible with the following operating systems:<br />
+Windows 10 or later<br />
+Linux RHEL v7 or later , Ubuntu v14 or later<br />
+
+**Pre-requisites**<br />
+
+Execute below prior running Powershell scripts<br />
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy bypass
+
+***Windows***<br />
+Powershell -   https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.4<br /> 
+MySQL Client - https://dev.mysql.com/downloads/installer/<br />
+Azure CLI (For Single Server and Microsoft Entra ID authentication only) - https://aka.ms/installazurecliwindows )<br /> 
+
+***Linux***<br />
+Powershell - https://learn.microsoft.com/en-us/powershell/scripting/install/install-rhel?view=powershell-7.4<br /> 
+MySQL Client - https://dev.mysql.com/doc/mysql-shell/8.0/en/mysql-shell-install-linux-quick.html<br />
+Azure CLI (For Single Server and Microsoft Entra ID) - https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux/<br /> 
+
+**Note**: - Add PATH in Enviornment Variables<br />
+
+***Windows***<br />
+Azure CLI  ( e.g. C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin )<br />
+MySQL Client ( e.g. C:\Program Files\MySQL\bin )<br />
+
+***Linux***<br />
+Azure CLI  ( e.g. /usr/bin/az )<br />
+MySQL Client ( e.g. /usr/bin/mysql )<br />
+
+## Step1. Azure CLI Info Gathering (Only for Azure Database for MySQL Single Servers)
+1.	Download the package zip file named `MySQL-Info-Gather.zip`
+2.	Extract the `unzip MySQL-Info-Gather.zip` file.
+3.	Open the Input file `Azure_Subscription.csv` (Provide the Tenant ID & Subscription ID, add Multiple rows for Multiple Subscriptions)  
+4.	Execute `powershell.exe .\Factory-MySQL-CLI-Windows.ps1` (Windows)
+5.  Execute `pwsh ./Factory-MySQL-CLI-Linux.ps1` (Linux)
+6.	Once the execution completed, you can check the output & Logs folder.
+
+    Note:- Script support Multiple Subscription within single tenant. If you have multiple Tenent, follow each steps for individual Tenant.<br />
+    For any reason if you need to re-execute "Factory-MySQL-CLI-Windows.ps1" script again...
+    Rename or clear the "output" folder before each execution to prevent overwritten output.
+
+## Step2. AWS CLI Info Gathering (Only for AWS Servers)
+1. Open the Input file `AWS_Subscription.csv` (Provide the AWSAccessKeyID, AWSSecretAccessKey, Region, DefaultOutputFormat, SessionToken add Multiple rows)  
+2. Execute `powershell.exe .\Factory-AWS-RDS-CLI.ps1` & `powershell.exe .\Factory-AWS-VM-CLI.ps1` (Windows)
+3. Execute `pwsh ./Factory-AWS-RDS-CLI.ps1` & `pwsh ./Factory-AWS-VM-CLI.ps1` (Linux)
+4. Once the execution completed, you can check the output & Logs folder.
+5. Copy the **"RDS_Instance_Metadata.csv"** from the output folder into the PUBLIC folder, and rename to **"Factory_MySQL_Server_Input_file.csv"**<br />
+6. Execute cp ./Output/RDS_Instance_Metadata.csv . **(Copy)** & mv ./RDS_Instance_Metadata.csv Factory_MySQL_Server_Input_file.csv **(Rename)** (Linux)<br />
+7. Execute copy .\Output\RDS_Instance_Metadata.csv . **(Copy)** & rename .\RDS_Instance_Metadata.csv Factory_MySQL_Server_Input_file.csv **(Rename)** <br />
+
+## Step3. Update Factory_MySQL_Server_Input_file.csv (For All Servers)
+"**Host_Name**","Resource_Group","**Port**","VCore","Auth_Type","**User_ID**","**Password**","**DB_Name**","Tenant","Subscription_ID","**Approval_Status**","SSL_Mode"
+
+**Note:-**<br />
+. Highlighted are **Mandatory Fields**<br />
+. **Approval_Status** column should be **Yes** for the execution <br />
+. Update Mandatory fields manually in case of Azure VM / On-premises Servers <br />
+. If a **Password** is not provided, this requires interactive console input of the password for each server. 
+. For credentials handling methods refer to [Passing credentials](#passing-credentials)
+<br />
+
+## Step4. MySQL Server Info Gathering (For All Servers)
+1.	Execute `powershell.exe .\Factory-MySQL-Windows.ps1` ( Windows )
+2.  Execute `pwsh ./Factory-MySQL-Linux.ps1` ( Linux )
+3.	Once the execution completed, you can check the output & Logs folder.
+
+## Step4. Azure CLI Info Gathering Flexi Migration  (For Resiliency / Post Migration)
+1. Execute `powershell.exe .\Factory-MySQL-FlexiCLI-Windows.ps1` (Windows)
+2. Execute `pwsh ./Factory-MySQL-FlexiCLI-Linux.ps1` (Linux)
+3. Once the execution completed, you can check the Output/Flexi folder.
+
+## Step5. Azure VM/On-premises Servers  (Only for On-Premises / Azure VM / Other Cloud Servers)
+. Refer document `Factory-ON-Prem_Server_Info_gather.docx` from the zip folder and update details and share document.<br />
+
+
+id | sku.name | fullyQualifiedDomainName | sku.capacity | sku.storage | sku.tier | version | logname | region | location | ha |read_replica | environment | server_type | migration_path | approved
+
+Note:- Update Factory_MySQL_Server_List.csv file as per above format and ensure “logname” matching with "logfilename".
+
+       sku.name = instance-type
+       sku.capacity = Cores
+       sku.storage = Memory
+       logname = logfilename 
+       sku.tier = AWS_RDS_GeneralPurpose, AWS_RDS_MemoryOptimized, AWS_Aurora_GeneralPurpose, AWS_Aurora_MemoryOptimized, GCP_CloudSQL_Enterprise, Azure_VM, GCP_VM, AWS_VM, Onprem_VM, K8s_Cluster_Node
+
+
+
+## Step6. Zip and share output, log folders (For All Servers) 
+Kindly follow the execution instructions mentioned in attached documents. 
+If there is/are any queries, please let us know, we will connect and check.
+
+
+**Disclaimer:**
+These scripts are intended for use of Info Gather Assessment utility and do not interact with the user databases or gather any sensitive information (e.g passwords, PI data etc.). 
+These scripts are provided as-is to merely capture metadata information ONLY. While every effort has been made to ensure that accuracy and reliability of the scripts, 
+it is recommended to review and test them in a non-production environment before deploying them in a production environment.
+It is important to note that these scripts should be modified with consultation of Microsoft.
+
+
+# Passing credentials
+Credentials handling method depends on customer requirements and relevant `Factory_MySQL_Server_Input_file.csv` input file settings
+
+* Default  
+    * user - set `User_ID` field to user name  
+    * password - leave  `Password` field empty for interactive password prompt during scrpt execution 
+* Unattended
+    * user - set `User_ID` field to user name  
+    * password - set `Password` field to the user password
+* Microsoft Entra ID 
+    * user - set `User_ID` field to user name  (this has to be interactive user because script can get an access token for the current account only)
+    * password - leave  `Password` field empty 
+    * authentication type - set `Auth_Type` to `entraid` value
+
+# Appendix - Manual script execution
+Incase system don't have powershell installed or user dont have permission to install on host machine executing these script
+Below batch file can be executed to gather the database level info.
+
+Step1. Create and Update Factory_MySQL_Server_Input_file.csv (For All Servers)
+"**Host_Name**","Resource_Group","**Port**","VCore","Auth_Type","**User_ID**","**Password**","**DB_Name**","Tenant","Subscription_ID","**Approval_Status**","SSL_Mode"
+Step2. Open CMD prompt with Run as Admin  
+Step3. Execute `Factory-Mysql-Manual-Windows.bat`( Windows )
+        Execute `sh ./Factory-Mysql-Manual-Linux.txt`( Linux )

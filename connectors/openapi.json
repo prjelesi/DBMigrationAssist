@@ -1,0 +1,195 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "DB Migration Assessment Engine",
+    "description": "Custom connector for Power Apps to submit database migration readiness assessments and retrieve results from the local Docker assessment engine.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8000",
+  "basePath": "/",
+  "schemes": ["http", "https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "apiKey": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "X-API-Key"
+    }
+  },
+  "security": [{ "apiKey": [] }],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Check if the assessment engine container is running.",
+        "operationId": "HealthCheck",
+        "responses": {
+          "200": {
+            "description": "Engine is healthy",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": { "type": "string" },
+                "version": { "type": "string" },
+                "timestamp": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assess": {
+      "post": {
+        "summary": "Start Assessment",
+        "description": "Submit one or more databases for migration readiness assessment. Returns a jobId to poll for results.",
+        "operationId": "StartAssessment",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AssessmentRequest" }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Assessment queued successfully",
+            "schema": { "$ref": "#/definitions/AssessmentResponse" }
+          },
+          "403": { "description": "Invalid API key" },
+          "422": { "description": "Validation error in input data" }
+        }
+      }
+    },
+    "/assess/bulk": {
+      "post": {
+        "summary": "Bulk Upload Assessment",
+        "description": "Upload a CSV file containing multiple databases for assessment. Used by the Power Apps file upload control.",
+        "operationId": "BulkAssessment",
+        "consumes": ["multipart/form-data"],
+        "parameters": [
+          { "in": "formData", "name": "file", "type": "file", "required": true },
+          { "in": "query", "name": "customer_name", "type": "string", "required": false },
+          { "in": "query", "name": "requested_by", "type": "string", "required": false }
+        ],
+        "responses": {
+          "202": {
+            "description": "Bulk assessment queued",
+            "schema": { "$ref": "#/definitions/AssessmentResponse" }
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Get Assessment Status",
+        "description": "Poll job status. Use in a Power Automate 'Do Until' loop until status is 'completed' or 'failed'.",
+        "operationId": "GetAssessmentStatus",
+        "parameters": [
+          { "in": "path", "name": "jobId", "type": "string", "required": true }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status",
+            "schema": { "$ref": "#/definitions/JobStatus" }
+          },
+          "404": { "description": "Job not found" }
+        }
+      }
+    },
+    "/report/{jobId}": {
+      "get": {
+        "summary": "Get Assessment Report",
+        "description": "Retrieve the full JSON assessment report for a completed job.",
+        "operationId": "GetReport",
+        "parameters": [
+          { "in": "path", "name": "jobId", "type": "string", "required": true }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full assessment report array"
+          },
+          "404": { "description": "Job not found" },
+          "409": { "description": "Job not yet completed" }
+        }
+      }
+    },
+    "/migration-paths": {
+      "get": {
+        "summary": "Get Migration Paths",
+        "description": "Returns all supported migration paths for Power Apps dropdown population.",
+        "operationId": "GetMigrationPaths",
+        "responses": {
+          "200": { "description": "Migration paths JSON" }
+        }
+      }
+    },
+    "/questionnaire": {
+      "get": {
+        "summary": "Get Questionnaire",
+        "description": "Returns the assessment questionnaire definition for Power Apps dynamic form rendering.",
+        "operationId": "GetQuestionnaire",
+        "responses": {
+          "200": { "description": "Questionnaire JSON" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "DatabaseEntry": {
+      "type": "object",
+      "required": ["DatabaseName", "SourceType", "SourceVersion", "SourceEnvironment", "MaxDowntime", "Connectivity", "LandingZone", "DataSize", "TeamSkill", "RollbackPlan"],
+      "properties": {
+        "DatabaseName":      { "type": "string", "description": "Friendly name for this database" },
+        "SourceType":        { "type": "string", "description": "SQL Server | Oracle | PostgreSQL | MySQL | MariaDB | MongoDB | Cassandra", "enum": ["SQL Server","Oracle","PostgreSQL","MySQL","MariaDB","MongoDB","Cassandra"] },
+        "SourceVersion":     { "type": "string", "description": "e.g. 2016, 19c, 14, 8.0" },
+        "SourceEnvironment": { "type": "string", "description": "Where the source DB is hosted", "enum": ["OnPrem","AzureVM","AWS_RDS","GCP_CloudSQL","AzurePaaS"] },
+        "TargetType":        { "type": "string", "description": "Preferred Azure target", "default": "Undecided" },
+        "MaxDowntime":       { "type": "string", "description": "Acceptable migration downtime", "enum": ["zero","hours","days"] },
+        "Connectivity":      { "type": "string", "description": "Network connectivity to Azure", "enum": ["expressroute","vpn","internet","none"] },
+        "LandingZone":       { "type": "string", "description": "Azure Landing Zone status", "enum": ["yes","partial","no"] },
+        "DataSize":          { "type": "string", "description": "Total data size", "enum": ["small","medium","large"] },
+        "StoredProcs":       { "type": "string", "description": "Stored procedure volume", "enum": ["none","few","many","extensive"], "default": "none" },
+        "Dependencies":      { "type": "string", "description": "Pipe-separated: linked_servers|ssis|replication|cdc", "default": "" },
+        "SpecialFeatures":   { "type": "string", "description": "Pipe-separated: plsql|oracle_specific|sql_agent|clr", "default": "" },
+        "TeamSkill":         { "type": "string", "description": "Azure DB admin skill level", "enum": ["expert","moderate","beginner"] },
+        "RollbackPlan":      { "type": "string", "description": "Rollback readiness", "enum": ["yes_tested","yes_untested","partial","no"] },
+        "DatabaseCount":     { "type": "integer", "description": "Number of instances", "default": 1 }
+      }
+    },
+    "AssessmentRequest": {
+      "type": "object",
+      "required": ["customerName", "requestedBy", "databases"],
+      "properties": {
+        "customerName":  { "type": "string" },
+        "requestedBy":   { "type": "string" },
+        "databases":     { "type": "array", "items": { "$ref": "#/definitions/DatabaseEntry" } },
+        "runInfoGather": { "type": "boolean", "default": false, "description": "Set true to also execute factory info-gather scripts against live databases" }
+      }
+    },
+    "AssessmentResponse": {
+      "type": "object",
+      "properties": {
+        "jobId":     { "type": "string" },
+        "status":    { "type": "string" },
+        "message":   { "type": "string" },
+        "statusUrl": { "type": "string" }
+      }
+    },
+    "JobStatus": {
+      "type": "object",
+      "properties": {
+        "jobId":             { "type": "string" },
+        "status":            { "type": "string", "description": "queued | running | completed | failed" },
+        "createdAt":         { "type": "string" },
+        "completedAt":       { "type": "string" },
+        "customerName":      { "type": "string" },
+        "dbCount":           { "type": "integer" },
+        "reportUrl":         { "type": "string" },
+        "dataverseRecordId": { "type": "string" },
+        "error":             { "type": "string" }
+      }
+    }
+  }
+}

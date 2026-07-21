@@ -1,0 +1,206 @@
+{
+  "agent_name": "DB Migration Readiness Advisor",
+  "display_name": "Migration Readiness Advisor",
+  "description": "AI agent that analyzes database migration assessment results and generates actionable migration plans, answers migration questions, and creates reports.",
+  "icon": "database",
+  "language": "en-US",
+  "data_sources": [
+    {
+      "type": "Dataverse",
+      "tables": ["cr_assessmentrun", "cr_assessmentitem", "cr_dbinventory"],
+      "description": "Assessment results stored by the Docker assessment engine"
+    }
+  ],
+  "topics": [
+    {
+      "name": "Get Assessment Summary",
+      "trigger_phrases": [
+        "show me the assessment results",
+        "what is the migration readiness",
+        "how ready are we to migrate",
+        "give me the assessment summary",
+        "assessment results for",
+        "migration score"
+      ],
+      "flow": [
+        { "type": "ask", "variable": "customerName", "prompt": "Which customer assessment would you like to review?" },
+        {
+          "type": "dataverse_query",
+          "table": "cr_assessmentrun",
+          "filter": "cr_customername eq '{customerName}'",
+          "order": "cr_assessmentdate desc",
+          "top": 1,
+          "store_as": "latestRun"
+        },
+        {
+          "type": "dataverse_query",
+          "table": "cr_assessmentitem",
+          "filter": "cr_jobid eq '{latestRun.cr_jobid}'",
+          "store_as": "items"
+        },
+        {
+          "type": "generative_answer",
+          "prompt": "Based on the assessment data for {customerName}, provide a clear summary including: overall readiness, databases that are ready vs need work, any critical blockers, and top 3 recommended next steps. Format as a structured report.",
+          "context": "{latestRun}, {items}"
+        }
+      ]
+    },
+    {
+      "name": "Generate Migration Plan",
+      "trigger_phrases": [
+        "create a migration plan",
+        "build a migration wave plan",
+        "generate migration report",
+        "what is the migration sequence",
+        "wave plan",
+        "migration roadmap"
+      ],
+      "flow": [
+        { "type": "ask", "variable": "customerName", "prompt": "For which customer should I generate a migration plan?" },
+        {
+          "type": "dataverse_query",
+          "table": "cr_assessmentitem",
+          "filter": "contains(cr_jobid, '{customerName}') or cr_customername eq '{customerName}'",
+          "order": "cr_readinessscore desc",
+          "store_as": "items"
+        },
+        {
+          "type": "generative_answer",
+          "prompt": "Create a detailed migration wave plan for {customerName}. Wave 1: databases with score >= 80 (Ready). Wave 2: score 60-79 (Conditionally Ready, after addressing gaps). Wave 3: score 40-59 (after preparation). Wave 4: complex/heterogeneous. For each database include: recommended migration tool, estimated effort, prerequisites, and success criteria. Flag any blockers prominently.",
+          "context": "{items}",
+          "output_format": "structured_report"
+        }
+      ]
+    },
+    {
+      "name": "Explain Migration Path",
+      "trigger_phrases": [
+        "how do I migrate",
+        "what tool should I use",
+        "migration path for",
+        "how to migrate Oracle",
+        "how to migrate SQL Server",
+        "how to migrate PostgreSQL",
+        "what is the best way to migrate"
+      ],
+      "flow": [
+        { "type": "ask", "variable": "sourceDB", "prompt": "What is the source database type and target?" },
+        {
+          "type": "generative_answer",
+          "prompt": "Explain the Azure migration path for {sourceDB}. Include: recommended Azure target service, migration tool (DMS / SSMA / ora2pg / etc.), whether online or offline migration is supported, typical effort, key prerequisites, and any gotchas specific to this migration type.",
+          "context": "migration_paths_knowledge",
+          "grounding": "assessment-engine/data/migration-paths.json"
+        }
+      ]
+    },
+    {
+      "name": "Trigger New Assessment",
+      "trigger_phrases": [
+        "start a new assessment",
+        "run assessment for",
+        "assess my databases",
+        "trigger assessment",
+        "new migration assessment"
+      ],
+      "flow": [
+        { "type": "message", "text": "To start a new assessment, please use the Power Apps DB Migration Readiness tool, fill in the database inventory, and submit. I'll be able to analyze the results once the assessment completes (typically within a few minutes)." },
+        { "type": "adaptive_card", "template": "start_assessment_card" }
+      ]
+    },
+    {
+      "name": "Blocker Resolution Help",
+      "trigger_phrases": [
+        "how to fix the blocker",
+        "resolve the blocker",
+        "landing zone not ready",
+        "no connectivity blocker",
+        "how to set up ExpressRoute",
+        "how to create landing zone",
+        "resolve migration blocker"
+      ],
+      "flow": [
+        { "type": "ask", "variable": "blockerType", "prompt": "Which blocker would you like help resolving? (e.g., Landing Zone, Network Connectivity, Zero-downtime)" },
+        {
+          "type": "generative_answer",
+          "prompt": "Provide step-by-step guidance to resolve the following migration blocker for an Azure database migration: {blockerType}. Include relevant Azure documentation links, estimated time to resolve, and who needs to be involved (DBA, Network, Cloud Architect).",
+          "use_generative_ai": true
+        }
+      ]
+    },
+    {
+      "name": "Export Report",
+      "trigger_phrases": [
+        "export the report",
+        "download assessment report",
+        "create a Word report",
+        "email the assessment",
+        "share the results"
+      ],
+      "flow": [
+        { "type": "message", "text": "I can help you export the assessment report. Which format would you like?" },
+        {
+          "type": "quick_replies",
+          "options": ["Power BI Dashboard", "Word Document", "Email Summary"],
+          "variable": "exportFormat"
+        },
+        {
+          "type": "power_automate_flow",
+          "flow_name": "Export_Assessment_Report",
+          "inputs": { "format": "{exportFormat}", "customerId": "{currentCustomer}" }
+        }
+      ]
+    }
+  ],
+  "fallback_topic": {
+    "name": "General Migration Help",
+    "generative_answers_enabled": true,
+    "knowledge_sources": [
+      "https://learn.microsoft.com/en-us/azure/dms/",
+      "https://learn.microsoft.com/en-us/azure/azure-sql/migration-guides/",
+      "https://learn.microsoft.com/en-us/azure/postgresql/migrate/"
+    ]
+  },
+  "power_automate_flows": [
+    {
+      "name": "Submit_Assessment_from_PowerApps",
+      "description": "Triggered by Power Apps form submission. Calls Docker API, polls until complete, stores results in Dataverse.",
+      "trigger": "PowerApps (V2)",
+      "steps": [
+        { "action": "HTTP POST", "url": "http://localhost:8000/assess", "headers": { "X-API-Key": "@{variables('APIKey')}" }, "body": "@{triggerBody()}" },
+        { "action": "Initialize Variable", "name": "JobId", "value": "@{body('HTTP_POST')?['jobId']}" },
+        { "action": "Initialize Variable", "name": "JobStatus", "value": "queued" },
+        {
+          "action": "Do Until",
+          "condition": "or(equals(variables('JobStatus'), 'completed'), equals(variables('JobStatus'), 'failed'))",
+          "max_count": 30,
+          "delay_seconds": 10,
+          "steps": [
+            { "action": "HTTP GET", "url": "http://localhost:8000/status/@{variables('JobId')}", "headers": { "X-API-Key": "@{variables('APIKey')}" } },
+            { "action": "Set Variable", "name": "JobStatus", "value": "@{body('HTTP_GET')?['status']}" }
+          ]
+        },
+        { "action": "HTTP GET", "url": "http://localhost:8000/report/@{variables('JobId')}", "headers": { "X-API-Key": "@{variables('APIKey')}" } },
+        { "action": "Respond to PowerApps", "outputs": { "jobId": "@{variables('JobId')}", "status": "@{variables('JobStatus')}", "report": "@{body('HTTP_GET_report')}" } }
+      ]
+    },
+    {
+      "name": "Export_Assessment_Report",
+      "description": "Exports assessment results from Dataverse to Word or sends as email.",
+      "trigger": "Copilot Studio",
+      "steps": [
+        { "action": "Get rows from Dataverse", "table": "cr_assessmentitems", "filter": "cr_customername eq '@{triggerBody()?['customerId']}'" },
+        { "action": "Create Word Document from Template", "template": "power-apps/templates/AssessmentReport.docx" },
+        { "action": "Send Email (Office 365)", "to": "@{triggerBody()?['emailTo']}", "subject": "DB Migration Assessment Report", "attachment": "@{outputs('Create_Word_Document')}" }
+      ]
+    }
+  ],
+  "setup_steps": [
+    "1. Go to https://copilotstudio.microsoft.com",
+    "2. Create new agent: 'DB Migration Readiness Advisor'",
+    "3. Add Dataverse as a knowledge source → connect to your Power Platform environment",
+    "4. Enable Generative Answers with the knowledge sources listed under fallback_topic",
+    "5. Import each topic from this config using the Copilot Studio authoring canvas",
+    "6. Publish the agent and embed it in your Power Apps solution",
+    "7. Add the Power Automate flows listed above to the same Solution"
+  ]
+}

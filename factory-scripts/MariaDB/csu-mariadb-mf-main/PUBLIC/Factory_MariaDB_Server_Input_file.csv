@@ -1,0 +1,3 @@
+"Host_Name","Resource_Group","Port","VCore","User_ID","Password","Auth_Type","DB_Name","Tenant","Subscription_ID","Approval_Status","SSL_Mode"
+"cmf-demoserver-mariadb-10-2.mariadb.database.azure.com","RG-ALLRegion-Racki-Team","3306","2","myadmin@cmf-demoserver-mariadb-10-2","Mindtree123!","default","mysql","8dc94566-ec40-4aad-abe0-739751b9d5b4","edf6dd9d-7c4a-4bca-a997-945f3d60cf4e","Yes","PREFERRED"
+"cmf-demoserver-mariadb-10-3.mariadb.database.azure.com","RG-ALLRegion-Racki-Team","3306","2","myadmin@cmf-demoserver-mariadb-10-3","","default","mysql","8dc94566-ec40-4aad-abe0-739751b9d5b4","edf6dd9d-7c4a-4bca-a997-945f3d60cf4e","Yes","PREFERRED"

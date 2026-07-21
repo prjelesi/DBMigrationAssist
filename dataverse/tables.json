@@ -1,0 +1,109 @@
+{
+  "publisher_prefix": "cr",
+  "solution_name": "DBMigrationReadiness",
+  "tables": [
+    {
+      "logical_name": "cr_assessmentrun",
+      "display_name": "Assessment Run",
+      "plural_display_name": "Assessment Runs",
+      "description": "Top-level record for each migration readiness assessment job",
+      "columns": [
+        { "logical_name": "cr_jobid",            "display_name": "Job ID",            "type": "String",   "length": 100,  "required": true },
+        { "logical_name": "cr_customername",     "display_name": "Customer Name",     "type": "String",   "length": 500,  "required": true },
+        { "logical_name": "cr_requestedby",      "display_name": "Requested By",      "type": "String",   "length": 255 },
+        { "logical_name": "cr_assessmentdate",   "display_name": "Assessment Date",   "type": "DateTime", "required": true },
+        { "logical_name": "cr_totaldbcount",     "display_name": "Total DB Count",    "type": "Integer" },
+        { "logical_name": "cr_status",           "display_name": "Status",            "type": "Picklist",
+          "options": [
+            { "value": 1, "label": "Queued" },
+            { "value": 2, "label": "Running" },
+            { "value": 3, "label": "Completed" },
+            { "value": 4, "label": "Failed" }
+          ]
+        },
+        { "logical_name": "cr_overallscore",     "display_name": "Overall Score",     "type": "Decimal" },
+        { "logical_name": "cr_reportjson",       "display_name": "Report JSON",       "type": "Multiline Text", "length": 1048576 },
+        { "logical_name": "cr_errormessage",     "display_name": "Error Message",     "type": "Multiline Text", "length": 4000 }
+      ]
+    },
+    {
+      "logical_name": "cr_assessmentitem",
+      "display_name": "Assessment Item",
+      "plural_display_name": "Assessment Items",
+      "description": "Individual database result within an assessment run",
+      "columns": [
+        { "logical_name": "cr_jobid",            "display_name": "Job ID",            "type": "Lookup", "lookup_table": "cr_assessmentrun" },
+        { "logical_name": "cr_databasename",     "display_name": "Database Name",     "type": "String",   "length": 500,  "required": true },
+        { "logical_name": "cr_sourcetype",       "display_name": "Source DB Type",    "type": "Picklist",
+          "options": [
+            { "value": 1,  "label": "SQL Server" },
+            { "value": 2,  "label": "Oracle" },
+            { "value": 3,  "label": "PostgreSQL" },
+            { "value": 4,  "label": "MySQL" },
+            { "value": 5,  "label": "MariaDB" },
+            { "value": 6,  "label": "MongoDB" },
+            { "value": 7,  "label": "Cassandra" }
+          ]
+        },
+        { "logical_name": "cr_sourceversion",    "display_name": "Source Version",    "type": "String",   "length": 100 },
+        { "logical_name": "cr_targettype",       "display_name": "Target Azure Service","type": "String",  "length": 500 },
+        { "logical_name": "cr_migrationtype",    "display_name": "Migration Type",    "type": "Picklist",
+          "options": [
+            { "value": 1, "label": "Homogeneous" },
+            { "value": 2, "label": "Heterogeneous" }
+          ]
+        },
+        { "logical_name": "cr_readinessscore",   "display_name": "Readiness Score",   "type": "Integer",  "min": 0, "max": 100 },
+        { "logical_name": "cr_readinessband",    "display_name": "Readiness Band",    "type": "Picklist",
+          "options": [
+            { "value": 1, "label": "Ready to Migrate",    "color": "#00A651" },
+            { "value": 2, "label": "Conditionally Ready", "color": "#FFC107" },
+            { "value": 3, "label": "Needs Preparation",   "color": "#FF8C00" },
+            { "value": 4, "label": "Not Ready",           "color": "#D50000" }
+          ]
+        },
+        { "logical_name": "cr_recommendation",   "display_name": "Recommendation",   "type": "Multiline Text", "length": 2000 },
+        { "logical_name": "cr_blockers",         "display_name": "Blockers JSON",     "type": "Multiline Text", "length": 4000 },
+        { "logical_name": "cr_findings",         "display_name": "Findings JSON",     "type": "Multiline Text", "length": 8000 },
+        { "logical_name": "cr_efforttotaldays",  "display_name": "Effort (Days)",     "type": "Integer" },
+        { "logical_name": "cr_effortweeks",      "display_name": "Effort (Weeks)",    "type": "Integer" },
+        { "logical_name": "cr_migrationtools",   "display_name": "Migration Tools",   "type": "Multiline Text", "length": 2000 },
+        { "logical_name": "cr_factoryscript",    "display_name": "Factory Script",    "type": "String",   "length": 500 },
+        { "logical_name": "cr_hasblookers",      "display_name": "Has Blockers",      "type": "Boolean" }
+      ]
+    },
+    {
+      "logical_name": "cr_dbinventory",
+      "display_name": "DB Inventory",
+      "plural_display_name": "DB Inventory",
+      "description": "Customer database inventory input records submitted via Power Apps",
+      "columns": [
+        { "logical_name": "cr_customername",     "display_name": "Customer Name",     "type": "String",   "length": 500 },
+        { "logical_name": "cr_databasename",     "display_name": "Database Name",     "type": "String",   "length": 500,  "required": true },
+        { "logical_name": "cr_sourcetype",       "display_name": "Source DB Type",    "type": "String",   "length": 100 },
+        { "logical_name": "cr_sourceversion",    "display_name": "Source Version",    "type": "String",   "length": 100 },
+        { "logical_name": "cr_sourceenvironment","display_name": "Source Environment","type": "String",   "length": 100 },
+        { "logical_name": "cr_targettype",       "display_name": "Target Type",       "type": "String",   "length": 500 },
+        { "logical_name": "cr_maxdowntime",      "display_name": "Max Downtime",      "type": "String",   "length": 50 },
+        { "logical_name": "cr_connectivity",     "display_name": "Connectivity",      "type": "String",   "length": 50 },
+        { "logical_name": "cr_landingzone",      "display_name": "Landing Zone",      "type": "String",   "length": 50 },
+        { "logical_name": "cr_datasize",         "display_name": "Data Size",         "type": "String",   "length": 50 },
+        { "logical_name": "cr_storedprocs",      "display_name": "Stored Procs",      "type": "String",   "length": 50 },
+        { "logical_name": "cr_dependencies",     "display_name": "Dependencies",      "type": "String",   "length": 500 },
+        { "logical_name": "cr_teamskill",        "display_name": "Team Skill",        "type": "String",   "length": 50 },
+        { "logical_name": "cr_rollbackplan",     "display_name": "Rollback Plan",     "type": "String",   "length": 50 },
+        { "logical_name": "cr_databasecount",    "display_name": "Database Count",    "type": "Integer",  "default": 1 },
+        { "logical_name": "cr_submitteddate",    "display_name": "Submitted Date",    "type": "DateTime" },
+        { "logical_name": "cr_assessmentrunid",  "display_name": "Assessment Run",    "type": "Lookup",   "lookup_table": "cr_assessmentrun" }
+      ]
+    }
+  ],
+  "setup_instructions": [
+    "1. In Power Apps maker portal (make.powerapps.com), go to Solutions → New Solution",
+    "2. Set Publisher with prefix 'cr'",
+    "3. For each table above, create via Dataverse → Tables → New Table",
+    "4. Create a Service Principal (App Registration) in Entra ID with the Dataverse 'user' role",
+    "5. Copy Client ID, Client Secret, Tenant ID into docker/.env",
+    "6. Grant the service principal 'System Customizer' role in the Power Platform environment"
+  ]
+}

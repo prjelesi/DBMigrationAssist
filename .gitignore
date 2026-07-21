@@ -1,0 +1,22 @@
+# Environment / secrets
+docker/.env
+*.env
+
+# Output reports
+output/
+/input/*.csv
+!/input/sample-db-inventory.csv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Docker
+docker/data/
+
+# OS
+.DS_Store
+Thumbs.db

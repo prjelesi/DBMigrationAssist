@@ -1,0 +1,11 @@
+id,sku.name,fullyQualifiedDomainName,sku.capacity,sku.storage,sku.tier,version,logname,region,location,ha,read_replica,environment,server_type,migration_path,approved
+AWS,db.x2g.large,server1.eu-west-1.rds.amazonaws.com,4,100,AWS_RDS_GeneralPurpose,8,demo_server1,eu-west-1,eu-west,Yes,Yes,prod,RDS,Migration-Service,Yes
+AWS,db.t3.large,server2.eu-west-1.rds.amazonaws.com,8,100,AWS_RDS_MemoryOptimized,8,demo_server2,eu-west-2,eu-west,Yes,Yes,non-prod,RDS,Dump-Load,Yes
+AWS,db.r5.large,server3.cluster-1.us-east-1.rds.amazonaws.com,8,100,AWS_Aurora_GeneralPurpose,8,demo_server3.cluster-1,us-east-1,us-east,Yes,Yes,prod,Aurora,Migration-Service,No
+AWS,db.m6id.large,server4.cluster-4.us-east-1.rds.amazonaws.com,8,100,AWS_Aurora_MemoryOptimized,8,demo_server4.cluster-4,us-east-1,us-east,Yes,Yes,non-prod,Aurora,Dump-Load,Yes
+GCP,GCP_CloudSQL_Enterprise,server5.cloud-5.googledomains.com,8,100,GCP_CloudSQL_Enterprise,8,demo_server5.cloud-5,us-west1,us-west,NA,NA,prod,CloudSQL,Migration-Service,Yes
+Azure,Standard B2ms,server6.westus2.cloudapp.azure.com,4,100,Azure_VM,8,demo_server6,westus2,us-west,NA,NA,prod,VM,Migration-Service,Yes
+GCP,GCP_VM,server7.googlecloud.com,4,100,GCP_VM,8,demo_server7,us-west1,us-west,NA,NA,non-prod,VM,Migration-Service,No
+AWS,AWS_VM,server8.us-west-1.compute.amazonaws.com,4,100,AWS_VM,8,demo_server8,eu-west-2,eu-west,NA,NA,prod,VM,Dump-Load,Yes
+Onprem,Onprem_VM,server9.demo.com,4,100,Onprem_VM,8,demo_server9,us-west,us,NA,NA,prod,VM,Dump-Load,Yes
+K8S,K8s_Cluster_Node,server10.demo.com,4,100,K8s_Cluster_Node,8,demo_server10,us-east-1,us-east-1,NA,NA,prod,K8S,Migration-Service,Yes

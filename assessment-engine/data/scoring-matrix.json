@@ -1,0 +1,112 @@
+{
+  "version": "1.0",
+  "maxScore": 100,
+  "categories": [
+    {
+      "id": "migration-path",
+      "name": "Migration Path Clarity",
+      "weight": 20,
+      "rules": [
+        { "condition": "targetKnown && !isHeterogeneous", "score": 20, "label": "Clear homogeneous path" },
+        { "condition": "targetKnown && isHeterogeneous", "score": 10, "label": "Heterogeneous – schema conversion required" },
+        { "condition": "!targetKnown", "score": 5, "label": "Target undecided – recommendation needed" }
+      ]
+    },
+    {
+      "id": "downtime-tolerance",
+      "name": "Downtime Tolerance",
+      "weight": 15,
+      "rules": [
+        { "condition": "maxDowntime === 'days'", "score": 15, "label": "Offline migration acceptable" },
+        { "condition": "maxDowntime === 'hours'", "score": 10, "label": "Short window – online preferred" },
+        { "condition": "maxDowntime === 'zero' && onlineMigrationSupported", "score": 10, "label": "Zero downtime with online migration" },
+        { "condition": "maxDowntime === 'zero' && !onlineMigrationSupported", "score": 2, "label": "Zero downtime required but not supported – blocker" }
+      ]
+    },
+    {
+      "id": "connectivity",
+      "name": "Network Connectivity",
+      "weight": 15,
+      "rules": [
+        { "condition": "connectivity === 'expressroute'", "score": 15, "label": "ExpressRoute – optimal" },
+        { "condition": "connectivity === 'vpn'", "score": 12, "label": "VPN – good" },
+        { "condition": "connectivity === 'internet'", "score": 5, "label": "Internet only – latency/security risk" },
+        { "condition": "connectivity === 'none'", "score": 0, "label": "No connectivity – blocker" }
+      ]
+    },
+    {
+      "id": "landing-zone",
+      "name": "Azure Landing Zone",
+      "weight": 10,
+      "rules": [
+        { "condition": "landingZone === 'yes'", "score": 10, "label": "Landing zone ready" },
+        { "condition": "landingZone === 'partial'", "score": 5, "label": "Partial – gaps to address" },
+        { "condition": "landingZone === 'no'", "score": 0, "label": "Not ready – must be established first" }
+      ]
+    },
+    {
+      "id": "complexity",
+      "name": "Database Complexity",
+      "weight": 20,
+      "rules": [
+        { "condition": "storedProcs === 'none' && !hasLinkedServers && !hasSSIS", "score": 20, "label": "Low complexity" },
+        { "condition": "storedProcs === 'few' && !hasOracleSpecific", "score": 14, "label": "Medium complexity" },
+        { "condition": "storedProcs === 'many' || hasLinkedServers || hasSSIS", "score": 8, "label": "High complexity – additional effort" },
+        { "condition": "storedProcs === 'extensive' || hasOracleSpecific || hasPLSQL", "score": 3, "label": "Very high – heterogeneous conversion risk" }
+      ]
+    },
+    {
+      "id": "team-readiness",
+      "name": "Team Readiness",
+      "weight": 10,
+      "rules": [
+        { "condition": "teamSkill === 'expert'", "score": 10, "label": "Team ready" },
+        { "condition": "teamSkill === 'moderate'", "score": 6, "label": "Training recommended" },
+        { "condition": "teamSkill === 'beginner'", "score": 2, "label": "Significant upskilling required" }
+      ]
+    },
+    {
+      "id": "rollback",
+      "name": "Rollback Readiness",
+      "weight": 10,
+      "rules": [
+        { "condition": "rollback === 'yes_tested'", "score": 10, "label": "Rollback plan tested" },
+        { "condition": "rollback === 'yes_untested'", "score": 6, "label": "Rollback documented but untested" },
+        { "condition": "rollback === 'partial'", "score": 3, "label": "Incomplete rollback plan – risk" },
+        { "condition": "rollback === 'no'", "score": 0, "label": "No rollback plan – high risk" }
+      ]
+    }
+  ],
+  "readinessBands": [
+    { "min": 80, "max": 100, "label": "Ready to Migrate", "color": "green", "recommendation": "Proceed with migration planning and execution." },
+    { "min": 60, "max": 79,  "label": "Conditionally Ready", "color": "yellow", "recommendation": "Address identified gaps before migration. Factory assistance recommended." },
+    { "min": 40, "max": 59,  "label": "Needs Preparation", "color": "orange", "recommendation": "Significant preparation work required. Engage Microsoft FastTrack." },
+    { "min": 0,  "max": 39,  "label": "Not Ready", "color": "red", "recommendation": "Multiple blockers identified. Do not proceed until critical items resolved." }
+  ],
+  "blockers": [
+    { "id": "b1", "condition": "connectivity === 'none'", "message": "No network connectivity to Azure established. Migration cannot proceed." },
+    { "id": "b2", "condition": "maxDowntime === 'zero' && !onlineMigrationSupported", "message": "Zero downtime required but the migration path does not support online migration." },
+    { "id": "b3", "condition": "landingZone === 'no'", "message": "Azure Landing Zone not established. Network, RBAC, and governance must be set up first." }
+  ],
+  "effortEstimation": {
+    "baseEffortPerDB": {
+      "small": { "homogeneous": 1, "heterogeneous": 10 },
+      "medium": { "homogeneous": 3, "heterogeneous": 30 },
+      "large": { "homogeneous": 7, "heterogeneous": 90 }
+    },
+    "multipliers": {
+      "storedProcs_few": 1.2,
+      "storedProcs_many": 1.5,
+      "storedProcs_extensive": 2.0,
+      "hasLinkedServers": 1.3,
+      "hasSSIS": 1.2,
+      "hasReplication": 1.2,
+      "hasCDC": 1.1,
+      "teamSkill_beginner": 1.5,
+      "teamSkill_moderate": 1.2,
+      "teamSkill_expert": 1.0,
+      "noRollbackPlan": 1.1,
+      "complianceRequired": 1.2
+    }
+  }
+}
