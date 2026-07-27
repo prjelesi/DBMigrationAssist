@@ -1,6 +1,0 @@
-Host_Name,Port,User_ID,Password,Auth_DB,TLS_Certificate_Path,CA_Certificate_Path,Approval_Status
-xxxxx.westus2.cloudapp.azure.com,57018,user_name,Pass,admin,c:\xxx\xx\xxx.pem,c:\xx\xx\xx.crt,Yes
-xxxxx.westus2.cloudapp.azure.com,57017,,,admin,/xxx/xx/xxx.pem,/xx/xx/xx.crt,Yes
-xxxxx.eastus.cloudapp.azure.com,47017,user_name,Pass,admin,,,Yes
-xxxxx.eastus.cloudapp.azure.com,47018,user_name,IN,admin,,,Yes
-Cluster_xxxxx.5lexsk.mongodb.net,,user_name,Pass,admin,,,Yes
