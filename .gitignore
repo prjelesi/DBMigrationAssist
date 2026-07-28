@@ -1,0 +1,44 @@
+# .NET build outputs
+**/bin/
+**/obj/
+**/publish/
+*.user
+*.suo
+.vs/
+
+# NuGet
+*.nupkg
+*.nuspec
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# EF Core migrations snapshot (keep migrations, not snapshots)
+# Uncomment if you want to ignore snapshots:
+# **/Migrations/*Snapshot.cs
+
+# Frontend
+src/frontend/node_modules/
+src/frontend/dist/
+src/frontend/.env.local
+
+# Docker
+.env
+
+# Secrets / bootstrap packages - NEVER commit PSKs or bootstrap packages
+src/agent/**/*bootstrap*.json
+**/.env.local
+**/*.pfx
+**/appsettings.Development.json
+**/*.p12
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rider / JetBrains
+.idea/
+
+# VS Code
+.vscode/settings.json
+.vscode/launch.json

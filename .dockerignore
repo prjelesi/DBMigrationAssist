@@ -1,0 +1,25 @@
+# Exclude source and build tool files from the Docker context
+# Docker images only need the pre-built publish/ or dist/ output
+
+# .NET source and intermediate files
+src/
+obj/
+*.csproj
+*.sln
+*.user
+
+# Frontend source (dist/ is included)
+node_modules/
+src/frontend/src/
+src/frontend/public/
+src/frontend/package*.json
+src/frontend/vite.config.ts
+src/frontend/tsconfig*.json
+src/frontend/.oxlintrc.json
+
+# Secrets and bootstrap packages — never include in images
+**/*bootstrap*.json
+**/*.pfx
+**/*.p12
+.env
+.env.*

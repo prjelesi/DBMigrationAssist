@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --font: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  /* Accent */
+  --accent-600:  #4f46e5;
+  --accent-500:  #6366f1;
+  --accent-400:  #818cf8;
+  --accent-100:  #e0e7ff;
+  --accent-50:   #eef2ff;
+
+  /* Sidebar */
+  --sidebar-bg:     #09090f;
+  --sidebar-border: #1a1a2e;
+  --sidebar-text:   #8b8fa8;
+  --sidebar-hover:  #111128;
+  --sidebar-active: #1a1a3e;
+
+  /* Surface */
+  --bg:           #f4f6fb;
+  --surface:      #ffffff;
+  --surface-2:    #f8fafc;
+  --border:       #e5e9f0;
+  --border-light: #f0f3f8;
+
+  /* Text */
+  --text-primary:   #0f1117;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
+
+  /* Semantic */
+  --green-bg:   #dcfce7; --green-text:   #15803d;
+  --blue-bg:    #dbeafe; --blue-text:    #1d4ed8;
+  --amber-bg:   #fef3c7; --amber-text:   #b45309;
+  --red-bg:     #fee2e2; --red-text:     #b91c1c;
+  --purple-bg:  #f3e8ff; --purple-text:  #7e22ce;
+  --gray-bg:    #f1f5f9; --gray-text:    #475569;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow:    0 4px 12px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent-600); text-decoration: none; }
+a:hover { text-decoration: underline; }

@@ -1,0 +1,5 @@
+# Pre-built Dockerfile — run build.ps1 first to produce publish/ locally.
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY publish/ .
+ENTRYPOINT ["dotnet", "AssessmentToolkit.Agent.dll"]

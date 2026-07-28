@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: assessment
+      POSTGRES_PASSWORD: assessment_dev_password
+      POSTGRES_DB: assessmentdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assessment -d assessmentdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./src/backend/AssessmentToolkit.Api
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=assessment_dev_password"
+      Api__PublicUrl: "http://localhost:5000"
+      Evidence__StorageRoot: "/app/evidence"
+      # ── AI Foundry ── uncomment and fill in to enable AI features ──────
+      # AiFoundry__Endpoint: "https://<your-resource>.openai.azure.com/"
+      # AiFoundry__ApiKey: "<your-api-key>"
+      # AiFoundry__Deployment: "gpt-4o"
+    volumes:
+      - evidence_data:/app/evidence
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./src/backend/AssessmentToolkit.Worker
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=assessment_dev_password"
+      Worker__ApiBaseUrl: "http://api:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+  # Agent is deployed separately in the customer network.
+  # This service is for local PoC testing only.
+  agent-dev:
+    build:
+      context: ./src/agent/AssessmentToolkit.Agent
+      dockerfile: Dockerfile
+    environment:
+      AGENT_BACKEND_URL: "http://api:8080"
+      AGENT_ID: ""        # Set after registering the agent via the API
+      AGENT_PSK: ""       # Set from the bootstrap package returned by the API
+      AGENT_PLUGINS: "postgresql,oracle"
+    depends_on:
+      - api
+    profiles:
+      - agent  # Only started when: docker compose --profile agent up
+
+volumes:
+  postgres_data:
+  evidence_data:

@@ -1,0 +1,66 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shared", "shared", "{06E22C34-7899-4F16-9131-1CFCDC24875E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Shared", "shared\AssessmentToolkit.Shared\AssessmentToolkit.Shared.csproj", "{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend", "backend", "{2570EE46-6F91-4E0D-B118-A4B14C75FDD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Core", "backend\AssessmentToolkit.Core\AssessmentToolkit.Core.csproj", "{C7F39CAE-2BBB-4F56-9636-18D401A0EFBE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Data", "backend\AssessmentToolkit.Data\AssessmentToolkit.Data.csproj", "{1D419010-D397-45F5-BFB3-82A16D1F81B5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Api", "backend\AssessmentToolkit.Api\AssessmentToolkit.Api.csproj", "{1DE2280A-B39A-4A25-9058-08A968650E4B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Worker", "backend\AssessmentToolkit.Worker\AssessmentToolkit.Worker.csproj", "{0CA7CE23-78B1-46BF-B905-116E2DDB0D08}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "agent", "agent", "{73F9E708-3B25-43BB-A3CD-70768A18F27F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Agent", "agent\AssessmentToolkit.Agent\AssessmentToolkit.Agent.csproj", "{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7F39CAE-2BBB-4F56-9636-18D401A0EFBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7F39CAE-2BBB-4F56-9636-18D401A0EFBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7F39CAE-2BBB-4F56-9636-18D401A0EFBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7F39CAE-2BBB-4F56-9636-18D401A0EFBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D419010-D397-45F5-BFB3-82A16D1F81B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D419010-D397-45F5-BFB3-82A16D1F81B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D419010-D397-45F5-BFB3-82A16D1F81B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D419010-D397-45F5-BFB3-82A16D1F81B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DE2280A-B39A-4A25-9058-08A968650E4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DE2280A-B39A-4A25-9058-08A968650E4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DE2280A-B39A-4A25-9058-08A968650E4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DE2280A-B39A-4A25-9058-08A968650E4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CA7CE23-78B1-46BF-B905-116E2DDB0D08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CA7CE23-78B1-46BF-B905-116E2DDB0D08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CA7CE23-78B1-46BF-B905-116E2DDB0D08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CA7CE23-78B1-46BF-B905-116E2DDB0D08}.Release|Any CPU.Build.0 = Release|Any CPU
+		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D} = {06E22C34-7899-4F16-9131-1CFCDC24875E}
+		{C7F39CAE-2BBB-4F56-9636-18D401A0EFBE} = {2570EE46-6F91-4E0D-B118-A4B14C75FDD6}
+		{1D419010-D397-45F5-BFB3-82A16D1F81B5} = {2570EE46-6F91-4E0D-B118-A4B14C75FDD6}
+		{1DE2280A-B39A-4A25-9058-08A968650E4B} = {2570EE46-6F91-4E0D-B118-A4B14C75FDD6}
+		{0CA7CE23-78B1-46BF-B905-116E2DDB0D08} = {2570EE46-6F91-4E0D-B118-A4B14C75FDD6}
+		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F} = {73F9E708-3B25-43BB-A3CD-70768A18F27F}
+	EndGlobalSection
+EndGlobal
