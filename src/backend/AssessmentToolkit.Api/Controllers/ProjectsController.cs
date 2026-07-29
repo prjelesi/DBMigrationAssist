@@ -39,7 +39,18 @@ public class ProjectsController(AssessmentDbContext db) : ControllerBase
 
         db.Projects.Add(project);
         await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(Get), new { id = project.ProjectId }, project);
+        return CreatedAtAction(nameof(Get), new { id = project.ProjectId }, new
+        {
+            project.ProjectId,
+            project.CustomerId,
+            project.Name,
+            project.Description,
+            project.DeploymentMode,
+            project.Status,
+            project.CreatedBy,
+            project.CreatedAt,
+            project.UpdatedAt
+        });
     }
 }
 

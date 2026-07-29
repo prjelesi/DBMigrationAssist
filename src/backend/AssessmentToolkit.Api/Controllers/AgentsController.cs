@@ -126,6 +126,50 @@ public class AgentsController(AssessmentDbContext db, IConfiguration config) : C
         return Ok(jobs);
     }
 
+    /// <summary>Portal endpoint: creates a new assessment job for an agent.</summary>
+    [HttpPost("{id:guid}/jobs")]
+    public async Task<IActionResult> CreateJob(Guid id, [FromBody] CreateJobRequest req)
+    {
+        var agent = await db.Agents.FindAsync(id);
+        if (agent is null) return NotFound("Agent not found.");
+        if (!agent.AllowedPlugins.Contains(req.PluginId))
+            return BadRequest($"Plugin '{req.PluginId}' is not in the agent's allowed plugin list.");
+
+        var job = new AssessmentJob
+        {
+            AgentId = id,
+            DatabaseId = req.DatabaseId,
+            PluginId = req.PluginId,
+            ParametersJson = req.ParametersJson
+        };
+
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        return Created($"/api/agents/{id}/jobs/{job.JobId}", new { job.JobId, job.Status, job.PluginId });
+    }
+
+    /// <summary>Portal endpoint: returns full assessment result details for a specific job.</summary>
+    [HttpGet("{id:guid}/jobs/{jobId:guid}/results")]
+    public async Task<IActionResult> GetJobResults(Guid id, Guid jobId)
+    {
+        var results = await db.Results
+            .Where(r => r.JobId == jobId && r.Job.AgentId == id)
+            .OrderBy(r => r.AssessedAt)
+            .Select(r => new
+            {
+                r.ResultId,
+                r.PluginId,
+                r.PluginVersion,
+                r.Confidence,
+                r.FindingJson,
+                r.RawSummaryJson,
+                r.AssessedAt,
+                r.CreatedAt
+            })
+            .ToListAsync();
+        return Ok(results);
+    }
+
     private static string ComputeSaltedHash(string psk, string salt)
     {
         var input = Encoding.UTF8.GetBytes(salt + psk);

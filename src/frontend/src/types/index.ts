@@ -96,6 +96,17 @@ export interface AgentJobSummary {
   resultCount: number;
 }
 
+export interface AssessmentResult {
+  resultId: string;
+  pluginId: string;
+  pluginVersion: string;
+  confidence: ConfidenceLevel;
+  findingJson: string;
+  rawSummaryJson: string;
+  assessedAt: string;
+  createdAt: string;
+}
+
 // ── Questionnaire ───────────────────────────────────────────────────────
 
 export type QuestionType = 'Text' | 'Textarea' | 'Select' | 'MultiSelect' | 'Boolean' | 'Number';

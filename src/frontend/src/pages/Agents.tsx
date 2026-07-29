@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { dispatchJob, getAgentJobs, getAgents, getProjects, registerAgent } from "../lib/api";
-import type { Agent, AgentJobSummary, PskMode, RegisterAgentResponse } from "../types";
+import { dispatchJob, getAgentJobs, getAgents, getDatabases, getJobResults, getProjects, registerAgent } from "../lib/api";
+import type { Agent, AgentJobSummary, AssessmentResult, DatabaseInstance, PskMode, RegisterAgentResponse } from "../types";
 
 const STATUS_BADGE: Record<string, string> = {
   Active: "badge-green", Registered: "badge-blue",
@@ -19,6 +19,148 @@ const DEFAULT_PORTS: Record<string, number> = {
   oracle: 1521, postgresql: 5432, sqlserver: 1433, mysql: 3306, mongodb: 27017,
 };
 
+// ── Findings helpers ─────────────────────────────────────────────────
+const AI_KEYS = new Set(["migrationPath", "risks", "complexity", "remediationSteps"]);
+
+const CONF_BADGE: Record<string, string> = {
+  High: "badge-green", Medium: "badge-blue", Low: "badge-yellow", Unverified: "badge-gray",
+};
+
+const RISK_BADGE: Record<string, string> = {
+  High: "badge-red", Medium: "badge-yellow", Low: "badge-green",
+};
+
+function renderFindingValue(v: unknown) {
+  if (v === null || v === undefined)
+    return <span style={{ color: "var(--text-muted)" }}>—</span>;
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean")
+    return <span>{String(v)}</span>;
+  if (Array.isArray(v) && v.every(x => typeof x === "string" || typeof x === "number"))
+    return (
+      <span>
+        {(v as (string | number)[]).map((s, i) => (
+          <span key={i} className="tag" style={{ marginRight: 4, marginBottom: 2, display: "inline-block" }}>{String(s)}</span>
+        ))}
+      </span>
+    );
+  return (
+    <pre style={{ fontSize: 11, background: "var(--surface-2)", padding: "4px 8px", borderRadius: 4, margin: 0, overflow: "auto", maxWidth: 500 }}>
+      {JSON.stringify(v, null, 2)}
+    </pre>
+  );
+}
+
+function FindingCard({ result }: { result: AssessmentResult }) {
+  let parsed: Record<string, unknown> | null = null;
+  try { parsed = JSON.parse(result.findingJson); } catch { /* ignore */ }
+
+  const rawEntries = parsed ? Object.entries(parsed).filter(([k]) => !AI_KEYS.has(k)) : [];
+  const hasAi = parsed ? Object.keys(parsed).some(k => AI_KEYS.has(k)) : false;
+
+  type RiskItem = { title: string; severity: string; description?: string };
+  const aiMigrationPath = parsed?.migrationPath as string | undefined;
+  const aiComplexity    = parsed?.complexity    as string | undefined;
+  const aiRisks         = parsed?.risks         as RiskItem[] | undefined;
+  const aiSteps         = parsed?.remediationSteps as string[] | undefined;
+
+  return (
+    <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span className="tag">{result.pluginId}</span>
+        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>v{result.pluginVersion}</span>
+        <span className={`badge ${CONF_BADGE[result.confidence] ?? "badge-gray"}`}>
+          {result.confidence} confidence
+        </span>
+        <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+          Assessed {new Date(result.assessedAt).toLocaleString()}
+        </span>
+      </div>
+
+      {/* Raw findings */}
+      {rawEntries.length > 0 && (
+        <div style={{ marginBottom: hasAi ? 16 : 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Raw Findings
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <tbody>
+              {rawEntries.map(([key, val]) => (
+                <tr key={key} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                  <td style={{ padding: "6px 12px 6px 0", fontWeight: 500, color: "var(--text-secondary)", width: 220, verticalAlign: "top", whiteSpace: "nowrap" }}>
+                    {key.replace(/_/g, " ")}
+                  </td>
+                  <td style={{ padding: "6px 0", color: "var(--text-primary)", verticalAlign: "top" }}>
+                    {renderFindingValue(val)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* AI enrichment */}
+      {hasAi && (
+        <div style={{ marginTop: rawEntries.length > 0 ? 16 : 0, padding: 16, background: "var(--blue-bg)", borderRadius: "var(--radius)", border: "1px solid var(--accent-100)" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--blue-text)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            AI Enrichment
+          </div>
+          {aiMigrationPath && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Migration Path</div>
+              <div style={{ fontSize: 13 }}>{aiMigrationPath}</div>
+            </div>
+          )}
+          {aiComplexity && (
+            <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Complexity:</span>
+              <span className="badge badge-blue">{aiComplexity}</span>
+            </div>
+          )}
+          {aiRisks && aiRisks.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Key Risks</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {aiRisks.map((r, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <span className={`badge ${RISK_BADGE[r.severity] ?? "badge-gray"}`} style={{ minWidth: 64, justifyContent: "center" }}>
+                      {r.severity}
+                    </span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{r.title}</div>
+                      {r.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{r.description}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {aiSteps && aiSteps.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Remediation Steps</div>
+              <ol style={{ paddingLeft: 20, margin: 0 }}>
+                {aiSteps.map((step, i) => (
+                  <li key={i} style={{ fontSize: 13, marginBottom: 4 }}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!parsed && (
+        <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "4px 0" }}>Unable to parse finding data.</div>
+      )}
+    </div>
+  );
+}
+
+const ENGINE_TO_PLUGIN: Record<string, string> = {
+  Oracle: "oracle", PostgreSQL: "postgresql", SqlServer: "sqlserver",
+  MySQL: "mysql", MongoDB: "mongodb",
+};
+
 export default function Agents() {
   const qc = useQueryClient();
   const [selectedProject, setSelectedProject] = useState("");
@@ -26,6 +168,7 @@ export default function Agents() {
   const [bootstrapResult, setBootstrapResult] = useState<RegisterAgentResponse | null>(null);
   const [dispatchTarget, setDispatchTarget] = useState<Agent | null>(null);
   const [jobHistoryAgent, setJobHistoryAgent] = useState<Agent | null>(null);
+  const [viewFindingsJob, setViewFindingsJob] = useState<AgentJobSummary | null>(null);
 
   const [regForm, setRegForm] = useState({
     name: "", pskMode: "SystemGenerated" as PskMode,
@@ -33,8 +176,15 @@ export default function Agents() {
   });
 
   const [jobForm, setJobForm] = useState({
+    selectedDatabaseId: "",
     pluginId: "postgresql", host: "", port: 5432,
     database: "", username: "", password: "",
+  });
+
+  const databases = useQuery({
+    queryKey: ["databases", selectedProject],
+    queryFn: () => getDatabases(selectedProject),
+    enabled: !!selectedProject,
   });
 
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
@@ -53,6 +203,12 @@ export default function Agents() {
     refetchInterval: 10_000,
   });
 
+  const findingsQuery = useQuery({
+    queryKey: ["jobResults", viewFindingsJob?.jobId],
+    queryFn: () => getJobResults(jobHistoryAgent!.agentId, viewFindingsJob!.jobId),
+    enabled: !!viewFindingsJob && !!jobHistoryAgent,
+  });
+
   const registerMutation = useMutation({
     mutationFn: registerAgent,
     onSuccess: (data) => {
@@ -65,6 +221,7 @@ export default function Agents() {
   const dispatchMutation = useMutation({
     mutationFn: ({ agent, form }: { agent: Agent; form: typeof jobForm }) =>
       dispatchJob(agent.agentId, {
+        databaseId: form.selectedDatabaseId || undefined,
         pluginId: form.pluginId,
         parametersJson: JSON.stringify({
           host: form.host, port: form.port,
@@ -77,7 +234,7 @@ export default function Agents() {
       qc.invalidateQueries({ queryKey: ["agentJobs", vars.agent.agentId] });
       setJobHistoryAgent(vars.agent);
       setDispatchTarget(null);
-      setJobForm({ pluginId: "postgresql", host: "", port: 5432, database: "", username: "", password: "" });
+      setJobForm({ selectedDatabaseId: "", pluginId: "postgresql", host: "", port: 5432, database: "", username: "", password: "" });
     },
   });
 
@@ -118,7 +275,7 @@ export default function Agents() {
       <div className="filter-bar">
         <div className="form-row" style={{ marginBottom: 0, minWidth: 300 }}>
           <label>Project</label>
-          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setJobHistoryAgent(null); }}>
+            <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setJobHistoryAgent(null); setViewFindingsJob(null); }}>
             <option value="">Choose a project…</option>
             {projects.data?.map(p => <option key={p.projectId} value={p.projectId}>{p.name}</option>)}
           </select>
@@ -177,7 +334,7 @@ export default function Agents() {
                         </button>
                         <button
                           className="btn btn-secondary btn-sm"
-                          onClick={() => setJobHistoryAgent(jobHistoryAgent?.agentId === a.agentId ? null : a)}
+                          onClick={() => { setJobHistoryAgent(jobHistoryAgent?.agentId === a.agentId ? null : a); setViewFindingsJob(null); }}
                         >
                           {jobHistoryAgent?.agentId === a.agentId ? "Hide Jobs" : "Job History"}
                         </button>
@@ -226,9 +383,23 @@ export default function Agents() {
                       {duration(j.startedAt, j.completedAt)}
                     </td>
                     <td style={{ fontSize: 12.5 }}>
-                      {j.resultCount > 0
-                        ? <span className="badge badge-green">{j.resultCount} findings</span>
-                        : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                      {j.resultCount > 0 ? (
+                        <button
+                          className={`badge badge-green`}
+                          style={{
+                            cursor: "pointer", border: "none",
+                            background: viewFindingsJob?.jobId === j.jobId ? "var(--green-text)" : undefined,
+                            color: viewFindingsJob?.jobId === j.jobId ? "#fff" : undefined,
+                          }}
+                          onClick={() => setViewFindingsJob(viewFindingsJob?.jobId === j.jobId ? null : j)}
+                          title="Click to view findings"
+                        >
+                          {j.resultCount} finding{j.resultCount !== 1 ? 's' : ''}{' '}
+                          {viewFindingsJob?.jobId === j.jobId ? '▲' : '▼'}
+                        </button>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
                     </td>
                     <td style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
                       {new Date(j.createdAt).toLocaleString()}
@@ -238,6 +409,33 @@ export default function Agents() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* ── Findings panel ─────────────────────────────────────── */}
+      {viewFindingsJob && jobHistoryAgent && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">
+              Findings —{" "}
+              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{viewFindingsJob.jobId.slice(0, 8)}…</span>
+              <span className="tag" style={{ marginLeft: 8 }}>{viewFindingsJob.pluginId}</span>
+            </span>
+            <button className="btn btn-secondary btn-sm" onClick={() => setViewFindingsJob(null)}>✕ Close</button>
+          </div>
+          {findingsQuery.isLoading && <div className="loading" />}
+          {findingsQuery.isError && (
+            <div className="empty-state" style={{ color: "var(--red-text)" }}>
+              Failed to load findings. Please try again.
+            </div>
+          )}
+          {!findingsQuery.isLoading && findingsQuery.data?.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-state-icon">🔍</div>
+              <p>No findings stored for this job.</p>
+            </div>
+          )}
+          {findingsQuery.data?.map(r => <FindingCard key={r.resultId} result={r} />)}
         </div>
       )}
 
@@ -252,13 +450,51 @@ export default function Agents() {
               <div className="error-msg">Failed to dispatch job. Check the form and try again.</div>
             )}
 
+            {/* ── Database from inventory (optional) ── */}
+            <div className="form-row">
+              <label>Database from inventory</label>
+              <select
+                value={jobForm.selectedDatabaseId}
+                onChange={e => {
+                  const db = databases.data?.find((d: DatabaseInstance) => d.databaseId === e.target.value);
+                  if (db) {
+                    const plugin = ENGINE_TO_PLUGIN[db.engine] ?? "postgresql";
+                    setJobForm(f => ({
+                      ...f,
+                      selectedDatabaseId: db.databaseId,
+                      pluginId: dispatchTarget.allowedPlugins.includes(plugin) ? plugin : f.pluginId,
+                      host:     db.hostName ?? f.host,
+                      port:     db.port     ?? DEFAULT_PORTS[plugin] ?? f.port,
+                      database: db.name,
+                    }));
+                  } else {
+                    setJobForm(f => ({ ...f, selectedDatabaseId: "" }));
+                  }
+                }}
+              >
+                <option value="">— enter manually —</option>
+                {databases.data?.map((d: DatabaseInstance) => (
+                  <option key={d.databaseId} value={d.databaseId}>
+                    {d.name} ({d.engine}{d.hostName ? ` · ${d.hostName}` : ""})
+                  </option>
+                ))}
+              </select>
+              {jobForm.selectedDatabaseId && (
+                <div style={{ fontSize: 11.5, color: "var(--blue-text)", marginTop: 4 }}>
+                  ✔ Linked to inventory — host / port / database pre-filled.
+                  Agent will use local credentials if configured.
+                </div>
+              )}
+            </div>
+
+            {/* ── Plugin ── */}
             <div className="form-row">
               <label>Plugin *</label>
               <select
                 value={jobForm.pluginId}
                 onChange={e => setJobForm(f => ({
                   ...f, pluginId: e.target.value,
-                  port: DEFAULT_PORTS[e.target.value] ?? f.port,
+                  port: f.selectedDatabaseId ? f.port : (DEFAULT_PORTS[e.target.value] ?? f.port),
                 }))}
               >
                 {dispatchTarget.allowedPlugins.map(p => (
@@ -267,6 +503,7 @@ export default function Agents() {
               </select>
             </div>
 
+            {/* ── Connection details ── */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12 }}>
               <div className="form-row">
                 <label>Host *</label>
@@ -274,6 +511,7 @@ export default function Agents() {
                   value={jobForm.host}
                   onChange={e => setJobForm(f => ({ ...f, host: e.target.value }))}
                   placeholder="e.g. 10.0.1.50 or db.internal"
+                  style={jobForm.selectedDatabaseId ? { background: "var(--surface-2)", color: "var(--text-secondary)" } : undefined}
                 />
               </div>
               <div className="form-row" style={{ width: 90 }}>
@@ -292,21 +530,22 @@ export default function Agents() {
                 value={jobForm.database}
                 onChange={e => setJobForm(f => ({ ...f, database: e.target.value }))}
                 placeholder={jobForm.pluginId === "oracle" ? "e.g. ORCL or ORCLPDB1" : "e.g. postgres"}
+                style={jobForm.selectedDatabaseId ? { background: "var(--surface-2)", color: "var(--text-secondary)" } : undefined}
               />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="form-row">
-                <label>Username *</label>
+                <label>Username {jobForm.selectedDatabaseId ? "(optional if agent has local creds)" : "*"}</label>
                 <input
                   value={jobForm.username}
                   onChange={e => setJobForm(f => ({ ...f, username: e.target.value }))}
-                  placeholder="Read-only assessment user"
+                  placeholder={jobForm.selectedDatabaseId ? "Leave empty if using databases.json" : "Read-only assessment user"}
                   autoComplete="off"
                 />
               </div>
               <div className="form-row">
-                <label>Password *</label>
+                <label>Password {jobForm.selectedDatabaseId ? "(optional)" : "*"}</label>
                 <input
                   type="password"
                   value={jobForm.password}
@@ -317,14 +556,21 @@ export default function Agents() {
             </div>
 
             <div className="warn-msg" style={{ marginTop: 4, fontSize: 12 }}>
-              ⚠️ Credentials are encrypted in transit (TLS) and stored only in the job payload (JSONB). Use a dedicated read-only assessment account.
+              ⚠️ Credentials are encrypted in transit (TLS) and stored only in the job payload (JSONB).
+              {!jobForm.selectedDatabaseId && " Use a dedicated read-only assessment account."}
             </div>
 
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setDispatchTarget(null)}>Cancel</button>
               <button
                 className="btn btn-primary"
-                disabled={dispatchMutation.isPending || !jobForm.host || !jobForm.database || !jobForm.username}
+                disabled={
+                  dispatchMutation.isPending ||
+                  !jobForm.host ||
+                  !jobForm.database ||
+                  // credentials required only when NOT linked to inventory (no local store possible)
+                  (!jobForm.selectedDatabaseId && !jobForm.username)
+                }
                 onClick={() => dispatchMutation.mutate({ agent: dispatchTarget, form: jobForm })}
               >
                 {dispatchMutation.isPending ? "Dispatching…" : "▶ Dispatch"}

@@ -4,4 +4,18 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('reactflow'))        return 'vendor-reactflow';
+          if (id.includes('@fluentui'))        return 'vendor-fluentui';
+          if (id.includes('@tanstack'))        return 'vendor-query';
+          if (id.includes('react-dom') || id.includes('react-router') || id.includes('/react/'))
+                                               return 'vendor-react';
+          if (id.includes('node_modules'))     return 'vendor';
+        },
+      },
+    },
+  },
 })

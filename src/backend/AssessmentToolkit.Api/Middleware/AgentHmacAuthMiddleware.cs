@@ -31,11 +31,12 @@ public class AgentHmacAuthMiddleware(RequestDelegate next)
             return;
         }
 
-        var agent = await db.Agents.FirstOrDefaultAsync(a => a.AgentId == agentId && a.Status == Core.Enums.AgentStatus.Active);
+        var agent = await db.Agents.FirstOrDefaultAsync(a =>
+            a.AgentId == agentId && a.Status != Core.Enums.AgentStatus.Revoked);
         if (agent is null)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await context.Response.WriteAsJsonAsync(new { error = "Agent not found or not active." });
+            await context.Response.WriteAsJsonAsync(new { error = "Agent not found or revoked." });
             return;
         }
 

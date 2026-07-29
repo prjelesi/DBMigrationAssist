@@ -1,64 +1,88 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Inter kept as cross-platform fallback; Windows uses Segoe UI Variable natively */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --font: "Inter", "Segoe UI", system-ui, sans-serif;
+  /* ── Typography ── Fluent 2: Segoe UI Variable, Inter as cross-platform fallback */
+  --font: "Segoe UI Variable", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  --font-size-100: 10px;   /* Base100 */
+  --font-size-200: 12px;   /* Base200 — caption */
+  --font-size-300: 14px;   /* Base300 — body (default) */
+  --font-size-400: 16px;   /* Base400 — body large */
+  --font-size-500: 20px;   /* Base500 — subtitle */
+  --font-size-600: 28px;   /* Base600 — title */
+  --font-size-700: 32px;   /* Hero700 */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
 
-  /* Accent */
-  --accent-600:  #4f46e5;
-  --accent-500:  #6366f1;
-  --accent-400:  #818cf8;
-  --accent-100:  #e0e7ff;
-  --accent-50:   #eef2ff;
+  /* ── Brand ── Microsoft Fluent 2 brand blue */
+  --accent-600:  #0F6CBD;   /* colorBrandBackground */
+  --accent-500:  #115EA3;   /* colorBrandBackgroundHover */
+  --accent-400:  #2886C7;   /* colorBrandBackgroundSelected */
+  --accent-100:  #DCEDF9;   /* colorBrandBackground2Hover */
+  --accent-50:   #EBF3FC;   /* colorBrandBackground2 */
 
-  /* Sidebar */
-  --sidebar-bg:     #09090f;
-  --sidebar-border: #1a1a2e;
-  --sidebar-text:   #8b8fa8;
-  --sidebar-hover:  #111128;
-  --sidebar-active: #1a1a3e;
+  /* ── Sidebar (dark shell – Windows 11 / Azure Portal style) ── */
+  --sidebar-bg:     #1B1B1B;
+  --sidebar-border: #2B2B2B;
+  --sidebar-text:   #9E9E9E;
+  --sidebar-hover:  #292929;
+  --sidebar-active: #003869;   /* dark brand-blue tint */
 
-  /* Surface */
-  --bg:           #f4f6fb;
-  --surface:      #ffffff;
-  --surface-2:    #f8fafc;
-  --border:       #e5e9f0;
-  --border-light: #f0f3f8;
+  /* ── Surface ── Fluent 2 neutral backgrounds */
+  --bg:           #F0F0F0;   /* colorNeutralBackground3 */
+  --surface:      #FFFFFF;   /* colorNeutralBackground1 */
+  --surface-2:    #F5F5F5;   /* colorNeutralBackground2 */
+  --border:       #E0E0E0;   /* colorNeutralStroke2 */
+  --border-light: #F0F0F0;   /* colorNeutralStroke3 */
 
-  /* Text */
-  --text-primary:   #0f1117;
-  --text-secondary: #4b5563;
-  --text-muted:     #9ca3af;
+  /* ── Text ── Fluent 2 foreground tokens */
+  --text-primary:   #242424;   /* colorNeutralForeground1 */
+  --text-secondary: #616161;   /* colorNeutralForeground2 */
+  --text-muted:     #858585;   /* colorNeutralForeground3 */
 
-  /* Semantic */
-  --green-bg:   #dcfce7; --green-text:   #15803d;
-  --blue-bg:    #dbeafe; --blue-text:    #1d4ed8;
-  --amber-bg:   #fef3c7; --amber-text:   #b45309;
-  --red-bg:     #fee2e2; --red-text:     #b91c1c;
-  --purple-bg:  #f3e8ff; --purple-text:  #7e22ce;
-  --gray-bg:    #f1f5f9; --gray-text:    #475569;
+  /* ── Semantic ── Fluent 2 status palette */
+  --green-bg:   #DFF6DD; --green-text:   #107C10;   /* statusSuccess */
+  --blue-bg:    #EBF3FC; --blue-text:    #0F6CBD;   /* statusInfo */
+  --amber-bg:   #FFF4CE; --amber-text:   #7A5D05;   /* statusWarning */
+  --red-bg:     #FDE7E9; --red-text:     #C50F1F;   /* statusDanger */
+  --purple-bg:  #F5F0FF; --purple-text:  #6B22A8;
+  --gray-bg:    #F0F0F0; --gray-text:    #616161;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow:    0 4px 12px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.04);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+  /* ── Shadows ── Fluent 2 elevation tokens */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.12), 0 0 2px rgba(0,0,0,.08);    /* shadow2 */
+  --shadow:    0 2px 4px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);    /* shadow4 */
+  --shadow-lg: 0 8px 16px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);   /* shadow16 */
 
-  /* Radii */
-  --radius-sm: 6px;
-  --radius:    10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* ── Radii ── Fluent 2 border radius tokens */
+  --radius-sm:   2px;       /* borderRadiusSmall */
+  --radius:      4px;       /* borderRadiusMedium */
+  --radius-lg:   6px;       /* borderRadiusLarge */
+  --radius-xl:   8px;       /* borderRadiusXLarge */
+  --radius-full: 10000px;   /* borderRadiusCircular */
+
+  /* ── Spacing ── Fluent 2 spacing scale (4px base, 8px rhythm) */
+  --space-1:  4px;   /* spacingVerticalXS  */
+  --space-2:  8px;   /* spacingVerticalS   */
+  --space-3:  12px;  /* spacingVerticalM   */
+  --space-4:  16px;  /* spacingVerticalL   */
+  --space-5:  20px;  /* spacingVerticalXL  */
+  --space-6:  24px;  /* spacingVerticalXXL */
+  --space-8:  32px;  /* spacingVerticalXXXL */
+  --space-10: 40px;
 }
 
 body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--font-size-300);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 a { color: var(--accent-600); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a:hover { text-decoration: underline; color: var(--accent-500); }

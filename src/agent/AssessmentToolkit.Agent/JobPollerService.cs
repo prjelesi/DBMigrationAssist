@@ -12,10 +12,13 @@ namespace AssessmentToolkit.Agent;
 /// <summary>
 /// Polls the backend for pending jobs, executes the appropriate plugin,
 /// and submits signed result bundles back to the backend.
+/// Credentials are resolved from the local database store first (databases.json /
+/// AGENT_DB_n_* env vars); credentials in the job payload are used as a fallback.
 /// </summary>
 public class JobPollerService(
     AgentBootstrapPackage bootstrap,
     IEnumerable<IAssessmentPlugin> plugins,
+    LocalDatabaseStore dbStore,
     ILogger<JobPollerService> logger) : BackgroundService
 {
     private readonly HttpClient _http = new() { BaseAddress = new Uri(bootstrap.BackendUrl) };
@@ -65,16 +68,45 @@ public class JobPollerService(
 
         if (!_plugins.TryGetValue(job.PluginId, out var plugin))
         {
-            logger.LogWarning("No plugin found for {PluginId}", job.PluginId);
+            logger.LogWarning("No plugin found for {PluginId} — job {JobId} skipped.", job.PluginId, job.JobId);
             return;
+        }
+
+        // Resolve connection credentials:
+        // 1. Local store (databases.json or AGENT_DB_n_* env vars) — preferred, avoids
+        //    transmitting credentials through the portal.
+        // 2. Credentials embedded in the job payload — fallback for ad-hoc dispatches.
+        string host, database, username, password;
+        int port;
+
+        var localProfile = job.DatabaseId != Guid.Empty ? dbStore.Resolve(job.DatabaseId) : null;
+        if (localProfile is not null)
+        {
+            host     = localProfile.Host;
+            port     = localProfile.Port;
+            database = localProfile.Database;
+            username = localProfile.Username;
+            password = localProfile.Password;
+            logger.LogDebug("Using local credentials for database {DatabaseId}.", job.DatabaseId);
+        }
+        else
+        {
+            host     = job.Host;
+            port     = job.Port;
+            database = job.Database;
+            username = job.Username;
+            password = job.Password;
         }
 
         var context = new PluginContext(
             job.JobId, job.DatabaseId,
-            job.Host, job.Port, job.Database,
-            job.Username, job.Password, job.AdditionalParams);
+            host, port, database, username, password, job.AdditionalParams);
 
         var result = await plugin.RunAsync(context, ct);
+
+        if (!result.Success)
+            logger.LogWarning("Job {JobId} plugin {PluginId} failed: {ErrorMessage}",
+                job.JobId, plugin.PluginId, result.ErrorMessage);
 
         await SubmitResultAsync(job.JobId, plugin, result, ct);
     }

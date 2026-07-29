@@ -40,12 +40,18 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
     {
         services.AddSingleton(bootstrap);
+        services.AddSingleton<LocalDatabaseStore>();
 
-        // Register all enabled plugins
+        // Register plugins that are enabled in the bootstrap package
         if (bootstrap.AllowedPlugins.Contains("postgresql"))
             services.AddSingleton<IAssessmentPlugin, PostgreSqlPlugin>();
         if (bootstrap.AllowedPlugins.Contains("oracle"))
             services.AddSingleton<IAssessmentPlugin, OraclePlugin>();
+        if (bootstrap.AllowedPlugins.Contains("sqlserver"))
+            services.AddSingleton<IAssessmentPlugin, SqlServerPlugin>();
+
+        if (bootstrap.AllowedPlugins.Contains("mysql"))
+            services.AddSingleton<IAssessmentPlugin, MySqlPlugin>();
 
         services.AddHostedService<JobPollerService>();
     })

@@ -8,7 +8,7 @@
 ══════════════════════════════════════════════════ */
 .sidebar { width:236px; flex-shrink:0; background:var(--sidebar-bg); display:flex; flex-direction:column; border-right:1px solid var(--sidebar-border); overflow:hidden; }
 .sidebar-brand { display:flex; align-items:center; gap:11px; padding:22px 18px 18px; border-bottom:1px solid var(--sidebar-border); }
-.brand-logo { width:34px; height:34px; background:linear-gradient(135deg,var(--accent-500),#7c3aed); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.brand-logo { width:34px; height:34px; background:var(--accent-600); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; color:#fff; }
 .brand-text { display:flex; flex-direction:column; }
 .brand-name { font-size:14px; font-weight:700; color:#f1f5f9; letter-spacing:0.1px; }
 .brand-sub  { font-size:10.5px; color:#4b5568; margin-top:1px; }
@@ -20,11 +20,11 @@
 .nav-item.active { background:var(--sidebar-active); color:var(--accent-400); border-left-color:var(--accent-500); }
 .nav-icon { font-size:15px; width:20px; display:flex; align-items:center; justify-content:center; opacity:.85; }
 .sidebar-footer { padding:14px 18px; border-top:1px solid var(--sidebar-border); display:flex; align-items:center; gap:10px; }
-.user-avatar { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--accent-500),#7c3aed); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+.user-avatar { width:30px; height:30px; border-radius:50%; background:var(--accent-600); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
 .user-info { display:flex; flex-direction:column; }
 .user-name { font-size:12.5px; font-weight:600; color:#cbd5e1; }
 .user-role { font-size:10.5px; color:#4b5568; }
-.status-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; margin-left:auto; flex-shrink:0; box-shadow:0 0 0 2px #09090f,0 0 6px #22c55e; }
+.status-dot { width:7px; height:7px; border-radius:50%; background:#107C10; margin-left:auto; flex-shrink:0; box-shadow:0 0 0 2px var(--sidebar-bg),0 0 5px #107C10; }
 
 /* ══════════════════════════════════════════════════
    MAIN AREA
@@ -51,7 +51,7 @@
 .stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; margin-bottom:24px; }
 .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 22px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; gap:4px; position:relative; overflow:hidden; transition:box-shadow .2s,transform .2s; }
 .stat-card:hover { box-shadow:var(--shadow); transform:translateY(-1px); }
-.stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--accent-500),#7c3aed); border-radius:var(--radius-lg) var(--radius-lg) 0 0; }
+.stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--accent-600),var(--accent-400)); border-radius:var(--radius-lg) var(--radius-lg) 0 0; }
 .stat-icon { font-size:22px; margin-bottom:6px; }
 .stat-value { font-size:30px; font-weight:800; color:var(--text-primary); line-height:1; letter-spacing:-.5px; }
 .stat-label { font-size:12px; color:var(--text-muted); font-weight:500; margin-top:2px; }
@@ -90,7 +90,7 @@
 .btn-primary { background:var(--accent-600); color:#fff; box-shadow:0 2px 8px rgba(99,102,241,.30); }
 .btn-primary:hover:not(:disabled) { background:var(--accent-500); box-shadow:0 4px 12px rgba(99,102,241,.40); transform:translateY(-1px); }
 .btn-secondary { background:var(--surface); color:var(--text-secondary); border:1px solid var(--border); box-shadow:var(--shadow-sm); }
-.btn-secondary:hover:not(:disabled) { background:var(--surface-2); border-color:#c7d2fe; color:var(--accent-600); }
+.btn-secondary:hover:not(:disabled) { background:var(--surface-2); border-color:var(--accent-100); color:var(--accent-600); }
 .btn-danger { background:var(--red-bg); color:var(--red-text); border:1px solid #fecaca; }
 .btn-danger:hover:not(:disabled) { background:#fecaca; }
 .btn-ghost { background:transparent; color:var(--text-secondary); }

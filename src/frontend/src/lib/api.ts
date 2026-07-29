@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type {
-  Agent, AgentJobSummary, Customer, DatabaseInstance,
+  Agent, AgentJobSummary, AssessmentResult, Customer, DatabaseInstance,
   EvidenceReport, Project, ProjectEnvironment,
   QuestionnaireTemplate, QuestionnaireResponse,
 } from '../types';
@@ -30,11 +30,14 @@ export const registerAgent = (data: {
 export const getAgentJobs = (agentId: string) =>
   api.get<AgentJobSummary[]>(`/api/agents/${agentId}/jobs`).then(r => r.data);
 
+export const getJobResults = (agentId: string, jobId: string) =>
+  api.get<AssessmentResult[]>(`/api/agents/${agentId}/jobs/${jobId}/results`).then(r => r.data);
+
 export const dispatchJob = (agentId: string, data: {
   databaseId?: string;
   pluginId: string;
   parametersJson: string; // JSON-encoded JobCredentials
-}) => api.post(`/api/agent/${agentId}/jobs`, data).then(r => r.data);
+}) => api.post(`/api/agents/${agentId}/jobs`, data).then(r => r.data);
 
 // Databases
 export const getDatabases = (projectId: string) =>

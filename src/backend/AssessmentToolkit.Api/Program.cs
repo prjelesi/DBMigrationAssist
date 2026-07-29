@@ -2,6 +2,7 @@ using AssessmentToolkit.Api.Middleware;
 using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -14,8 +15,13 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .WriteTo.Console());
 
+var postgresDataSourceBuilder = new NpgsqlDataSourceBuilder(
+    builder.Configuration.GetConnectionString("Postgres"));
+postgresDataSourceBuilder.EnableDynamicJson();
+var postgresDataSource = postgresDataSourceBuilder.Build();
+builder.Services.AddSingleton(postgresDataSource);
 builder.Services.AddDbContext<AssessmentDbContext>(opts =>
-    opts.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+    opts.UseNpgsql(postgresDataSource));
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -42,7 +48,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Agent endpoints use PSK/HMAC auth - applied only to /api/agent/* routes
-app.MapWhen(
+app.UseWhen(
     ctx => ctx.Request.Path.StartsWithSegments("/api/agent"),
     branch => branch.UseMiddleware<AgentHmacAuthMiddleware>());
 

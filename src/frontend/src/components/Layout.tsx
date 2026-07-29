@@ -1,37 +1,52 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import {
+  Home24Regular,
+  Settings24Regular,
+  Folder24Regular,
+  Clipboard24Regular,
+  Document24Regular,
+  PlugConnected24Regular,
+  Database24Regular,
+  Cloud24Regular,
+  AppsList24Regular,
+  ArrowShuffle24Regular,
+  DocumentText24Regular,
+  Bot24Regular,
+  DataBarVertical24Regular,
+} from "@fluentui/react-icons";
 import "./Layout.css";
 
 const NAV = [
   {
     section: "WORKSPACE",
     items: [
-      { to: "/",              label: "Dashboard",      icon: "⬛", sub: "Overview & status" },
-      { to: "/system",        label: "System",         icon: "⚙️",  sub: "Components, config & agents" },
-      { to: "/projects",      label: "Projects",       icon: "📁", sub: "Manage engagements" },
-      { to: "/questionnaire", label: "Questionnaire",  icon: "📋", sub: "Collect baseline data" },
-      { to: "/evidence",      label: "Evidence",       icon: "📂", sub: "Upload reports & files" },
+      { to: "/",              label: "Dashboard",      icon: <Home24Regular />,         sub: "Overview & status" },
+      { to: "/system",        label: "System",         icon: <Settings24Regular />,     sub: "Components, config & agents" },
+      { to: "/projects",      label: "Projects",       icon: <Folder24Regular />,       sub: "Manage engagements" },
+      { to: "/questionnaire", label: "Questionnaire",  icon: <Clipboard24Regular />,    sub: "Collect baseline data" },
+      { to: "/evidence",      label: "Evidence",       icon: <Document24Regular />,     sub: "Upload reports & files" },
     ]
   },
   {
     section: "DISCOVERY",
     items: [
-      { to: "/agents",    label: "Agents",         icon: "🔌", sub: "Docker assessment agents" },
-      { to: "/inventory", label: "DB Inventory",   icon: "🗄️", sub: "Database estate" },
-      { to: "/environments", label: "Environments", icon: "🏗️", sub: "Project environments" },
+      { to: "/agents",       label: "Agents",        icon: <PlugConnected24Regular />, sub: "Docker assessment agents" },
+      { to: "/inventory",    label: "DB Inventory",  icon: <Database24Regular />,      sub: "Database estate" },
+      { to: "/environments", label: "Environments",  icon: <Cloud24Regular />,         sub: "Project environments" },
     ]
   },
   {
     section: "PLANNING",
     items: [
-      { to: "/portfolio",          label: "Portfolio",   icon: "📦", sub: "Migration groups" },
-      { to: "/communication-map",  label: "Comm. Map",   icon: "🕸️", sub: "Dependency flows" },
+      { to: "/portfolio",         label: "Portfolio",  icon: <AppsList24Regular />,      sub: "Migration groups" },
+      { to: "/communication-map", label: "Comm. Map",  icon: <ArrowShuffle24Regular />,  sub: "Dependency flows" },
     ]
   },
   {
     section: "REPORTING",
     items: [
-      { to: "/reports",     label: "Reports",     icon: "📄", sub: "AI-generated assessments" },
-      { to: "/ai-settings", label: "AI Settings", icon: "🤖", sub: "Configure AI Foundry" },
+      { to: "/reports",     label: "Reports",     icon: <DocumentText24Regular />, sub: "AI-generated assessments" },
+      { to: "/ai-settings", label: "AI Settings", icon: <Bot24Regular />,          sub: "Configure AI Foundry" },
     ]
   }
 ];
@@ -59,7 +74,7 @@ export default function Layout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-logo">🔍</div>
+          <div className="brand-logo"><DataBarVertical24Regular /></div>
           <div className="brand-text">
             <span className="brand-name">DB Assess</span>
             <span className="brand-sub">Migration Toolkit</span>

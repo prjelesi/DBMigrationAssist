@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -71,7 +69,7 @@ services:
       AGENT_BACKEND_URL: "http://api:8080"
       AGENT_ID: ""        # Set after registering the agent via the API
       AGENT_PSK: ""       # Set from the bootstrap package returned by the API
-      AGENT_PLUGINS: "postgresql,oracle"
+      AGENT_PLUGINS: "postgresql,oracle,sqlserver,mysql"
     depends_on:
       - api
     profiles:

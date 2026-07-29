@@ -54,7 +54,9 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
         // Credentials are stored in ParametersJson by the portal when dispatching the job.
         // Fall back to empty strings if not provided — agent will fail gracefully.
         var creds = System.Text.Json.JsonSerializer.Deserialize<JobCredentials>(
-            job.ParametersJson ?? "{}") ?? new JobCredentials("", 0, "", "", "");
+            job.ParametersJson ?? "{}",
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? new JobCredentials("", 0, "", "", "");
 
         return Ok(new
         {
@@ -102,29 +104,6 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
         return Ok(new { result.ResultId, job.Status });
     }
 
-    /// <summary>
-    /// Portal endpoint: creates a new assessment job for an agent.
-    /// </summary>
-    [HttpPost("jobs")]
-    public async Task<IActionResult> CreateJob(Guid agentId, [FromBody] CreateJobRequest req)
-    {
-        var agent = await db.Agents.FindAsync(agentId);
-        if (agent is null) return NotFound("Agent not found.");
-        if (!agent.AllowedPlugins.Contains(req.PluginId))
-            return BadRequest($"Plugin '{req.PluginId}' is not in the agent's allowed plugin list.");
-
-        var job = new AssessmentJob
-        {
-            AgentId = agentId,
-            DatabaseId = req.DatabaseId,
-            PluginId = req.PluginId,
-            ParametersJson = req.ParametersJson
-        };
-
-        db.Jobs.Add(job);
-        await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(NextJob), new { agentId }, new { job.JobId, job.Status, job.PluginId });
-    }
 }
 
 public record AgentResultSubmission(
