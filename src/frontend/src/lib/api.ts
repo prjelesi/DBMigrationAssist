@@ -186,4 +186,13 @@ export const generateReport = (projectId: string) =>
 export const getAiStatus = () =>
   api.get<{ available: boolean; message: string }>('/api/ai/status').then(r => r.data);
 
+export interface SystemStatus {
+  components: { name: string; status: string; detail: string }[];
+  counts: { projectCount: number; agentCount: number; evidenceCount: number };
+  timestamp: string;
+}
+
+export const getSystemStatus = () =>
+  api.get<SystemStatus>('/api/system/status').then(r => r.data);
+
 export default api;

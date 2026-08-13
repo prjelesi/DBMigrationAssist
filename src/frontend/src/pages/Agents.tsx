@@ -265,9 +265,9 @@ export default function Agents() {
   return (
     <div>
       <div className="page-header">
-        <h2>Assessment Agents</h2>
+        <h2>Discovery Agents</h2>
         <button className="btn btn-primary" disabled={!selectedProject} onClick={() => setShowRegister(true)}>
-          + Register Agent
+          + Register Discovery Agent
         </button>
       </div>
 
@@ -286,21 +286,21 @@ export default function Agents() {
       {selectedProject && (
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Registered Agents</span>
+            <span className="card-title">Registered Discovery Agents</span>
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Refreshes every 30s</span>
           </div>
           {agents.isLoading && <div className="loading" />}
           {!agents.isLoading && (agents.data?.length ?? 0) === 0 && (
             <div className="empty-state">
               <div className="empty-state-icon">🔌</div>
-              <p>No agents registered for this project.</p>
+              <p>No discovery agents registered for this project.</p>
             </div>
           )}
           {(agents.data?.length ?? 0) > 0 && (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Agent</th><th>Status</th><th>Plugins</th>
+                  <th>Discovery Agent</th><th>Status</th><th>Plugins</th>
                   <th>Last Heartbeat</th><th>Registered</th><th>Actions</th>
                 </tr>
               </thead>
@@ -444,7 +444,7 @@ export default function Agents() {
         <div className="modal-overlay" onClick={() => setDispatchTarget(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="modal-title">▶ Dispatch Job</div>
-            <div className="modal-sub">Agent: <strong>{dispatchTarget.name}</strong></div>
+            <div className="modal-sub">Discovery Agent: <strong>{dispatchTarget.name}</strong></div>
 
             {dispatchMutation.isError && (
               <div className="error-msg">Failed to dispatch job. Check the form and try again.</div>
@@ -482,7 +482,7 @@ export default function Agents() {
               {jobForm.selectedDatabaseId && (
                 <div style={{ fontSize: 11.5, color: "var(--blue-text)", marginTop: 4 }}>
                   ✔ Linked to inventory — host / port / database pre-filled.
-                  Agent will use local credentials if configured.
+                  The discovery agent will use local credentials if configured.
                 </div>
               )}
             </div>
@@ -536,7 +536,7 @@ export default function Agents() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="form-row">
-                <label>Username {jobForm.selectedDatabaseId ? "(optional if agent has local creds)" : "*"}</label>
+                <label>Username {jobForm.selectedDatabaseId ? "(optional if discovery agent has local credentials)" : "*"}</label>
                 <input
                   value={jobForm.username}
                   onChange={e => setJobForm(f => ({ ...f, username: e.target.value }))}
@@ -584,7 +584,7 @@ export default function Agents() {
       {bootstrapResult && (
         <div className="modal-overlay" onClick={() => setBootstrapResult(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-title" style={{ color: "var(--green-text)" }}>✅ Agent Registered</div>
+            <div className="modal-title" style={{ color: "var(--green-text)" }}>✅ Discovery Agent Registered</div>
             <div className="warn-msg" style={{ marginBottom: 12 }}>⚠️ {bootstrapResult.warning}</div>
             <div style={{ fontSize: 13, marginBottom: 10, color: "var(--text-secondary)" }}>
               Save the bootstrap package before closing — the PSK will not be shown again.
@@ -607,18 +607,18 @@ export default function Agents() {
         </div>
       )}
 
-      {/* ── Register agent modal ─────────────────────────────── */}
+      {/* ── Register discovery agent modal ───────────────────── */}
       {showRegister && (
         <div className="modal-overlay" onClick={() => setShowRegister(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-title">Register Agent</div>
+            <div className="modal-title">Register Discovery Agent</div>
             <div className="modal-sub">A bootstrap package will be generated for deployment.</div>
             {registerMutation.isError && <div className="error-msg">Registration failed. Check the form and try again.</div>}
 
             <div className="form-row">
-              <label>Agent Name *</label>
+              <label>Discovery Agent Name *</label>
               <input value={regForm.name} onChange={e => setRegForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Prod-Oracle-Agent-1" />
+                placeholder="e.g. Prod-Oracle-Discovery-1" />
             </div>
 
             <div className="form-row">
@@ -666,7 +666,7 @@ export default function Agents() {
                   userPsk: regForm.pskMode === "UserSupplied" ? regForm.userPsk : undefined,
                   createdBy: regForm.createdBy,
                 })}>
-                {registerMutation.isPending ? "Registering…" : "Register Agent"}
+                {registerMutation.isPending ? "Registering…" : "Register Discovery Agent"}
               </button>
             </div>
           </div>

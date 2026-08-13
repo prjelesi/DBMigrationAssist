@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '../lib/api';
+import api, { getSystemStatus } from '../lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-interface Component { name: string; status: string; detail: string; }
-interface SystemStatus {
-  components: Component[];
-  counts: { projectCount: number; agentCount: number; evidenceCount: number };
-  timestamp: string;
-}
 interface ConfigEntry {
   key: string; value?: string; description?: string;
   isSensitive: boolean; updatedAt?: string; updatedBy?: string;
@@ -21,7 +15,6 @@ interface AgentRow {
 
 // ── API calls ─────────────────────────────────────────────────────────────
 
-const getStatus    = () => api.get<SystemStatus>('/api/system/status').then(r => r.data);
 const getConfig    = () => api.get<ConfigEntry[]>('/api/system/config').then(r => r.data);
 const setConfig    = (data: object) => api.put('/api/system/config', data).then(r => r.data);
 const deleteConfig = (key: string) => api.delete(`/api/system/config/${encodeURIComponent(key)}`).then(r => r.data);
@@ -64,7 +57,7 @@ export default function System() {
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const status  = useQuery({ queryKey: ['systemStatus'],  queryFn: getStatus,    refetchInterval: 15_000 });
+  const status  = useQuery({ queryKey: ['systemStatus'],  queryFn: getSystemStatus, refetchInterval: 15_000 });
   const config  = useQuery({ queryKey: ['systemConfig'],  queryFn: getConfig });
   const agents  = useQuery({ queryKey: ['systemAgents'],  queryFn: getAllAgents, refetchInterval: 30_000 });
 
@@ -128,7 +121,7 @@ export default function System() {
         <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
           {[
             { label: 'Projects',        value: status.data.counts.projectCount },
-            { label: 'Agents total',    value: status.data.counts.agentCount },
+            { label: 'Discovery agents', value: status.data.counts.agentCount },
             { label: 'Evidence files',  value: status.data.counts.evidenceCount },
             { label: 'Last refreshed',  value: new Date(status.data.timestamp).toLocaleTimeString() },
           ].map(stat => (
@@ -232,10 +225,10 @@ export default function System() {
         </table>
       </div>
 
-      {/* ── All agents across all projects ────────────────────────────── */}
+      {/* ── All discovery agents across all projects ─────────────────── */}
       <div className="card">
         <div className="card-header">
-          <span className="card-title">All Agents</span>
+          <span className="card-title">All Discovery Agents</span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {agents.data?.length ?? 0} registered · refreshes every 30s
           </span>
@@ -244,13 +237,13 @@ export default function System() {
         {!agents.isLoading && (agents.data?.length ?? 0) === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">🔌</div>
-            <p>No agents registered yet. Go to a project's <a href="/agents">Agents page</a> to register one.</p>
+            <p>No discovery agents registered yet. Go to a project's <a href="/agents">Discovery Agents page</a> to register one.</p>
           </div>
         )}
         {(agents.data?.length ?? 0) > 0 && (
           <table className="data-table">
             <thead>
-              <tr><th>Agent</th><th>Project / Customer</th><th>Status</th><th>Plugins</th><th>Heartbeat</th></tr>
+              <tr><th>Discovery Agent</th><th>Project / Customer</th><th>Status</th><th>Plugins</th><th>Heartbeat</th></tr>
             </thead>
             <tbody>
               {agents.data?.map((a: AgentRow) => (

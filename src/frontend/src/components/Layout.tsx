@@ -26,7 +26,7 @@ const NAV = [
     section: "WORKSPACE",
     items: [
       { to: "/",              label: "Dashboard",      icon: <Home24Regular />,         sub: "Overview & status" },
-      { to: "/system",        label: "System",         icon: <Settings24Regular />,     sub: "Components, config & agents" },
+      { to: "/system",        label: "System",         icon: <Settings24Regular />,     sub: "Components, config & discovery agents" },
       { to: "/projects",      label: "Projects",       icon: <Folder24Regular />,       sub: "Manage engagements" },
       { to: "/questionnaire", label: "Questionnaire",  icon: <Clipboard24Regular />,    sub: "Collect baseline data" },
       { to: "/evidence",      label: "Evidence",       icon: <Document24Regular />,     sub: "Upload reports & files" },
@@ -35,7 +35,7 @@ const NAV = [
   {
     section: "DISCOVERY",
     items: [
-      { to: "/agents",       label: "Agents",        icon: <PlugConnected24Regular />, sub: "Docker assessment agents" },
+      { to: "/agents",       label: "Discovery Agents", icon: <PlugConnected24Regular />, sub: "Database discovery workers" },
       { to: "/inventory",    label: "DB Inventory",  icon: <Database24Regular />,      sub: "Database estate" },
       { to: "/environments", label: "Environments",  icon: <Cloud24Regular />,         sub: "Project environments" },
     ]
@@ -58,11 +58,11 @@ const NAV = [
 
 const PAGE_META: Record<string, { title: string; sub: string; badge?: string }> = {
   "/":                  { title: "Dashboard",        sub: "Your assessment workspace at a glance", badge: "Live" },
-  "/system":            { title: "System",           sub: "Component health, configuration and agent overview" },
+  "/system":            { title: "System",           sub: "Component health, configuration and discovery agent overview" },
   "/projects":          { title: "Projects",         sub: "Manage customers and assessment engagements" },
   "/questionnaire":     { title: "Questionnaire",    sub: "Capture baseline business and technical context" },
   "/evidence":          { title: "Evidence Library",  sub: "Upload and parse assessment report files" },
-  "/agents":            { title: "Agents",           sub: "Register, monitor and dispatch assessment agents" },
+  "/agents":            { title: "Discovery Agents", sub: "Register, monitor and dispatch database discovery agents" },
   "/inventory":         { title: "DB Inventory",     sub: "Discovered database estate" },
   "/environments":      { title: "Environments",     sub: "Manage project environments" },
   "/portfolio":         { title: "Portfolio",        sub: "Group databases for migration planning" },

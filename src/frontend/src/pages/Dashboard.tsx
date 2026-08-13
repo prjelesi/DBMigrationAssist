@@ -7,8 +7,9 @@ import {
   Warning24Regular,
   ArrowTrending24Regular,
   CheckmarkCircle24Regular,
+  Settings24Regular,
 } from "@fluentui/react-icons";
-import { getAgents, getDatabases, getProjects } from "../lib/api";
+import { getAgents, getDatabases, getProjects, getSystemStatus } from "../lib/api";
 
 const STATUS_BADGE: Record<string, string> = {
   Active: "badge-green", Registered: "badge-blue",
@@ -24,8 +25,20 @@ const MODE_BADGE: Record<string, string> = {
   Connected: "badge-indigo", Standalone: "badge-gray", AirGapped: "badge-amber",
 };
 
+const SYSTEM_STATUS_BADGE: Record<string, string> = {
+  Healthy: "badge-green", Connected: "badge-green", Running: "badge-green",
+  "Not Configured": "badge-yellow", Error: "badge-red",
+};
+
+const HEALTHY_SYSTEM_STATUSES = new Set(["Healthy", "Connected", "Running"]);
+
 export default function Dashboard() {
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
+  const systemStatus = useQuery({
+    queryKey: ["systemStatus"],
+    queryFn: getSystemStatus,
+    refetchInterval: 15_000,
+  });
   const firstProjectId = projects.data?.[0]?.projectId;
 
   const agents = useQuery({
@@ -47,6 +60,9 @@ export default function Dashboard() {
   const totalProjects = projects.data?.length ?? 0;
 
   const agentHealthy = totalAgents > 0 && activeAgents === totalAgents;
+  const systemHealthy = systemStatus.data?.components.every(component =>
+    HEALTHY_SYSTEM_STATUSES.has(component.status)
+  ) ?? false;
 
   return (
     <div>
@@ -71,9 +87,9 @@ export default function Dashboard() {
           <div className="stat-value" style={{ color: agentHealthy ? "var(--green-text)" : totalAgents > 0 ? "var(--amber-text)" : undefined }}>
             {totalAgents > 0 ? `${activeAgents}/${totalAgents}` : "—"}
           </div>
-          <div className="stat-label">Agents Online</div>
+          <div className="stat-label">Discovery Agents Online</div>
           <div className={`stat-delta ${agentHealthy ? "up" : totalAgents > 0 ? "warn" : "warn"}`}>
-            {agentHealthy && <CheckmarkCircle24Regular />} {agentHealthy ? "All agents healthy" : totalAgents > 0 ? "Some agents offline" : "No agents registered"}
+            {agentHealthy && <CheckmarkCircle24Regular />} {agentHealthy ? "All discovery agents healthy" : totalAgents > 0 ? "Some discovery agents offline" : "No discovery agents registered"}
           </div>
         </div>
         <div className="stat-card">
@@ -86,6 +102,44 @@ export default function Dashboard() {
             {criticalDbs === 0 && <CheckmarkCircle24Regular />} {criticalDbs > 0 ? `${criticalDbs} require attention` : "All within threshold"}
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header">
+          <span className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Settings24Regular /> System Status
+          </span>
+          <Link to="/system" className="btn btn-ghost btn-sm">View system</Link>
+        </div>
+        {systemStatus.isLoading && <div className="loading" />}
+        {systemStatus.isError && (
+          <div className="empty-state">
+            <p>System status is currently unavailable.</p>
+          </div>
+        )}
+        {systemStatus.data && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, color: "var(--text-secondary)", fontSize: 12.5 }}>
+              <span className={`badge ${systemHealthy ? "badge-green" : "badge-yellow"}`}>
+                {systemHealthy ? "All systems operational" : "Attention required"}
+              </span>
+              <span>Updated {new Date(systemStatus.data.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div className="system-status-grid">
+              {systemStatus.data.components.map(component => (
+                <div key={component.name} className="system-status-item">
+                  <div className="system-status-heading">
+                    <span className="system-status-name">{component.name}</span>
+                    <span className={`badge ${SYSTEM_STATUS_BADGE[component.status] ?? "badge-red"}`}>
+                      {component.status}
+                    </span>
+                  </div>
+                  <div className="system-status-detail">{component.detail}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="dashboard-panels">
@@ -121,28 +175,28 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Agent status */}
+        {/* Discovery agent status */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Agent Status</span>
+            <span className="card-title">Discovery Agent Status</span>
             <Link to="/agents" className="btn btn-ghost btn-sm">Manage</Link>
           </div>
           {agents.isLoading && <div className="loading" />}
           {!agents.isLoading && !firstProjectId && (
             <div className="empty-state">
               <div className="empty-state-icon"><PlugConnected24Regular /></div>
-              <p>Create a project first to view agents.</p>
+              <p>Create a project first to view discovery agents.</p>
             </div>
           )}
           {firstProjectId && !agents.isLoading && (agents.data?.length ?? 0) === 0 && (
             <div className="empty-state">
               <div className="empty-state-icon"><PlugConnected24Regular /></div>
-              <p>No agents registered.<br /><Link to="/agents">Register an agent</Link></p>
+              <p>No discovery agents registered.<br /><Link to="/agents">Register a discovery agent</Link></p>
             </div>
           )}
           {(agents.data?.length ?? 0) > 0 && (
             <table className="data-table">
-              <thead><tr><th>Agent</th><th>Status</th><th>Heartbeat</th></tr></thead>
+              <thead><tr><th>Discovery Agent</th><th>Status</th><th>Heartbeat</th></tr></thead>
               <tbody>
                 {agents.data?.map(a => {
                   const diff = a.lastHeartbeatAt ? Date.now() - new Date(a.lastHeartbeatAt).getTime() : null;

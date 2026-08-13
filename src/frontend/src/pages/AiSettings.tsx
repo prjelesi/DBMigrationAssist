@@ -235,7 +235,7 @@ export default function AiSettings() {
               { feature: 'Evidence Parsing', active: status.data?.available,
                 desc: 'Extracts structured findings from AWR, Statspack and unsupported report formats.' },
               { feature: 'Finding Enrichment', active: status.data?.available,
-                desc: 'Adds migration path, risk level and remediation steps to raw agent assessment results.' },
+                desc: 'Adds migration path, risk level and remediation steps to raw discovery agent results.' },
               { feature: 'Report Generation', active: status.data?.available,
                 desc: 'Generates executive summary, risk register, wave recommendation and next steps.' },
               { feature: 'Rules-based Fallback', active: true,

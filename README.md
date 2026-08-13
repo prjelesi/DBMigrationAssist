@@ -1,6 +1,6 @@
 # DB Migration Assessment Toolkit
 
-A self-hosted portal for assessing database estates before migration to the cloud. Lightweight Docker agents are deployed inside customer networks, collect findings from source databases, and upload signed result bundles to the portal for AI-assisted analysis and report generation.
+A self-hosted portal for assessing database estates before migration to the cloud. Lightweight Docker Discovery Agents are deployed inside customer networks, collect findings from source databases, and upload signed result bundles to the portal for AI-assisted analysis and report generation.
 
 ---
 
@@ -13,16 +13,16 @@ A self-hosted portal for assessing database estates before migration to the clou
   - [Quick start — local](#quick-start--local)
   - [Portal walkthrough](#portal-walkthrough)
   - [Questionnaire templates](#questionnaire-templates)
-  - [Deploying assessment agents](#deploying-assessment-agents)
+  - [Deploying Discovery Agents](#deploying-discovery-agents)
     - [Supported plugins](#supported-plugins)
-    - [1. Register an agent in the portal](#1-register-an-agent-in-the-portal)
+    - [1. Register a Discovery Agent in the portal](#1-register-a-discovery-agent-in-the-portal)
     - [2. Choose a deployment method](#2-choose-a-deployment-method)
     - [Build the agent image](#build-the-agent-image)
     - [3. Docker run (simplest)](#3-docker-run-simplest)
     - [4. Docker Compose profile (local PoC)](#4-docker-compose-profile-local-poc)
     - [5. bootstrap.json file](#5-bootstrapjson-file)
     - [6. Kubernetes / bare-metal](#6-kubernetes--bare-metal)
-  - [Agent user instructions](#agent-user-instructions)
+  - [Discovery Agent user instructions](#discovery-agent-user-instructions)
     - [Configure database credentials](#configure-database-credentials)
     - [Start and verify the agent](#start-and-verify-the-agent)
     - [Dispatch an assessment](#dispatch-an-assessment)
@@ -116,12 +116,12 @@ On first start, EF Core migrations run automatically and all database schemas ar
 
 | Section | Route | Description |
 |---------|-------|-------------|
-| Dashboard | `/` | Counts of projects, agents, databases |
+| Dashboard | `/` | Counts of projects, Discovery Agents, databases |
 | System | `/system` | Health status, AI configuration, system config |
 | Projects | `/projects` | Create and manage migration projects |
 | Environments | `/environments` | DEV / UAT / PROD environment rings |
 | DB Inventory | `/inventory` | Register source databases with engine, host, criticality |
-| Agents | `/agents` | Register agents, dispatch jobs, view findings |
+| Discovery Agents | `/agents` | Register Discovery Agents, dispatch jobs, view findings |
 | Communication Map | `/communication-map` | ReactFlow graph of database dependencies |
 | Portfolio | `/portfolio` | Group databases into migration waves |
 | Questionnaire | `/questionnaire` | Versioned baseline and database-specific discovery questionnaires |
@@ -157,9 +157,9 @@ Increment `version` when changing a template that may already have responses. Do
 
 ---
 
-## Deploying assessment agents
+## Deploying Discovery Agents
 
-The agent is a .NET 8 background service that runs **inside the customer network** alongside the source databases. It polls the portal for jobs, runs the appropriate plugin against the target database, and uploads a signed result bundle over HTTPS.
+The Discovery Agent is a .NET 8 background service that runs **inside the customer network** alongside the source databases. It polls the portal for jobs, runs the appropriate plugin against the target database, and uploads a signed result bundle over HTTPS.
 
 ### Supported plugins
 
@@ -170,17 +170,17 @@ The agent is a .NET 8 background service that runs **inside the customer network
 | `sqlserver` | Microsoft SQL Server | 1433 | Supported |
 | `mysql` | MySQL / MariaDB | 3306 | Supported |
 
-MongoDB may appear in inventory data or the portal selector, but an executable MongoDB agent plugin is not yet included. Do not enable `mongodb` on deployed agents.
+MongoDB may appear in inventory data or the portal selector, but an executable MongoDB Discovery Agent plugin is not yet included. Do not enable `mongodb` on deployed Discovery Agents.
 
-### 1. Register an agent in the portal
+### 1. Register a Discovery Agent in the portal
 
-1. Navigate to **Agents** and select a project.
-2. Click **+ Register Agent**.
+1. Navigate to **Discovery Agents** and select a project.
+2. Click **+ Register Discovery Agent**.
 3. Fill in:
-   - **Agent Name** — a descriptive label (e.g. `Prod-Oracle-Agent-1`)
-  - **Allowed Plugins** — select only the engines this agent can reach: `postgresql`, `oracle`, `sqlserver`, and/or `mysql`
+  - **Discovery Agent Name** — a descriptive label (e.g. `Prod-Oracle-Discovery-1`)
+  - **Allowed Plugins** — select only the engines this Discovery Agent can reach: `postgresql`, `oracle`, `sqlserver`, and/or `mysql`
    - **PSK Mode** — `System generated` (recommended) or `User supplied`
-4. Click **Register Agent**.
+4. Click **Register Discovery Agent**.
 5. A **bootstrap package** is shown **once** — copy or download it immediately:
 
 ```json
@@ -365,16 +365,16 @@ For a persistent service, place these variables in a root-readable environment f
 
 ---
 
-## Agent user instructions
+## Discovery Agent user instructions
 
-Complete these steps after registering and deploying an agent.
+Complete these steps after registering and deploying a Discovery Agent.
 
 ### Configure database credentials
 
-Use a dedicated read-only database account. The preferred production approach is to keep credentials on the agent host instead of entering them for every portal job.
+Use a dedicated read-only database account. The preferred production approach is to keep credentials on the Discovery Agent host instead of entering them for every portal job.
 
 1. In **DB Inventory**, identify the database to assess. Retrieve its `databaseId` from `GET /api/databases?projectId=<project-guid>`; for a local portal, use `http://localhost:5000/api/databases?projectId=<project-guid>`.
-2. On the agent host, create `databases.json`:
+2. On the Discovery Agent host, create `databases.json`:
 
 ```json
 {
@@ -417,25 +417,25 @@ AGENT_DB_0_PASSWORD=replace-with-secret
 
 Add more profiles with `AGENT_DB_1_*`, `AGENT_DB_2_*`, and so on. Numbering must be contiguous from zero. Environment profiles override file entries with the same database ID.
 
-For a one-time assessment, credentials can instead be entered in the **Dispatch Job** dialog. They are sent to the agent in the job payload; use TLS and a dedicated read-only account.
+For a one-time assessment, credentials can instead be entered in the **Dispatch Job** dialog. They are sent to the Discovery Agent in the job payload; use TLS and a dedicated read-only account.
 
-### Start and verify the agent
+### Start and verify the Discovery Agent
 
 ```bash
 docker start dbmr-agent
 docker logs -f dbmr-agent
 ```
 
-A successful startup logs the agent ID, backend URL, and number of local database profiles loaded. Within about 30 seconds, the portal **Agents** page should show a recent heartbeat and move the agent to an active state.
+A successful startup logs the agent ID, backend URL, and number of local database profiles loaded. Within about 30 seconds, the portal **Discovery Agents** page should show a recent heartbeat and move the Discovery Agent to an active state.
 
 ### Dispatch an assessment
 
-1. Open **Agents** and select the project.
-2. Confirm the agent has a recent heartbeat and the required plugin is listed.
+1. Open **Discovery Agents** and select the project.
+2. Confirm the Discovery Agent has a recent heartbeat and the required plugin is listed.
 3. Select **Dispatch Job**.
 4. Choose a database from inventory to use its matching local credential profile, or enter the host, port, database/service name, username, and password manually.
 5. Confirm the plugin matches the database engine, then select **Dispatch**.
-6. Open **Job History**. The job progresses from pending/assigned to running and then completed or failed. Agents poll every 30 seconds, so pickup is not immediate.
+6. Open **Job History**. The job progresses from pending/assigned to running and then completed or failed. Discovery Agents poll every 30 seconds, so pickup is not immediate.
 
 ### View findings
 

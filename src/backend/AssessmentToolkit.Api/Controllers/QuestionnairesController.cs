@@ -96,9 +96,28 @@ public class QuestionnairesController(
     [HttpGet("responses")]
     public async Task<IActionResult> ListResponses([FromQuery] Guid projectId) =>
         Ok(await db.QuestionnaireResponses
+            .AsNoTracking()
             .Where(r => r.ProjectId == projectId)
-            .Include(r => r.Template)
             .OrderByDescending(r => r.UpdatedAt)
+            .Select(r => new
+            {
+                r.ResponseId,
+                r.ProjectId,
+                r.TemplateId,
+                r.Status,
+                r.AssignedTo,
+                r.CreatedAt,
+                r.UpdatedAt,
+                r.SubmittedAt,
+                Template = new
+                {
+                    r.Template.TemplateId,
+                    r.Template.Name,
+                    r.Template.Description,
+                    r.Template.Phase,
+                    r.Template.Version
+                }
+            })
             .ToListAsync());
 
     [HttpPost("responses")]
@@ -113,7 +132,7 @@ public class QuestionnairesController(
         var existing = await db.QuestionnaireResponses
             .FirstOrDefaultAsync(r => r.ProjectId == req.ProjectId && r.TemplateId == req.TemplateId);
         if (existing is not null)
-            return Ok(existing); // Idempotent — return existing response
+            return Ok(ToResponseSummary(existing));
 
         var response = new QuestionnaireResponse
         {
@@ -125,20 +144,86 @@ public class QuestionnairesController(
 
         db.QuestionnaireResponses.Add(response);
         await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetResponse), new { id = response.ResponseId }, response);
+        return CreatedAtAction(nameof(GetResponse), new { id = response.ResponseId }, ToResponseSummary(response));
     }
 
     [HttpGet("responses/{id:guid}")]
     public async Task<IActionResult> GetResponse(Guid id)
     {
         var r = await db.QuestionnaireResponses
-            .Include(r => r.Template)
-                .ThenInclude(t => t.Sections.OrderBy(s => s.Order))
-                    .ThenInclude(s => s.Questions.OrderBy(q => q.Order))
-            .Include(r => r.Answers)
+            .AsNoTracking()
+            .Where(r => r.ResponseId == id)
+            .Select(r => new
+            {
+                r.ResponseId,
+                r.ProjectId,
+                r.TemplateId,
+                r.Status,
+                r.AssignedTo,
+                r.CreatedAt,
+                r.UpdatedAt,
+                r.SubmittedAt,
+                Template = new
+                {
+                    r.Template.TemplateId,
+                    r.Template.Name,
+                    r.Template.Description,
+                    r.Template.Phase,
+                    r.Template.Version,
+                    Sections = r.Template.Sections
+                        .OrderBy(s => s.Order)
+                        .Select(s => new
+                        {
+                            s.SectionId,
+                            s.TemplateId,
+                            s.Title,
+                            s.Description,
+                            s.Order,
+                            Questions = s.Questions
+                                .OrderBy(q => q.Order)
+                                .Select(q => new
+                                {
+                                    q.QuestionId,
+                                    q.SectionId,
+                                    q.Text,
+                                    q.HelpText,
+                                    q.Type,
+                                    q.IsRequired,
+                                    q.AllowCustomAnswer,
+                                    q.AllowAttachments,
+                                    q.Order,
+                                    q.OptionsJson
+                                })
+                                .ToList()
+                        })
+                        .ToList()
+                },
+                Answers = r.Answers
+                    .Select(a => new
+                    {
+                        a.AnswerId,
+                        a.ResponseId,
+                        a.QuestionId,
+                        a.Value,
+                        a.UpdatedAt
+                    })
+                    .ToList()
+            })
             .FirstOrDefaultAsync(r => r.ResponseId == id);
         return r is null ? NotFound() : Ok(r);
     }
+
+    private static object ToResponseSummary(QuestionnaireResponse response) => new
+    {
+        response.ResponseId,
+        response.ProjectId,
+        response.TemplateId,
+        response.Status,
+        response.AssignedTo,
+        response.CreatedAt,
+        response.UpdatedAt,
+        response.SubmittedAt
+    };
 
     [HttpGet("responses/{id:guid}/attachments")]
     public async Task<IActionResult> ListAttachments(Guid id)

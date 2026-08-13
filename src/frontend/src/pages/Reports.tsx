@@ -286,7 +286,7 @@ export default function Reports() {
         <div className="modal-overlay" onClick={() => !generating && setShowGenModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <p className="modal-title">Generate Assessment Report</p>
-            <p className="modal-sub">AI will synthesise agent results, evidence files, and database inventory into a migration readiness report.</p>
+            <p className="modal-sub">AI will synthesise discovery agent results, evidence files, and database inventory into a migration readiness report.</p>
 
             {genError && <div className="error-msg">{genError}</div>}
 

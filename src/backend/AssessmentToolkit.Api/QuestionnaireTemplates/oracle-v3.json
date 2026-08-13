@@ -1,0 +1,89 @@
+{
+  "name": "Oracle Migration Assessment",
+  "description": "Captures Oracle-specific dependencies, Oracle-to-PostgreSQL conversion readiness, migration constraints, validation, licensing and target decisions that cannot be determined from automated discovery alone.",
+  "phase": "Supplemental",
+  "version": 3,
+  "sections": [
+    {
+      "title": "Oracle Workload, Scope & Target",
+      "description": "Identify the Oracle estate, application boundary, critical schemas and intended destination.",
+      "questions": [
+        { "text": "Which Oracle databases, CDBs, PDBs and schemas are in scope for this wave?", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Is the engagement database migration only, or does it include application and Oracle SQL syntax conversion?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Database only", "Database and application conversion", "Database with limited application remediation", "Scope not yet agreed", "Other"] },
+        { "text": "Are multiple applications, customers or business units sharing this Oracle database?", "type": "Boolean", "required": true },
+        { "text": "Which applications, integrations and vendors depend on each in-scope database, and will they support the proposed target?", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Describe release, batch, reporting, seasonal or interface schedules that constrain migration timing.", "type": "Textarea", "required": false },
+        { "text": "Who owns and can approve changes to application code, PL/SQL and database objects?", "type": "Textarea", "required": true },
+        { "text": "Which Oracle migration destination and target database version are being evaluated?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Azure Database for PostgreSQL Flexible Server", "Oracle Database@Azure - Exadata Database Service", "Oracle Database@Azure - Autonomous Database", "Oracle Database on Azure Virtual Machines", "Azure SQL Managed Instance or SQL Database", "Another platform", "Not yet decided", "Other"] },
+        { "text": "Which workloads can modernize to PostgreSQL and which require Oracle Database@Azure or another Oracle destination?", "type": "Textarea", "required": true }
+      ]
+    },
+    {
+      "title": "Oracle Assessment Readiness",
+      "description": "Confirm safe metadata collection, performance evidence and prerequisites for compatibility and sizing decisions.",
+      "questions": [
+        { "text": "Who will run the Oracle assessment and information-gathering scripts and return the outputs?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Customer DBA", "Partner", "Microsoft Factory", "Joint execution", "Not yet assigned", "Other"] },
+        { "text": "Can the scripts run with a read-only account without changing objects, transactions, data or processes?", "type": "Select", "required": true, "options": ["Confirmed", "Partially confirmed", "No", "Not yet verified"] },
+        { "text": "Has customer security reviewed what the scripts collect, where outputs are stored and how they are returned?", "type": "Select", "required": true, "options": ["Approved", "Review in progress", "Not submitted", "Review not required"] },
+        { "text": "Are complete inventory, schema metadata and application dependency outputs available for all in-scope production and non-production databases?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Complete", "Partial", "Not collected", "Collection blocked"] },
+        { "text": "Which AWR or Statspack reports are available, and do they cover representative peak periods for production and non-production?", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Are target server count, consolidation model, compute, storage and cost sizing expected from the assessment?", "type": "Select", "required": true, "options": ["Yes - all", "Compatibility only", "Sizing and cost only", "No", "Not yet agreed"] },
+        { "text": "Have required access, ports, Oracle client and TNS configuration, Java runtime, execution host and target database been prepared and tested?", "type": "Select", "required": true, "allowAttachments": true, "options": ["All prerequisites complete", "Partially complete", "Not started", "Blocked"] }
+      ]
+    },
+    {
+      "title": "Oracle Features & Conversion",
+      "description": "Confirm whether discovered Oracle capabilities and schema or application code can be converted or replaced.",
+      "questions": [
+        { "text": "Which discovered Oracle features are business-critical, removable or require replacement?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "allowAttachments": true, "options": ["RAC", "Data Guard", "GoldenGate", "Advanced Queuing", "Materialized views", "Database links", "Oracle Scheduler", "Spatial", "Text", "XML DB", "Java stored procedures", "Other", "None"] },
+        { "text": "Describe external systems reached through database links, gateways, queues, directories or file access.", "type": "Textarea", "required": false, "allowAttachments": true },
+        { "text": "Which PL/SQL procedures, packages, functions and triggers require automated conversion versus manual redesign?", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Are wrapped or encrypted packages, synonyms, directories or other objects without a direct target equivalent in scope?", "type": "Select", "required": true, "options": ["Yes - remediation planned", "Yes - remediation not planned", "No", "Not yet assessed"] },
+        { "text": "Are schemas tightly coupled through cross-schema references or transactions and therefore required to migrate together?", "type": "Select", "required": true, "options": ["Yes", "Partially", "No", "Not yet assessed"] },
+        { "text": "Does application behavior depend on Oracle-specific SQL or session semantics?", "helpText": "Examples include empty strings treated as NULL, Oracle DATE behavior, NLS settings, sequence behavior, quoted identifiers, hints or implicit type conversions.", "type": "Select", "required": true, "options": ["Yes", "No", "Unknown - assessment required"] },
+        { "text": "Describe exceptionally large tables, partitions, BLOBs, CLOBs or archival data that require a separate migration strategy.", "type": "Textarea", "required": false, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Migration Tooling & Continuity",
+      "description": "Select an approved workflow and confirm online or offline feasibility, connectivity and rollback prerequisites.",
+      "questions": [
+        { "text": "Which migration workflow best fits the source, target and downtime requirements?", "type": "Select", "required": true, "options": ["Physical online", "Physical offline", "Logical online with CDC", "Logical offline", "Heterogeneous schema and data conversion", "Application-led phased migration", "Not yet decided"] },
+        { "text": "Which migration and conversion tools are approved or preferred?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "options": ["VS Code PostgreSQL migration extension", "Ora2Pg", "Striim", "Oracle Zero Downtime Migration", "RMAN", "Oracle Data Pump", "Oracle Data Guard", "Oracle GoldenGate", "SQL Server Migration Assistant", "Azure Database Migration Service", "Azure Data Factory", "Other", "Not yet decided"] },
+        { "text": "What is the approval and licensing status for third-party tools, GitHub Copilot and Azure AI Foundry or Azure OpenAI dependencies?", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Must an AI capability be disabled or separately approved for assessment, schema conversion or data transfer?", "type": "Select", "required": true, "options": ["No restriction", "Approval required", "Must be disabled", "Not yet determined", "Not applicable"] },
+        { "text": "Have source-to-target compatibility prerequisites been verified for the selected workflow?", "helpText": "Check database version and patch level, character set, time-zone version, encryption, target restrictions and unsupported object types.", "type": "Select", "required": true, "allowAttachments": true, "options": ["Verified", "Partially verified", "Not verified", "Not applicable to the selected workflow"] },
+        { "text": "Has secure source-to-target connectivity and sustained migration throughput been tested from the execution host with representative data?", "type": "Select", "required": true, "options": ["Connectivity and throughput tested", "Connectivity only tested", "No", "Not yet"] },
+        { "text": "Can source schema and application changes be frozen during the final migration and validation window?", "type": "Select", "required": true, "options": ["Yes", "Partially", "No", "Not yet agreed"] },
+        { "text": "Describe the rollback method, reconciliation required before rollback and rollback decision triggers.", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Is a source and target coexistence period required after cutover?", "type": "Select", "required": true, "options": ["No", "Yes - read-only source", "Yes - dual operation", "Yes - phased application transition", "Not yet decided"] }
+      ]
+    },
+    {
+      "title": "Validation & Cutover Readiness",
+      "description": "Define the evidence, rehearsals and approvals required before production cutover.",
+      "questions": [
+        { "text": "Which source-to-target validation checks are required for acceptance?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Object counts and status", "Row counts", "Checksums or row-level comparison", "LOB validation", "Data type and precision checks", "Date, time zone and character encoding checks", "Business query result comparison", "Application functional testing", "Performance and concurrency testing", "Backup and restore test", "Disaster recovery test", "Other"] },
+        { "text": "Who owns data reconciliation and has authority to accept documented variances?", "type": "Text", "required": true },
+        { "text": "Have representative peak-load performance baselines and target acceptance thresholds been agreed?", "type": "Select", "required": true, "options": ["Yes", "Baselines captured but thresholds not agreed", "No", "Not applicable"] },
+        { "text": "What is the status of the non-production proof of concept and production-scale migration rehearsal?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Completed and accepted", "Completed with open findings", "Scheduled", "Required but not scheduled", "Not required"] },
+        { "text": "What is the production cutover target, go/no-go process and required maintenance window?", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Who provides final business, application, database, security and operations sign-off for cutover?", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Licensing, Security & Operations",
+      "description": "Capture Oracle licensing, encryption, access, target controls and post-migration operating requirements.",
+      "questions": [
+        { "text": "Which separately licensed Oracle options or management packs are currently used?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Diagnostics Pack", "Tuning Pack", "Partitioning", "Advanced Security", "RAC", "Active Data Guard", "GoldenGate", "Spatial and Graph", "Other", "None", "Unknown"] },
+        { "text": "Are there Oracle Wallet, TDE, HSM or external key-management dependencies?", "type": "Boolean", "required": true },
+        { "text": "Describe required authentication integrations such as LDAP, Kerberos, proxy users or enterprise users.", "type": "Textarea", "required": false },
+        { "text": "Which Oracle security and audit controls must be preserved or replaced on the target?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Unified Auditing", "Fine-Grained Auditing", "Virtual Private Database", "Oracle Database Vault", "Data Redaction", "Label Security", "Transparent Data Encryption", "Always-on network encryption", "Privileged access management", "Other", "None"] },
+        { "text": "Which target security controls are required before production?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "options": ["Private connectivity", "TLS enforcement", "Customer-managed keys", "Microsoft Entra-only authentication", "pgaudit", "Central log retention", "Defender for Cloud", "Network monitoring", "Privileged access management", "Other"] },
+        { "text": "Who will own backup, point-in-time recovery, patching, monitoring, incident response and performance tuning on the target?", "type": "Textarea", "required": true },
+        { "text": "What hypercare coverage is required after migration?", "helpText": "The Factory service description uses five days of joint hypercare as its standard outcome.", "type": "Textarea", "required": true },
+        { "text": "What criteria and approvals are required to decommission the source and terminate Oracle licenses or support?", "type": "Textarea", "required": false, "allowAttachments": true }
+      ]
+    }
+  ]
+}
