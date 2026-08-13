@@ -27,9 +27,9 @@ During the demo, explain the operational pattern associated with each mode witho
 
 | Mode | Demo project | Operating pattern | Primary workflow |
 | --- | --- | --- | --- |
-| Connected | Contoso Retail Cloud Migration | Central portal with outbound Discovery Agent connectivity | Live agent discovery and continuous result upload |
-| Air-gapped | Fabrikam Defense Database Assessment | Isolated source environment with controlled file transfer | Offline collection followed by manual evidence upload |
-| Standalone | Northwind Manufacturing Modernization | Portal, database, and Discovery Agent hosted together | Fully local assessment with no external platform dependency |
+| Connected | Zava Connected Commerce Migration | Central portal with outbound Discovery Agent connectivity | Live agent discovery and continuous result upload |
+| Air-gapped | Zava Product Innovation Assessment | Isolated source environment with controlled file transfer | Offline collection followed by manual evidence upload |
+| Standalone | Zava Smart Factory Modernization | Portal, database, and Discovery Agent hosted together | Fully local assessment with no external platform dependency |
 
 ## Recommended duration
 
@@ -72,7 +72,7 @@ The demo URLs are:
 
 ## Shared demonstration story
 
-Each customer is preparing database workloads for Azure but operates under a different connectivity policy.
+Zava, an intelligent athletic apparel company, is preparing database workloads for Azure across business units with different connectivity policies.
 
 The assessment team must answer the same core questions:
 
@@ -103,17 +103,17 @@ Create one customer:
 
 | Field | Value |
 | --- | --- |
-| Name | Adventure Works Group |
-| Industry | Retail and Manufacturing |
-| Region | EMEA |
+| Name | Zava |
+| Industry | Intelligent athletic apparel |
+| Region | Global |
 
 Create three projects for that customer:
 
 | Project | Mode | Description |
 | --- | --- | --- |
-| Contoso Retail Cloud Migration | Connected | Live PostgreSQL and Oracle assessment using outbound Discovery Agents connected to the central portal. |
-| Fabrikam Defense Database Assessment | Air-Gapped | Restricted Oracle estate assessed through approved offline collection and controlled evidence transfer. |
-| Northwind Manufacturing Modernization | Standalone | Customer-hosted assessment workspace running locally beside the source database. |
+| Zava Connected Commerce Migration | Connected | Live PostgreSQL and Oracle assessment for commerce and athlete services using outbound Discovery Agents connected to the central portal. |
+| Zava Product Innovation Assessment | Air-Gapped | Restricted product R&D Oracle estate assessed through approved offline collection and controlled evidence transfer. |
+| Zava Smart Factory Modernization | Standalone | Customer-hosted assessment workspace running locally beside intelligent apparel manufacturing systems. |
 
 ### Optional clean demonstration environment
 
@@ -128,7 +128,7 @@ docker compose up -d postgres api worker frontend
 
 ### Customer situation
 
-Contoso operates PostgreSQL and Oracle databases in a customer network that permits outbound HTTPS to the centrally hosted assessment portal. No inbound access to the customer network is allowed.
+Zava operates PostgreSQL and Oracle databases for digital commerce, athlete profiles, and connected apparel services in a network that permits outbound HTTPS to the centrally hosted assessment portal. No inbound access to the customer network is allowed.
 
 ### Architecture
 
@@ -144,21 +144,21 @@ flowchart LR
 
 ### Configure the project
 
-1. Open **Projects** and select **Contoso Retail Cloud Migration**.
+1. Open **Projects** and select **Zava Connected Commerce Migration**.
 2. Confirm the mode badge is **Connected**.
 3. Add environments:
 
 | Name | Type | Location | Connectivity zone |
 | --- | --- | --- | --- |
-| Contoso Production | PROD | London Datacenter | Customer Network |
+| Zava Commerce Production | PROD | London Datacenter | Customer Network |
 | Azure Migration Landing Zone | UAT | UK South | Azure Private Network |
 
 4. Add database inventory records:
 
 | Name | Engine | Version | Host | Port | Criticality | Owner |
 | --- | --- | --- | --- | ---: | --- | --- |
-| retail-orders-prod | PostgreSQL | 15.6 | postgres | 5432 | Critical | Retail Platform Team |
-| loyalty-oracle-prod | Oracle | 19c | ora-retail.internal | 1521 | High | Loyalty DBA Team |
+| commerce-orders-prod | PostgreSQL | 15.6 | postgres | 5432 | Critical | Digital Commerce Team |
+| athlete-profile-oracle | Oracle | 19c | ora-athlete.internal | 1521 | High | Athlete Experience DBA Team |
 
 ### Demonstrate live discovery
 
@@ -178,7 +178,7 @@ Alternatively, demonstrate registration manually:
 
 1. Open **Discovery Agents**.
 2. Select the Connected project.
-3. Register `Contoso-Prod-Discovery-01` with the `postgresql` and `oracle` plugins.
+3. Register `Zava-Commerce-Discovery-01` with the `postgresql` and `oracle` plugins.
 4. Explain that the generated PSK is shown once and requests are signed with HMAC-SHA256.
 5. Show that the Discovery Agent requires only outbound access to the API.
 6. Dispatch a PostgreSQL assessment using an inventory database.
@@ -203,7 +203,7 @@ Alternatively, demonstrate registration manually:
 
 ### Customer situation
 
-Fabrikam does not permit any network route between the source environment and the assessment portal. Database metadata is collected with an approved offline process, reviewed inside the secure boundary, and transferred through the customer's controlled media process.
+Zava's product innovation environment contains proprietary smart-fabric designs, sensor research, and athlete-performance models. It does not permit any network route between the source environment and the assessment portal. Database metadata is collected with an approved offline process, reviewed inside the secure boundary, and transferred through Zava's controlled media process.
 
 ### Architecture
 
@@ -218,21 +218,21 @@ flowchart LR
 
 ### Configure the project
 
-1. Open **Projects** and select **Fabrikam Defense Database Assessment**.
+1. Open **Projects** and select **Zava Product Innovation Assessment**.
 2. Confirm the mode badge is **Air-Gapped**.
 3. Add environments:
 
 | Name | Type | Location | Connectivity zone |
 | --- | --- | --- | --- |
-| Secure Production Zone | PROD | Customer Secure Facility | Air-Gapped Zone A |
-| Sanitized Assessment Zone | UAT | Customer Secure Facility | Transfer Zone |
+| Product Innovation Zone | PROD | Zava Research Facility | Air-Gapped Zone A |
+| Sanitized Assessment Zone | UAT | Zava Research Facility | Transfer Zone |
 
 4. Add database inventory records:
 
 | Name | Engine | Version | Host | Port | Criticality | Owner |
 | --- | --- | --- | --- | ---: | --- | --- |
-| mission-planning-oracle | Oracle | 19c | classified-host | 1521 | Critical | Secure Database Operations |
-| logistics-oracle | Oracle | 12.2 | classified-host-02 | 1521 | High | Logistics Systems Team |
+| smart-fabric-rnd-oracle | Oracle | 19c | rnd-db-host | 1521 | Critical | Product Innovation Data Team |
+| athlete-models-oracle | Oracle | 12.2 | research-db-host-02 | 1521 | High | Sports Science Systems Team |
 
 ### Prepare safe demonstration evidence
 
@@ -242,8 +242,8 @@ Create a small CSV such as `demo-airgapped-inventory.csv`:
 
 ```csv
 database,engine,version,size_gb,schemas,criticality,notes
-mission-planning-oracle,Oracle,19c,850,42,Critical,RAC and Data Guard detected
-logistics-oracle,Oracle,12.2,320,18,High,Database links require review
+smart-fabric-rnd-oracle,Oracle,19c,850,42,Critical,RAC and Data Guard detected
+athlete-models-oracle,Oracle,12.2,320,18,High,Database links require review
 ```
 
 Create a short text file such as `demo-airgapped-assessment.txt`:
@@ -286,7 +286,7 @@ The current product supports manual evidence upload for Air-gapped projects. It 
 
 ### Customer situation
 
-Northwind wants a self-contained assessment workspace for a proof of concept. The portal, API, worker, PostgreSQL store, and Discovery Agent run together on a customer-controlled workstation or server.
+Zava's smart factory team wants a self-contained assessment workspace for a proof of concept beside its intelligent apparel production systems. The portal, API, worker, PostgreSQL store, and Discovery Agent run together on a customer-controlled workstation or server.
 
 ### Architecture
 
@@ -301,27 +301,27 @@ flowchart LR
 
 ### Configure the project
 
-1. Open **Projects** and select **Northwind Manufacturing Modernization**.
+1. Open **Projects** and select **Zava Smart Factory Modernization**.
 2. Confirm the mode badge is **Standalone**.
 3. Add environments:
 
 | Name | Type | Location | Connectivity zone |
 | --- | --- | --- | --- |
-| Local Factory Production | PROD | Customer Site | Local Network |
-| Migration Lab | DEV | Customer Site | Docker Network |
+| Smart Factory Production | PROD | Zava Manufacturing Site | Local Network |
+| Migration Lab | DEV | Zava Manufacturing Site | Docker Network |
 
 4. Add database inventory records:
 
 | Name | Engine | Version | Host | Port | Criticality | Owner |
 | --- | --- | --- | --- | ---: | --- | --- |
-| factory-operations | PostgreSQL | 16 | postgres | 5432 | High | Manufacturing IT |
-| warehouse-mysql | MySQL | 8.0 | mysql.local | 3306 | Medium | Warehouse Applications |
+| apparel-production | PostgreSQL | 16 | postgres | 5432 | High | Smart Factory Technology |
+| materials-warehouse | MySQL | 8.0 | mysql.local | 3306 | Medium | Supply Chain Applications |
 
 ### Demonstrate the standalone workflow
 
 1. Open **System** and show API, database, worker, and AI Foundry status.
 2. Explain that the core assessment workflow works when AI Foundry is not configured.
-3. Open **Discovery Agents** and register `Northwind-Local-Discovery`.
+3. Open **Discovery Agents** and register `Zava-Factory-Discovery`.
 4. Show the local Docker deployment pattern using `http://api:8080` inside the Compose network.
 5. Dispatch a local PostgreSQL assessment.
 6. Open the findings and compare them with the inventory record.
