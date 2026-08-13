@@ -72,6 +72,8 @@ This document defines the target solution architecture for the Assessment Toolki
 - Separate raw evidence from reviewed deliverables; raw evidence is not directly accessible through the reporting or export path.
 - Maintain immutable audit records for agent registrations, PSK issuance and rotation, uploads, parsing, AI submissions, approvals and exports.
 - Disable external AI calls unless explicitly configured and enabled for the deployment mode.
+- AI Foundry credentials can come from environment configuration or the administration portal. Portal-entered API keys are encrypted with ASP.NET Core Data Protection before database persistence, are never returned to the client, and depend on a durable key ring mounted into every API instance that must decrypt them.
+- AI readiness distinguishes configuration from connectivity. Constructing an SDK client reports `Configured`; only an explicit successful model request reports `Connected`. The latest test failure is surfaced as `Error` without exposing credential or provider response details.
 
 ## 8. Reporting workflow
 
@@ -119,5 +121,5 @@ The following decisions were confirmed during PoC planning (2026-07-27):
 | Graph visualisation library | **React Flow** (primary); D3.js for complex layouts | React Flow handles interactive node-edge graphs with built-in minimap and zoom; D3 available for custom force-directed layouts. |
 | PostgreSQL deployment | **Embedded for MVP**; customer-managed PostgreSQL supported via connection string override | Simplifies PoC and isolated deployments; Npgsql connection string abstraction makes swap transparent. |
 | PoC deployment target | **Azure Container Apps** | Customer already has demo environment with all database types deployed on ACA. |
-| Initial database plugins | **Oracle** and **PostgreSQL** | Covers the highest-priority source engines from the Factory service description. SQL Server to follow in R2. |
+| Initial database plugins | **Oracle, PostgreSQL, SQL Server and MySQL/MariaDB** | Covers the priority relational source engines with a consistent plugin contract and read-only collection model. |
 | SharePoint/OneDrive publishing | **Should-have (post-MVP)** | Export to Azure Files / local volume is sufficient for PoC; SharePoint connector deferred to R4. |

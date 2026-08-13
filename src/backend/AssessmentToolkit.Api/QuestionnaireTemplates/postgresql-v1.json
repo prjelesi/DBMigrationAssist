@@ -1,0 +1,117 @@
+{
+  "name": "PostgreSQL Migration Assessment",
+  "description": "Captures PostgreSQL-specific extension, integration, availability and operating decisions that complement automated discovery.",
+  "phase": "Supplemental",
+  "version": 1,
+  "sections": [
+    {
+      "title": "PostgreSQL Workload Context",
+      "description": "Identify database ownership, workload patterns and release constraints.",
+      "questions": [
+        {
+          "text": "Which databases and schemas are in scope for this migration?",
+          "type": "Textarea",
+          "required": true
+        },
+        {
+          "text": "What are the primary workload patterns?",
+          "type": "MultiSelect",
+          "required": true,
+          "options": ["Transactional", "Analytical", "Mixed workload", "Reporting", "Time series", "Geospatial", "Batch processing", "Other"]
+        },
+        {
+          "text": "Are application deployments tightly coupled to database schema migrations?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe peak periods, maintenance windows and long-running batch processes.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "Extensions & Database Features",
+      "description": "Determine whether PostgreSQL extensions and privileged capabilities can run on the target.",
+      "questions": [
+        {
+          "text": "Which installed extensions are required by the application rather than used only for administration?",
+          "type": "Textarea",
+          "required": true,
+          "helpText": "List extension names and the application capability each one supports."
+        },
+        {
+          "text": "Does application code require superuser privileges or direct access to the server file system?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Are foreign data wrappers used in critical data paths?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe dependencies on logical decoding, custom C extensions, procedural languages, large objects or unlogged tables.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "Migration & High Availability",
+      "description": "Define data movement, cutover and continuity expectations.",
+      "questions": [
+        {
+          "text": "What migration method is preferred for this PostgreSQL workload?",
+          "type": "Select",
+          "required": true,
+          "options": ["pg_dump and pg_restore", "Physical backup and restore", "Logical replication", "Third-party replication", "Application-led phased migration", "Not yet decided"]
+        },
+        {
+          "text": "Must existing replication slots or downstream logical subscribers be preserved?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "What target high-availability model is required?",
+          "type": "Select",
+          "required": true,
+          "options": ["Single zone", "Zone redundant", "Cross-region read replica", "Cross-region disaster recovery", "Not yet decided"]
+        },
+        {
+          "text": "Describe the rollback and data reconciliation approach for cutover.",
+          "type": "Textarea",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Security & Operations",
+      "description": "Capture authentication, maintenance and operational ownership requirements.",
+      "questions": [
+        {
+          "text": "Which authentication methods must be supported on the target?",
+          "type": "MultiSelect",
+          "required": true,
+          "options": ["Password", "Microsoft Entra ID", "Kerberos or GSSAPI", "Client certificates", "LDAP", "Managed identity", "Other"]
+        },
+        {
+          "text": "Are custom pg_hba.conf, postgresql.conf or operating-system settings mandatory?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe current backup, point-in-time recovery, vacuum and statistics maintenance processes.",
+          "type": "Textarea",
+          "required": false
+        },
+        {
+          "text": "Who will own extension upgrades, query tuning, monitoring and incident response after migration?",
+          "type": "Textarea",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

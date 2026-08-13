@@ -120,6 +120,8 @@ export interface Question {
   helpText?: string;
   type: QuestionType;
   isRequired: boolean;
+  allowCustomAnswer: boolean;
+  allowAttachments: boolean;
   order: number;
   optionsJson?: string;
 }
@@ -162,6 +164,18 @@ export interface QuestionnaireResponse {
   answers?: Answer[];
 }
 
+export interface QuestionnaireAttachment {
+  reportId: string;
+  projectId: string;
+  questionnaireResponseId: string;
+  questionId: string;
+  fileName: string;
+  fileSizeBytes: number;
+  parseStatus: ParseStatus;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
 // ── Evidence ────────────────────────────────────────────────────────────
 
 export type ParseStatus = 'Pending' | 'Parsing' | 'Parsed' | 'Failed' | 'ReviewRequired';
@@ -170,6 +184,8 @@ export type ReportSourceType = 'DmaJson' | 'Awr' | 'Statspack' | 'AzureMigrate' 
 export interface EvidenceReport {
   reportId: string;
   projectId: string;
+  questionnaireResponseId?: string;
+  questionId?: string;
   fileName: string;
   sourceType: ReportSourceType;
   fileSizeBytes: number;

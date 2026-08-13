@@ -29,19 +29,23 @@ public class SystemController(AssessmentDbContext db, IAiAdapterService ai, ISer
         catch (Exception ex) { dbError = ex.Message; }
 
         // AI status
-        var aiConfigured = ai.IsAvailable;
-        var aiEndpointRecord = await db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == "AiFoundry:Endpoint", ct);
-        var aiEndpoint = aiEndpointRecord?.Value;
-
+        var aiStatus = !ai.IsAvailable
+            ? "Not Configured"
+            : ai.LastConnectionSucceeded switch
+            {
+                true => "Connected",
+                false => "Error",
+                null => "Configured"
+            };
         return Ok(new
         {
             components = new[]
             {
                 new { name = "API",        status = "Healthy",                 detail = "REST API is responding." },
-                new { name = "Database",   status = dbOk ? "Healthy" : "Error", detail = dbOk ? $"{projectCount} projects, {agentCount} agents" : dbError },
+                new { name = "Database",   status = dbOk ? "Healthy" : "Error", detail = dbOk ? $"{projectCount} projects, {agentCount} agents" : dbError ?? "Database status unavailable." },
                 new { name = "Worker",     status = "Running",                  detail = "Background worker service is active." },
-                new { name = "AI Foundry", status = aiConfigured ? "Connected" : "Not Configured",
-                                           detail = aiConfigured ? $"Endpoint: {aiEndpoint ?? "from env"}" : "Configure endpoint and API key in AI Settings." },
+                new { name = "AI Foundry", status = aiStatus,
+                                           detail = ai.IsAvailable ? $"{ai.ConfiguredVia}: {ai.Endpoint}" : "Configure endpoint and API key in AI Settings." },
             },
             counts = new { projectCount, agentCount, evidenceCount },
             timestamp = DateTimeOffset.UtcNow
@@ -112,6 +116,8 @@ public class SystemController(AssessmentDbContext db, IAiAdapterService ai, ISer
         if (config is null) return NotFound();
         db.SystemConfigs.Remove(config);
         await db.SaveChangesAsync();
+        if (key.StartsWith("AiFoundry:"))
+            await ai.ReloadConfigAsync(services);
         return NoContent();
     }
 

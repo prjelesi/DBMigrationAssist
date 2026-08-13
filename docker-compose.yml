@@ -24,12 +24,14 @@ services:
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=assessment_dev_password"
       Api__PublicUrl: "http://localhost:5000"
       Evidence__StorageRoot: "/app/evidence"
+      DataProtection__KeysPath: "/app/data-protection"
       # ── AI Foundry ── uncomment and fill in to enable AI features ──────
       # AiFoundry__Endpoint: "https://<your-resource>.openai.azure.com/"
       # AiFoundry__ApiKey: "<your-api-key>"
       # AiFoundry__Deployment: "gpt-4o"
     volumes:
       - evidence_data:/app/evidence
+      - data_protection_keys:/app/data-protection
     ports:
       - "5000:8080"
     depends_on:
@@ -78,3 +80,4 @@ services:
 volumes:
   postgres_data:
   evidence_data:
+  data_protection_keys:

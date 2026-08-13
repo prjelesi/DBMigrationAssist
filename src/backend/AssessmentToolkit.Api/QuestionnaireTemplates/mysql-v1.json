@@ -1,0 +1,116 @@
+{
+  "name": "MySQL Migration Assessment",
+  "description": "Captures MySQL and MariaDB-specific compatibility, replication, security and target decisions that complement automated discovery.",
+  "phase": "Supplemental",
+  "version": 1,
+  "sections": [
+    {
+      "title": "MySQL Workload Context",
+      "description": "Identify product lineage, database scope and application constraints.",
+      "questions": [
+        {
+          "text": "Which source product is being migrated?",
+          "type": "Select",
+          "required": true,
+          "options": ["Oracle MySQL Community", "Oracle MySQL Enterprise", "MariaDB", "Percona Server", "Amazon Aurora MySQL", "Other"]
+        },
+        {
+          "text": "Which databases are in scope, and do applications require cross-database queries?",
+          "type": "Textarea",
+          "required": true
+        },
+        {
+          "text": "Is application behavior dependent on case-sensitive table or column naming?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe peak periods, batch jobs, reporting cycles and maintenance windows.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "MySQL Features & Compatibility",
+      "description": "Confirm how engine-specific features and application assumptions should be handled.",
+      "questions": [
+        {
+          "text": "Which MySQL features are business-critical?",
+          "type": "MultiSelect",
+          "required": false,
+          "options": ["Stored routines", "Triggers", "Event Scheduler", "Generated columns", "Full-text indexes", "Spatial data", "Partitioning", "JSON", "User-defined functions", "Federated tables", "Other", "None"]
+        },
+        {
+          "text": "Are non-InnoDB storage engines required by any application?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Do routines, views, events or triggers depend on specific DEFINER accounts?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe dependencies on server plugins, file-system access, custom functions or unsupported SQL modes.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "Migration & Replication",
+      "description": "Define data movement, replication continuity and cutover requirements.",
+      "questions": [
+        {
+          "text": "What migration method is preferred for this MySQL workload?",
+          "type": "Select",
+          "required": true,
+          "options": ["mysqldump and restore", "MySQL Shell dump and load", "Physical backup", "Native replication", "Third-party replication", "Azure Database Migration Service", "Application-led phased migration", "Not yet decided"]
+        },
+        {
+          "text": "Must existing replicas or downstream binlog consumers continue during migration?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Are GTID values required to remain compatible with existing replication topology?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe the cutover validation, rollback and data reconciliation process.",
+          "type": "Textarea",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Security & Operations",
+      "description": "Capture authentication, encryption and managed-service operating requirements.",
+      "questions": [
+        {
+          "text": "Which authentication methods or plugins must be supported?",
+          "type": "MultiSelect",
+          "required": true,
+          "options": ["mysql_native_password", "caching_sha2_password", "LDAP", "PAM", "Microsoft Entra ID", "Managed identity", "Client certificates", "Other"]
+        },
+        {
+          "text": "Are application connections required to use TLS with certificate validation?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Are global variables or server settings required that cannot be changed dynamically?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Who will own backups, version upgrades, parameter changes, monitoring and query tuning after migration?",
+          "type": "Textarea",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

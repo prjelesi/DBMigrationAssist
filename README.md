@@ -12,17 +12,28 @@ A self-hosted portal for assessing database estates before migration to the clou
   - [Prerequisites](#prerequisites)
   - [Quick start — local](#quick-start--local)
   - [Portal walkthrough](#portal-walkthrough)
+  - [Questionnaire templates](#questionnaire-templates)
   - [Deploying assessment agents](#deploying-assessment-agents)
+    - [Supported plugins](#supported-plugins)
     - [1. Register an agent in the portal](#1-register-an-agent-in-the-portal)
     - [2. Choose a deployment method](#2-choose-a-deployment-method)
+    - [Build the agent image](#build-the-agent-image)
     - [3. Docker run (simplest)](#3-docker-run-simplest)
     - [4. Docker Compose profile (local PoC)](#4-docker-compose-profile-local-poc)
     - [5. bootstrap.json file](#5-bootstrapjson-file)
     - [6. Kubernetes / bare-metal](#6-kubernetes--bare-metal)
+  - [Agent user instructions](#agent-user-instructions)
+    - [Configure database credentials](#configure-database-credentials)
+    - [Start and verify the agent](#start-and-verify-the-agent)
+    - [Dispatch an assessment](#dispatch-an-assessment)
+    - [View findings](#view-findings)
+    - [Troubleshooting](#troubleshooting)
   - [End-to-end test](#end-to-end-test)
   - [Database account requirements](#database-account-requirements)
     - [PostgreSQL](#postgresql)
     - [Oracle](#oracle)
+    - [SQL Server](#sql-server)
+    - [MySQL / MariaDB](#mysql--mariadb)
   - [Enabling AI features](#enabling-ai-features)
     - [Option A — Environment variables (recommended)](#option-a--environment-variables-recommended)
     - [Option B — Portal UI](#option-b--portal-ui)
@@ -43,19 +54,15 @@ A self-hosted portal for assessing database estates before migration to the clou
 ```
   Customer network                    Portal (Docker / Azure Container Apps)
   ─────────────────                   ─────────────────────────────────────
-  ┌────────────────┐  HTTPS + HMAC    ┌──────────┐  ┌──────────┐
-  │  Agent         │ ──────────────►  │  API     │  │  Worker  │
-  │  (Docker)      │                  │ :5000    │  │          │
-  │                │                  └──────────┘  └──────────┘
-  │  Plugins:      │                       │               │
-  │  · postgresql  │                  ┌────▼───────────────▼───┐
-  │  · oracle      │                  │  PostgreSQL :5432       │
-  └────────────────┘                  └────────────────────────┘
-                                           ▲
-                                      ┌────┴───────┐
-                                      │  Frontend  │
-                                      │ :3000      │
-                                      └────────────┘
+  ┌────────────────┐  HTTPS + HMAC    ┌──────────┐       ┌────────────────┐
+  │ Agent          │ ──────────────►  │ API      │ ────► │ PostgreSQL     │
+  │                │                  │ :5000    │       │ :5432          │
+  │ Plugins:       │                  └────▲─────┘       └───────▲────────┘
+  │ · postgresql   │                       │                     │
+  │ · oracle       │                  ┌────┴─────┐         ┌─────┴────┐
+  │ · sqlserver    │                  │ Frontend │         │ Worker   │
+  │ · mysql        │                  │ :3000    │         │          │
+  └────────────────┘                  └──────────┘         └──────────┘
 ```
 
 | Container | Purpose |
@@ -117,10 +124,36 @@ On first start, EF Core migrations run automatically and all database schemas ar
 | Agents | `/agents` | Register agents, dispatch jobs, view findings |
 | Communication Map | `/communication-map` | ReactFlow graph of database dependencies |
 | Portfolio | `/portfolio` | Group databases into migration waves |
-| Questionnaire | `/questionnaire` | Structured discovery questionnaires |
-| Evidence | `/evidence` | Upload AWR / Statspack / DMA report files |
+| Questionnaire | `/questionnaire` | Versioned baseline and database-specific discovery questionnaires |
+| Evidence | `/evidence` | Upload assessment reports and questionnaire supporting documents |
 | Reports | `/reports` | AI-generated migration assessment reports |
 | AI Settings | `/ai-settings` | Configure Azure OpenAI / AI Foundry |
+
+---
+
+## Questionnaire templates
+
+Questionnaires are defined as versioned JSON files in `src/backend/AssessmentToolkit.Api/QuestionnaireTemplates/`. The portal includes a generic baseline plus supplemental templates for Oracle, PostgreSQL, SQL Server, and MySQL. Use **Sync JSON templates** on the Questionnaire page to import new template versions; existing versions and their responses are preserved.
+
+Each question supports `Text`, `Textarea`, `Select`, `MultiSelect`, `Boolean`, or `Number`. The following optional capabilities are controlled per question:
+
+```json
+{
+  "text": "Which database features are business-critical?",
+  "type": "MultiSelect",
+  "required": true,
+  "allowCustomAnswer": true,
+  "allowAttachments": true,
+  "options": ["RAC", "Data Guard", "GoldenGate", "None"]
+}
+```
+
+- `allowCustomAnswer` adds an **Other / custom answer** field and is valid only for `Select` and `MultiSelect` questions.
+- `allowAttachments` lets the respondent upload supporting documents up to 50 MB. Files remain visible in the project Evidence Library and are linked to the response and question.
+- An attachment satisfies a required attachment-enabled question when no text answer is supplied.
+- Documents can be downloaded at any time, but answers and attachments become read-only after submission.
+
+Increment `version` when changing a template that may already have responses. Do not replace a synchronized version in place.
 
 ---
 
@@ -128,13 +161,24 @@ On first start, EF Core migrations run automatically and all database schemas ar
 
 The agent is a .NET 8 background service that runs **inside the customer network** alongside the source databases. It polls the portal for jobs, runs the appropriate plugin against the target database, and uploads a signed result bundle over HTTPS.
 
+### Supported plugins
+
+| Plugin ID | Source database | Default port | Status |
+|-----------|-----------------|--------------|--------|
+| `postgresql` | PostgreSQL | 5432 | Supported |
+| `oracle` | Oracle Database | 1521 | Supported |
+| `sqlserver` | Microsoft SQL Server | 1433 | Supported |
+| `mysql` | MySQL / MariaDB | 3306 | Supported |
+
+MongoDB may appear in inventory data or the portal selector, but an executable MongoDB agent plugin is not yet included. Do not enable `mongodb` on deployed agents.
+
 ### 1. Register an agent in the portal
 
 1. Navigate to **Agents** and select a project.
 2. Click **+ Register Agent**.
 3. Fill in:
    - **Agent Name** — a descriptive label (e.g. `Prod-Oracle-Agent-1`)
-   - **Allowed Plugins** — tick `postgresql` and/or `oracle`
+  - **Allowed Plugins** — select only the engines this agent can reach: `postgresql`, `oracle`, `sqlserver`, and/or `mysql`
    - **PSK Mode** — `System generated` (recommended) or `User supplied`
 4. Click **Register Agent**.
 5. A **bootstrap package** is shown **once** — copy or download it immediately:
@@ -144,7 +188,7 @@ The agent is a .NET 8 background service that runs **inside the customer network
   "agentId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "backendUrl": "https://your-portal-api-url",
   "psk": "your-pre-shared-key",
-  "allowedPlugins": ["postgresql", "oracle"],
+  "allowedPlugins": ["postgresql", "oracle", "sqlserver", "mysql"],
   "issuedAt": "2026-07-28T10:00:00Z"
 }
 ```
@@ -164,6 +208,25 @@ The agent is a .NET 8 background service that runs **inside the customer network
 
 ---
 
+### Build the agent image
+
+The agent Dockerfile copies pre-published .NET output. Build and publish before creating the image:
+
+```powershell
+cd c:\github\DBMigrationReady
+.\build.ps1
+docker build -t dbmigrationready-agent:latest .\src\agent\AssessmentToolkit.Agent
+```
+
+For a shared registry, tag and push the image, then use that registry name in the deployment examples:
+
+```powershell
+docker tag dbmigrationready-agent:latest registry.example.com/dbmigrationready-agent:1.0
+docker push registry.example.com/dbmigrationready-agent:1.0
+```
+
+---
+
 ### 3. Docker run (simplest)
 
 Pull and run the agent image with environment variables from the bootstrap package:
@@ -175,7 +238,7 @@ docker run -d \
   -e AGENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   -e AGENT_PSK="your-pre-shared-key" \
   -e AGENT_BACKEND_URL="https://your-portal-api-url" \
-  -e AGENT_PLUGINS="postgresql,oracle" \
+  -e AGENT_PLUGINS="postgresql,oracle,sqlserver,mysql" \
   dbmigrationready-agent:latest
 ```
 
@@ -186,8 +249,9 @@ docker run -d \
 | `AGENT_ID` | ✅ | Agent GUID from the bootstrap package |
 | `AGENT_PSK` | ✅ | Pre-shared key from the bootstrap package |
 | `AGENT_BACKEND_URL` | ✅ | Base URL of the portal API (no trailing slash) |
-| `AGENT_PLUGINS` | optional | Comma-separated list of plugins to enable. Default: `postgresql,oracle` |
+| `AGENT_PLUGINS` | optional | Comma-separated implemented plugin IDs. Default: `postgresql,oracle` |
 | `AGENT_BOOTSTRAP_PATH` | optional | Path to a `bootstrap.json` file (overrides env vars above) |
+| `AGENT_DATABASES_PATH` | optional | Path to the local database credential file. Default: `databases.json` |
 
 > **Network:** The agent only makes **outbound** HTTPS calls to `AGENT_BACKEND_URL`. No inbound ports are required. Ensure outbound TCP/443 is open from the agent host to the portal.
 
@@ -205,7 +269,7 @@ agent-dev:
     AGENT_BACKEND_URL: "http://api:8080"
     AGENT_ID: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # ← paste here
     AGENT_PSK: "your-pre-shared-key"                    # ← paste here
-    AGENT_PLUGINS: "postgresql,oracle"
+    AGENT_PLUGINS: "postgresql,oracle,sqlserver,mysql"
 ```
 
 2. Start with the `agent` profile:
@@ -229,7 +293,7 @@ cat > bootstrap.json << 'EOF'
   "agentId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "backendUrl": "https://your-portal-api-url",
   "psk": "your-pre-shared-key",
-  "allowedPlugins": ["postgresql", "oracle"]
+  "allowedPlugins": ["postgresql", "oracle", "sqlserver", "mysql"]
 }
 EOF
 
@@ -281,10 +345,113 @@ spec:
                 name: dbmr-agent-bootstrap
           env:
             - name: AGENT_PLUGINS
-              value: "postgresql,oracle"
+              value: "postgresql,oracle,sqlserver,mysql"
 ```
 
 > Each registered agent should have its own bootstrap package. Running multiple replicas of the same agent GUID is not supported.
+
+For bare-metal Linux, copy the contents of `src/agent/AssessmentToolkit.Agent/publish` to the target host, install the .NET 8 runtime, set the bootstrap environment variables, and run:
+
+```bash
+cd /opt/dbmr-agent
+export AGENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+export AGENT_PSK="your-pre-shared-key"
+export AGENT_BACKEND_URL="https://your-portal-api-url"
+export AGENT_PLUGINS="postgresql,oracle,sqlserver,mysql"
+dotnet AssessmentToolkit.Agent.dll
+```
+
+For a persistent service, place these variables in a root-readable environment file and configure systemd with `WorkingDirectory=/opt/dbmr-agent`, `ExecStart=/usr/bin/dotnet /opt/dbmr-agent/AssessmentToolkit.Agent.dll`, and `Restart=always`. Do not put the PSK in a world-readable unit file.
+
+---
+
+## Agent user instructions
+
+Complete these steps after registering and deploying an agent.
+
+### Configure database credentials
+
+Use a dedicated read-only database account. The preferred production approach is to keep credentials on the agent host instead of entering them for every portal job.
+
+1. In **DB Inventory**, identify the database to assess. Retrieve its `databaseId` from `GET /api/databases?projectId=<project-guid>`; for a local portal, use `http://localhost:5000/api/databases?projectId=<project-guid>`.
+2. On the agent host, create `databases.json`:
+
+```json
+{
+  "databases": [
+    {
+      "databaseId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "pluginId": "postgresql",
+      "host": "db.internal",
+      "port": 5432,
+      "database": "applicationdb",
+      "username": "assessment_reader",
+      "password": "replace-with-secret"
+    }
+  ]
+}
+```
+
+3. Mount the file read-only when starting the agent:
+
+```bash
+docker run -d \
+  --name dbmr-agent \
+  --restart unless-stopped \
+  -v $(pwd)/bootstrap.json:/app/bootstrap.json:ro \
+  -v $(pwd)/databases.json:/app/databases.json:ro \
+  dbmigrationready-agent:latest
+```
+
+The `databaseId` must match the selected portal inventory record. Environment variables can be used instead of a file:
+
+```text
+AGENT_DB_0_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+AGENT_DB_0_PLUGIN=postgresql
+AGENT_DB_0_HOST=db.internal
+AGENT_DB_0_PORT=5432
+AGENT_DB_0_NAME=applicationdb
+AGENT_DB_0_USER=assessment_reader
+AGENT_DB_0_PASSWORD=replace-with-secret
+```
+
+Add more profiles with `AGENT_DB_1_*`, `AGENT_DB_2_*`, and so on. Numbering must be contiguous from zero. Environment profiles override file entries with the same database ID.
+
+For a one-time assessment, credentials can instead be entered in the **Dispatch Job** dialog. They are sent to the agent in the job payload; use TLS and a dedicated read-only account.
+
+### Start and verify the agent
+
+```bash
+docker start dbmr-agent
+docker logs -f dbmr-agent
+```
+
+A successful startup logs the agent ID, backend URL, and number of local database profiles loaded. Within about 30 seconds, the portal **Agents** page should show a recent heartbeat and move the agent to an active state.
+
+### Dispatch an assessment
+
+1. Open **Agents** and select the project.
+2. Confirm the agent has a recent heartbeat and the required plugin is listed.
+3. Select **Dispatch Job**.
+4. Choose a database from inventory to use its matching local credential profile, or enter the host, port, database/service name, username, and password manually.
+5. Confirm the plugin matches the database engine, then select **Dispatch**.
+6. Open **Job History**. The job progresses from pending/assigned to running and then completed or failed. Agents poll every 30 seconds, so pickup is not immediate.
+
+### View findings
+
+In **Job History**, select the finding count for a completed job. The portal shows raw plugin findings and, when AI is configured, migration-path enrichment, risks, complexity, and remediation steps.
+
+### Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| Agent exits immediately | Verify `AGENT_ID`, `AGENT_PSK`, and `AGENT_BACKEND_URL`, or validate the mounted `bootstrap.json`. |
+| Agent remains registered/offline | Check `docker logs`, DNS/TLS access to the API, host clock synchronization, and outbound TCP/443. |
+| Job stays pending | Confirm the agent is running, its heartbeat is current, and the job plugin is in the agent's allowed plugin list. |
+| Authentication fails | Use the PSK from the one-time bootstrap package and synchronize the agent clock; signed requests allow a five-minute skew. |
+| Database connection fails | Test name resolution and the database port from the agent host; verify the read-only account and database/service name. |
+| Local credentials are ignored | Ensure the job uses an inventory database and its `databaseId` exactly matches the local profile. Restart after changing local files or environment variables. |
+| Plugin is skipped | Enable one of the implemented plugin IDs and restart the agent: `postgresql`, `oracle`, `sqlserver`, or `mysql`. |
 
 ---
 
@@ -351,13 +518,37 @@ GRANT SELECT ON DBA_HIST_SNAPSHOT TO assessment_reader;
 
 > If `DBA_` views are not accessible, the agent falls back to a partial collection and reports lower confidence findings.
 
+### SQL Server
+
+```sql
+USE [your_database];
+CREATE USER [assessment_reader] FOR LOGIN [assessment_reader];
+GRANT CONNECT TO [assessment_reader];
+GRANT VIEW DATABASE STATE TO [assessment_reader];
+GRANT VIEW DEFINITION TO [assessment_reader];
+GRANT SELECT TO [assessment_reader];
+```
+
+Create the login at the server level using your organization's password and identity policy. Grant only the target databases required for assessment.
+
+### MySQL / MariaDB
+
+```sql
+CREATE USER 'assessment_reader'@'agent-host-or-subnet'
+  IDENTIFIED BY 'strong-password-here';
+GRANT SELECT, REPLICATION CLIENT, PROCESS ON *.*
+  TO 'assessment_reader'@'agent-host-or-subnet';
+```
+
+Restrict the account host to the agent host or subnet. `SELECT` provides metadata access; `REPLICATION CLIENT` and `PROCESS` enable replication and connection findings.
+
 ---
 
 ## Enabling AI features
 
 AI enrichment and report generation use **Azure OpenAI** (or any Azure AI Foundry deployment). Without AI configuration the portal works fully — AI features simply show a warning banner.
 
-### Option A — Environment variables (recommended)
+### Option A — Environment variables (recommended for production)
 
 Add to `docker-compose.yml` under the `api` service:
 
@@ -372,14 +563,33 @@ environment:
 ### Option B — Portal UI
 
 1. Go to **AI Settings** (`/ai-settings`).
-2. Enter the endpoint and deployment name.
-3. The API key must still be set via environment variable — it is never stored in the database.
+2. Enter the Azure OpenAI endpoint, deployment name, and API key under **Active Connection**.
+3. Select **Save Configuration**. The key is encrypted with ASP.NET Core Data Protection before it is stored and is never returned to the browser.
+4. Select **Test Connection** to verify that the configured deployment can answer a model request.
+
+Saving configuration and proving connectivity are separate states:
+
+| Status | Meaning |
+|--------|---------|
+| `Not configured` | Endpoint or credential is missing. |
+| `Not tested` / `Configured` | Configuration loaded, but no successful model request has been made since startup or the last configuration change. |
+| `Connected` | The latest explicit connection test returned a model response. |
+| `Connection failed` / `Error` | The latest test could not get a model response. Check endpoint, deployment, key, and network access. |
+
+For Docker Compose, the Data Protection key ring is persisted in the `data_protection_keys` named volume. If deploying the API another way, set `DataProtection__KeysPath` to durable storage shared across API restarts. Back up that key ring with the database; without it, stored API credentials cannot be decrypted.
 
 ### Verifying AI is active
 
 ```bash
 curl http://localhost:5000/api/ai/status
-# {"available":true,"message":"AI Foundry is configured and available."}
+# {"available":true,"connectionStatus":"Not tested","message":"Configuration loaded. Test the connection to verify model access.",...}
+```
+
+Use **Test Connection** in AI Settings or call:
+
+```bash
+curl -X POST http://localhost:5000/api/ai/test
+# {"succeeded":true,"message":"Connection successful.","testedAt":"..."}
 ```
 
 Once configured, the worker automatically enriches completed assessment results with migration path recommendations, risk analysis, and remediation steps.
@@ -448,9 +658,10 @@ Use that URL as `AGENT_BACKEND_URL` when configuring agents against the cloud de
 | `ConnectionStrings__Postgres` | PostgreSQL connection string | — |
 | `Api__PublicUrl` | Public base URL returned in bootstrap packages | Request origin |
 | `Evidence__StorageRoot` | Directory for uploaded evidence files | `/app/evidence` |
+| `DataProtection__KeysPath` | Durable ASP.NET Core key-ring directory used to protect portal-entered credentials | Platform default |
 | `AiFoundry__Endpoint` | Azure OpenAI endpoint URL | — |
 | `AiFoundry__Deployment` | Model deployment name (e.g. `gpt-4o`) | — |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key (env var only) | — |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key; alternative to the encrypted portal credential | — |
 
 ### Worker (`src/backend/AssessmentToolkit.Worker`)
 
@@ -466,8 +677,13 @@ Use that URL as `AGENT_BACKEND_URL` when configuring agents against the cloud de
 | `AGENT_ID` | Agent GUID (from bootstrap package) |
 | `AGENT_PSK` | Pre-shared key (from bootstrap package) |
 | `AGENT_BACKEND_URL` | Portal API base URL |
-| `AGENT_PLUGINS` | Comma-separated plugin IDs: `postgresql`, `oracle` |
+| `AGENT_PLUGINS` | Comma-separated plugin IDs: `postgresql`, `oracle`, `sqlserver`, `mysql` |
 | `AGENT_BOOTSTRAP_PATH` | Path to `bootstrap.json` (alternative to env vars) |
+| `AGENT_DATABASES_PATH` | Path to local database credential profiles (default: `databases.json`) |
+| `AGENT_DB_n_ID` | Inventory database GUID for local profile index `n`, starting at zero |
+| `AGENT_DB_n_PLUGIN` | Plugin ID for local profile `n` |
+| `AGENT_DB_n_HOST`, `AGENT_DB_n_PORT`, `AGENT_DB_n_NAME` | Connection target for local profile `n` |
+| `AGENT_DB_n_USER`, `AGENT_DB_n_PASSWORD` | Read-only credentials for local profile `n` |
 
 ---
 
@@ -476,5 +692,6 @@ Use that URL as `AGENT_BACKEND_URL` when configuring agents against the cloud de
 - All agent-to-backend communication is authenticated with **HMAC-SHA256** (method + path + timestamp + body hash).
 - Timestamps are validated within a ±5 minute window to prevent replay attacks.
 - PSKs are stored as **salted SHA-256 hashes** in the database — the raw value is shown once at registration and never recoverable.
+- AI API keys entered in the portal are encrypted at rest with ASP.NET Core Data Protection, never returned by the API, and require a persistent protected key ring for recovery after restart.
 - Use TLS in production — the portal API should be served behind HTTPS; the agent verifies the server certificate.
 - The evidence storage volume should be backed up regularly; it holds uploaded AWR and Statspack files.

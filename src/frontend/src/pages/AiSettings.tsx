@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Delete24Regular, PlugConnected24Regular, Save24Regular } from '@fluentui/react-icons';
 import api from '../lib/api';
 
 type ProviderType = 'AzureOpenAi' | 'AiFoundry' | 'OpenAi' | 'LocalEndpoint';
@@ -20,7 +21,16 @@ interface AiProvider {
   lastTestResult?: string;
 }
 
-interface AiStatus { available: boolean; message: string; configuredVia: string; }
+interface AiStatus {
+  available: boolean;
+  connectionStatus: 'Not configured' | 'Not tested' | 'Connected' | 'Connection failed';
+  message: string;
+  configuredVia: string;
+  endpoint?: string;
+  deployment?: string;
+  hasStoredCredential: boolean;
+  lastConnectionTestedAt?: string;
+}
 
 const PROVIDER_TYPES: ProviderType[] = ['AzureOpenAi', 'AiFoundry', 'OpenAi', 'LocalEndpoint'];
 const STATUS_BADGE: Record<ProviderStatus, string> = {
@@ -30,6 +40,9 @@ const STATUS_BADGE: Record<ProviderStatus, string> = {
 const getProviders    = () => api.get<AiProvider[]>('/api/ai/providers').then(r => r.data);
 const getAiStatus     = () => api.get<AiStatus>('/api/ai/status').then(r => r.data);
 const testConnection  = () => api.post('/api/ai/test').then(r => r.data);
+const saveConfiguration = (data: { endpoint: string; deployment: string; apiKey?: string }) =>
+  api.put('/api/ai/configuration', data).then(r => r.data);
+const clearCredential = () => api.delete('/api/ai/configuration/credential');
 const registerProvider = (data: object) => api.post('/api/ai/providers', data).then(r => r.data);
 const deleteProvider   = (id: string) => api.delete(`/api/ai/providers/${id}`).then(r => r.data);
 
@@ -37,6 +50,7 @@ export default function AiSettings() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [configuration, setConfiguration] = useState({ endpoint: '', deployment: 'gpt-4o', apiKey: '' });
 
   const [form, setForm] = useState({
     name: '', providerType: 'AzureOpenAi' as ProviderType,
@@ -47,6 +61,35 @@ export default function AiSettings() {
 
   const status    = useQuery({ queryKey: ['aiStatus'],    queryFn: getAiStatus,    refetchInterval: 30_000 });
   const providers = useQuery({ queryKey: ['aiProviders'], queryFn: getProviders });
+
+  useEffect(() => {
+    if (!status.data) return;
+    setConfiguration(current => ({
+      ...current,
+      endpoint: status.data.endpoint ?? current.endpoint,
+      deployment: status.data.deployment ?? current.deployment,
+    }));
+  }, [status.data]);
+
+  const configurationMutation = useMutation({
+    mutationFn: saveConfiguration,
+    onSuccess: () => {
+      setConfiguration(current => ({ ...current, apiKey: '' }));
+      setTestResult({ ok: true, message: 'Configuration saved. Test the connection to verify model access.' });
+      qc.invalidateQueries({ queryKey: ['aiStatus'] });
+      qc.invalidateQueries({ queryKey: ['systemStatus'] });
+    },
+    onError: (e: unknown) => setTestResult({ ok: false, message: (e as Error).message }),
+  });
+
+  const clearCredentialMutation = useMutation({
+    mutationFn: clearCredential,
+    onSuccess: () => {
+      setTestResult({ ok: true, message: 'Stored credential removed.' });
+      qc.invalidateQueries({ queryKey: ['aiStatus'] });
+      qc.invalidateQueries({ queryKey: ['systemStatus'] });
+    },
+  });
 
   const addMutation = useMutation({
     mutationFn: registerProvider,
@@ -60,7 +103,11 @@ export default function AiSettings() {
 
   const testMutation = useMutation({
     mutationFn: testConnection,
-    onSuccess: (data) => setTestResult({ ok: true, message: data.raw ?? 'Connection successful.' }),
+    onSuccess: (data) => {
+      setTestResult({ ok: true, message: data.message ?? 'Connection successful.' });
+      qc.invalidateQueries({ queryKey: ['aiStatus'] });
+      qc.invalidateQueries({ queryKey: ['systemStatus'] });
+    },
     onError: (e: unknown) => setTestResult({ ok: false, message: (e as Error).message }),
   });
 
@@ -77,14 +124,19 @@ export default function AiSettings() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
                 width: 12, height: 12, borderRadius: '50%',
-                background: status.data.available ? '#22c55e' : '#f59e0b',
-                boxShadow: status.data.available ? '0 0 0 3px #dcfce7' : '0 0 0 3px #fef3c7',
+                background: status.data.connectionStatus === 'Connected' ? '#22c55e'
+                  : status.data.connectionStatus === 'Connection failed' ? '#ef4444' : '#f59e0b',
+                boxShadow: status.data.connectionStatus === 'Connected' ? '0 0 0 3px #dcfce7'
+                  : status.data.connectionStatus === 'Connection failed' ? '0 0 0 3px #fee2e2' : '0 0 0 3px #fef3c7',
               }} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>
-                  {status.data.available ? 'Connected' : 'Not configured'}
+                  {status.data.connectionStatus}
                 </div>
                 <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>{status.data.message}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                  Source: {status.data.configuredVia}
+                </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -92,7 +144,8 @@ export default function AiSettings() {
                 <button className="btn btn-secondary btn-sm"
                   disabled={testMutation.isPending}
                   onClick={() => { setTestResult(null); testMutation.mutate(); }}>
-                  {testMutation.isPending ? 'Testing…' : '🔗 Test Connection'}
+                  <PlugConnected24Regular style={{ width: 16 }} />
+                  {testMutation.isPending ? 'Testing…' : 'Test Connection'}
                 </button>
               )}
               <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}>
@@ -107,6 +160,69 @@ export default function AiSettings() {
             {testResult.ok ? '✅' : '❌'} {testResult.message}
           </div>
         )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header">
+          <span className="card-title">Active Connection</span>
+          {status.data?.hasStoredCredential && <span className="badge badge-green">Encrypted key stored</span>}
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 16 }}>
+          Configure the AI connection without changing container settings. The API key is encrypted at rest and is never returned to the browser.
+        </div>
+        <div className="form-row">
+          <label>Azure OpenAI Endpoint</label>
+          <input
+            type="url"
+            value={configuration.endpoint}
+            onChange={e => setConfiguration(current => ({ ...current, endpoint: e.target.value }))}
+            placeholder="https://<resource>.openai.azure.com/"
+          />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 12 }}>
+          <div className="form-row">
+            <label>Deployment Name</label>
+            <input
+              value={configuration.deployment}
+              onChange={e => setConfiguration(current => ({ ...current, deployment: e.target.value }))}
+              placeholder="gpt-4o"
+            />
+          </div>
+          <div className="form-row">
+            <label>API Key</label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={configuration.apiKey}
+              onChange={e => setConfiguration(current => ({ ...current, apiKey: e.target.value }))}
+              placeholder={status.data?.hasStoredCredential ? 'Leave blank to keep stored key' : 'Enter API key'}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+          {status.data?.hasStoredCredential && (
+            <button
+              className="btn btn-danger btn-sm"
+              disabled={clearCredentialMutation.isPending}
+              onClick={() => { if (confirm('Remove the stored AI Foundry credential?')) clearCredentialMutation.mutate(); }}>
+              <Delete24Regular style={{ width: 16 }} /> Remove Key
+            </button>
+          )}
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={configurationMutation.isPending || !configuration.endpoint || !configuration.deployment || (!configuration.apiKey && !status.data?.hasStoredCredential)}
+            onClick={() => {
+              setTestResult(null);
+              configurationMutation.mutate({
+                endpoint: configuration.endpoint,
+                deployment: configuration.deployment,
+                apiKey: configuration.apiKey || undefined,
+              });
+            }}>
+            <Save24Regular style={{ width: 16 }} />
+            {configurationMutation.isPending ? 'Saving…' : 'Save Configuration'}
+          </button>
+        </div>
       </div>
 
       {/* Where AI is used */}
@@ -138,32 +254,6 @@ export default function AiSettings() {
           </tbody>
         </table>
       </div>
-
-      {/* How to configure (env vars guide) */}
-      {!status.data?.available && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div className="card-header"><span className="card-title">How to Configure</span></div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            Set the following environment variables on the API container to enable AI features:
-          </div>
-          <pre style={{
-            background: 'var(--sidebar-bg)', color: '#818cf8',
-            borderRadius: 'var(--radius)', padding: '16px 20px', fontSize: 12.5,
-            border: '1px solid var(--sidebar-border)', overflowX: 'auto',
-          }}>{`# Azure OpenAI / AI Foundry
-AiFoundry__Endpoint=https://<your-resource>.openai.azure.com/
-AiFoundry__ApiKey=<your-api-key>
-AiFoundry__Deployment=gpt-4o
-
-# Or use environment variable names (docker-compose / K8s secrets)
-AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/
-AZURE_OPENAI_API_KEY=<your-api-key>
-AZURE_OPENAI_DEPLOYMENT=gpt-4o`}</pre>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>
-            The API key is read from environment variables only — it is never stored in the database.
-          </div>
-        </div>
-      )}
 
       {/* Registered providers */}
       <div className="card">

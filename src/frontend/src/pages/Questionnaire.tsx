@@ -1,10 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowDownload20Regular, Attach20Regular, Delete20Regular } from '@fluentui/react-icons';
 import {
+  deleteEvidence, downloadEvidence, getQuestionnaireAttachments,
   getProjects, getTemplates, getResponses, startResponse,
-  getResponse, saveAnswers, submitResponse, seedTemplates,
+  getResponse, saveAnswers, submitResponse, seedTemplates, uploadQuestionnaireAttachment,
 } from '../lib/api';
-import type { Answer, Question, QuestionnaireResponse, ResponseStatus } from '../types';
+import type { Answer, Question, QuestionnaireAttachment, QuestionnaireResponse, ResponseStatus } from '../types';
+
+const CUSTOM_PREFIX = 'Custom: ';
+const CUSTOM_VALUE = '__custom__';
+
+const decodeCustomAnswer = (value: string) => {
+  const encoded = value.slice(CUSTOM_PREFIX.length);
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
+};
+
+const formatBytes = (bytes: number) =>
+  bytes < 1024 ? `${bytes} B` : bytes < 1_048_576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1_048_576).toFixed(1)} MB`;
+
+const hasMeaningfulAnswer = (question: Question, value: string | undefined) => {
+  if (!value?.trim()) return false;
+  const values = question.type === 'MultiSelect' ? value.split('|') : [value];
+  return values.some(item => item.startsWith(CUSTOM_PREFIX)
+    ? decodeCustomAnswer(item).trim().length > 0
+    : item.trim().length > 0);
+};
 
 const STATUS_BADGE: Record<ResponseStatus, string> = {
   NotStarted: 'badge-gray', InProgress: 'badge-blue',
@@ -22,6 +47,8 @@ export default function Questionnaire() {
   // Local draft answers: questionId → value
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
+  const [syncMsg, setSyncMsg] = useState('');
+  const [missingRequired, setMissingRequired] = useState<Set<string>>(new Set());
 
   const projects = useQuery({ queryKey: ['projects'], queryFn: getProjects });
   const templates = useQuery({ queryKey: ['templates'], queryFn: getTemplates });
@@ -35,10 +62,19 @@ export default function Questionnaire() {
     queryFn: () => getResponse(activeResponseId!),
     enabled: !!activeResponseId,
   });
+  const attachments = useQuery({
+    queryKey: ['questionnaireAttachments', activeResponseId],
+    queryFn: () => getQuestionnaireAttachments(activeResponseId!),
+    enabled: !!activeResponseId,
+  });
 
   const seedMutation = useMutation({
     mutationFn: seedTemplates,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['templates'] });
+      const count = result.imported?.length ?? 0;
+      setSyncMsg(count > 0 ? `${count} template version${count === 1 ? '' : 's'} imported.` : 'Templates are up to date.');
+    },
   });
 
   const startMutation = useMutation({
@@ -68,12 +104,41 @@ export default function Questionnaire() {
     },
   });
 
-  // Initialise draft from loaded response answers
-  const loadDraft = (answers: Answer[]) => {
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: ({ questionId, file }: { questionId: string; file: File }) => {
+      const response = activeResponse.data!;
+      return uploadQuestionnaireAttachment(
+        response.projectId,
+        response.responseId,
+        questionId,
+        response.assignedTo ?? 'Questionnaire respondent',
+        file,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['questionnaireAttachments', activeResponseId] });
+      qc.invalidateQueries({ queryKey: ['evidence', selectedProject] });
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: deleteEvidence,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['questionnaireAttachments', activeResponseId] });
+      qc.invalidateQueries({ queryKey: ['evidence', selectedProject] });
+    },
+  });
+
+  const loadDraft = (answers: Answer[] = []) => {
     const d: Record<string, string> = {};
-    answers.forEach(a => { if (a.value) d[a.questionId] = a.value; });
+    answers.forEach(a => { d[a.questionId] = a.value ?? ''; });
     setDraft(d);
   };
+
+  useEffect(() => {
+    if (activeResponse.data)
+      loadDraft(activeResponse.data.answers);
+  }, [activeResponse.data]);
 
   const handleSave = () => {
     if (!activeResponseId) return;
@@ -83,16 +148,38 @@ export default function Questionnaire() {
     });
   };
 
-  const handleSubmit = () => {
-    if (!activeResponseId) return;
-    handleSave();
-    setTimeout(() => submitMutation.mutate(activeResponseId!), 300);
+  const handleSubmit = async () => {
+    if (!activeResponseId || !activeResponse.data?.template) return;
+
+    const attachedQuestionIds = new Set(attachments.data?.map(attachment => attachment.questionId) ?? []);
+    const missing = activeResponse.data.template.sections
+      .flatMap(section => section.questions)
+      .filter(question => question.isRequired &&
+        !hasMeaningfulAnswer(question, draft[question.questionId]) &&
+        !(question.allowAttachments && attachedQuestionIds.has(question.questionId)))
+      .map(question => question.questionId);
+
+    if (missing.length > 0) {
+      setMissingRequired(new Set(missing));
+      document.getElementById(`question-${missing[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    setMissingRequired(new Set());
+    await saveMutation.mutateAsync({
+      id: activeResponseId,
+      answers: Object.entries(draft).map(([questionId, value]) => ({ questionId, value })),
+    });
+    submitMutation.mutate(activeResponseId);
   };
 
   const getAnsweredCount = (template: typeof activeResponse.data) => {
     if (!template) return { answered: 0, required: 0, total: 0 };
     const allQuestions = template.template?.sections.flatMap(s => s.questions) ?? [];
-    const answered = allQuestions.filter(q => !!draft[q.questionId]).length;
+    const attachedQuestionIds = new Set(attachments.data?.map(attachment => attachment.questionId) ?? []);
+    const answered = allQuestions.filter(question =>
+      hasMeaningfulAnswer(question, draft[question.questionId]) ||
+      (question.allowAttachments && attachedQuestionIds.has(question.questionId))).length;
     const required = allQuestions.filter(q => q.isRequired).length;
     return { answered, required, total: allQuestions.length };
   };
@@ -103,7 +190,16 @@ export default function Questionnaire() {
 
   const renderInput = (q: Question) => {
     const val = draft[q.questionId] ?? '';
-    const set = (v: string) => setDraft(d => ({ ...d, [q.questionId]: v }));
+    const set = (v: string) => {
+      setDraft(d => ({ ...d, [q.questionId]: v }));
+      if (v.trim())
+        setMissingRequired(current => {
+          if (!current.has(q.questionId)) return current;
+          const next = new Set(current);
+          next.delete(q.questionId);
+          return next;
+        });
+    };
     const opts = q.optionsJson ? (JSON.parse(q.optionsJson) as string[]) : [];
     const disabled = isSubmitted;
 
@@ -112,29 +208,62 @@ export default function Questionnaire() {
         return <textarea rows={3} value={val} onChange={e => set(e.target.value)} disabled={disabled}
           style={{ width: '100%', resize: 'vertical' }} />;
       case 'Select':
+        const customSelected = val.startsWith(CUSTOM_PREFIX);
         return (
-          <select value={val} onChange={e => set(e.target.value)} disabled={disabled} style={{ width: '100%' }}>
-            <option value="">Select an option…</option>
-            {opts.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        );
-      case 'MultiSelect':
-        const selected = val ? val.split('|') : [];
-        return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
-            {opts.map(o => (
-              <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" disabled={disabled}
-                  checked={selected.includes(o)}
-                  onChange={e => {
-                    const next = e.target.checked ? [...selected, o] : selected.filter(x => x !== o);
-                    set(next.join('|'));
-                  }} />
-                {o}
-              </label>
-            ))}
+          <div style={{ width: '100%' }}>
+            <select value={customSelected ? CUSTOM_VALUE : val} onChange={e => set(e.target.value === CUSTOM_VALUE ? CUSTOM_PREFIX : e.target.value)} disabled={disabled} style={{ width: '100%' }}>
+              <option value="">Select an option…</option>
+              {opts.map(o => <option key={o} value={o}>{o}</option>)}
+              {q.allowCustomAnswer && <option value={CUSTOM_VALUE}>Other / custom answer</option>}
+            </select>
+            {customSelected && (
+              <textarea rows={2} value={val.slice(CUSTOM_PREFIX.length)}
+                aria-label="Custom answer" placeholder="Enter the customer's answer"
+                onChange={e => set(`${CUSTOM_PREFIX}${e.target.value}`)} disabled={disabled}
+                style={{ width: '100%', resize: 'vertical', marginTop: 8 }} />
+            )}
           </div>
         );
+      case 'MultiSelect': {
+        const selected = val ? val.split('|') : [];
+        const customAnswer = selected.find(item => item.startsWith(CUSTOM_PREFIX));
+        return (
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
+              {opts.map(o => (
+                <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input type="checkbox" disabled={disabled}
+                    checked={selected.includes(o)}
+                    onChange={e => {
+                      const next = e.target.checked ? [...selected, o] : selected.filter(x => x !== o);
+                      set(next.join('|'));
+                    }} />
+                  {o}
+                </label>
+              ))}
+              {q.allowCustomAnswer && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input type="checkbox" disabled={disabled} checked={customAnswer !== undefined}
+                    onChange={e => {
+                      const withoutCustom = selected.filter(item => !item.startsWith(CUSTOM_PREFIX));
+                      set((e.target.checked ? [...withoutCustom, CUSTOM_PREFIX] : withoutCustom).join('|'));
+                    }} />
+                  Other / custom answer
+                </label>
+              )}
+            </div>
+            {customAnswer !== undefined && (
+              <textarea rows={2} value={decodeCustomAnswer(customAnswer)}
+                aria-label="Custom answer" placeholder="Enter the customer's answer"
+                onChange={e => {
+                  const next = selected.filter(item => !item.startsWith(CUSTOM_PREFIX));
+                  set([...next, `${CUSTOM_PREFIX}${encodeURIComponent(e.target.value)}`].join('|'));
+                }} disabled={disabled}
+                style={{ width: '100%', resize: 'vertical', marginTop: 8 }} />
+            )}
+          </div>
+        );
+      }
       case 'Boolean':
         return (
           <div style={{ display: 'flex', gap: 20, marginTop: 4 }}>
@@ -154,6 +283,64 @@ export default function Questionnaire() {
         return <input type="text" value={val} onChange={e => set(e.target.value)} disabled={disabled}
           style={{ width: '100%' }} />;
     }
+  };
+
+  const downloadAttachment = async (attachment: QuestionnaireAttachment) => {
+    const blob = await downloadEvidence(attachment.reportId);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = attachment.fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderAttachments = (question: Question) => {
+    if (!question.allowAttachments) return null;
+    const questionAttachments = attachments.data?.filter(attachment => attachment.questionId === question.questionId) ?? [];
+    const isUploading = uploadAttachmentMutation.isPending && uploadAttachmentMutation.variables?.questionId === question.questionId;
+
+    return (
+      <div style={{ marginTop: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {!isSubmitted && (
+            <label className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: isUploading ? 'wait' : 'pointer' }}>
+              <Attach20Regular /> {isUploading ? 'Uploading…' : 'Attach document'}
+              <input type="file" hidden disabled={isUploading}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.json,.xml,.html,.png,.jpg,.jpeg"
+                onChange={event => {
+                  const file = event.target.files?.[0];
+                  if (file) uploadAttachmentMutation.mutate({ questionId: question.questionId, file });
+                  event.target.value = '';
+                }} />
+            </label>
+          )}
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Supporting documents, max 50 MB each</span>
+        </div>
+
+        {uploadAttachmentMutation.isError && uploadAttachmentMutation.variables?.questionId === question.questionId && (
+          <div className="error-msg" style={{ marginTop: 8 }}>Document upload failed. Check the file and try again.</div>
+        )}
+
+        {questionAttachments.length > 0 && (
+          <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+            {questionAttachments.map(attachment => (
+              <div key={attachment.reportId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', border: '1px solid var(--border-light)', borderRadius: 4, background: 'var(--surface)' }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.fileName}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatBytes(attachment.fileSizeBytes)}</span>
+                <button type="button" className="btn btn-ghost btn-sm" title="Download document" aria-label={`Download ${attachment.fileName}`}
+                  onClick={() => downloadAttachment(attachment)}><ArrowDownload20Regular /></button>
+                {!isSubmitted && (
+                  <button type="button" className="btn btn-ghost btn-sm" title="Remove document" aria-label={`Remove ${attachment.fileName}`}
+                    disabled={deleteAttachmentMutation.isPending}
+                    onClick={() => deleteAttachmentMutation.mutate(attachment.reportId)}><Delete20Regular /></button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -200,8 +387,8 @@ export default function Questionnaire() {
                         <button className="btn btn-secondary btn-sm"
                           onClick={() => {
                             setActiveResponseId(r.responseId);
-                            // Pre-fill draft from existing answers
-                            if (r.answers) loadDraft(r.answers);
+                            setDraft({});
+                            setMissingRequired(new Set());
                           }}>
                           {r.status === 'Submitted' ? 'View' : 'Continue →'}
                         </button>
@@ -217,18 +404,18 @@ export default function Questionnaire() {
           <div className="card">
             <div className="card-header">
               <span className="card-title">Available Templates</span>
-              {(templates.data?.length ?? 0) === 0 && (
-                <button className="btn btn-secondary btn-sm" disabled={seedMutation.isPending}
-                  onClick={() => seedMutation.mutate()}>
-                  {seedMutation.isPending ? 'Seeding…' : 'Load defaults'}
-                </button>
-              )}
+              <button className="btn btn-secondary btn-sm" disabled={seedMutation.isPending}
+                onClick={() => { setSyncMsg(''); seedMutation.mutate(); }}>
+                {seedMutation.isPending ? 'Syncing…' : 'Sync JSON templates'}
+              </button>
             </div>
+            {syncMsg && <div className="success-msg" style={{ marginBottom: 12 }}>{syncMsg}</div>}
+            {seedMutation.isError && <div className="error-msg" style={{ marginBottom: 12 }}>Template sync failed.</div>}
             {templates.isLoading && <div className="loading" />}
             {(templates.data?.length ?? 0) === 0 && !templates.isLoading && (
               <div className="empty-state">
                 <div className="empty-state-icon">📄</div>
-                <p>No templates loaded.<br />Click <strong>Load defaults</strong> to add the baseline template.</p>
+                <p>No templates loaded.<br />Sync the JSON files to make questionnaires available.</p>
               </div>
             )}
             {templates.data?.map((t, idx) => (
@@ -279,7 +466,7 @@ export default function Questionnaire() {
                             {saveMutation.isPending ? 'Saving…' : 'Save Draft'}
                           </button>
                           <button className="btn btn-primary" disabled={submitMutation.isPending} onClick={handleSubmit}>
-                            {submitMutation.isPending ? 'Submitting…' : 'Submit'}
+                            {saveMutation.isPending || submitMutation.isPending ? 'Submitting…' : 'Submit'}
                           </button>
                         </>
                       )}
@@ -297,6 +484,12 @@ export default function Questionnaire() {
                   </div>
                 )}
 
+                {missingRequired.size > 0 && (
+                  <div className="error-msg" role="alert" style={{ marginBottom: 16 }}>
+                    Complete {missingRequired.size} required field{missingRequired.size === 1 ? '' : 's'} before submitting.
+                  </div>
+                )}
+
                 {/* Sections */}
                 {sections.map(section => (
                   <div className="card" key={section.sectionId} style={{ marginBottom: 16 }}>
@@ -306,7 +499,14 @@ export default function Questionnaire() {
                     </div>
 
                     {section.questions.map((q: Question) => (
-                      <div key={q.questionId} style={{ marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--border-light)' }}>
+                      <div id={`question-${q.questionId}`} key={q.questionId} style={{
+                        marginBottom: 20,
+                        padding: missingRequired.has(q.questionId) ? '12px' : '0 0 20px',
+                        border: missingRequired.has(q.questionId) ? '1px solid var(--red-text)' : 'none',
+                        borderBottom: `1px solid ${missingRequired.has(q.questionId) ? 'var(--red-text)' : 'var(--border-light)'}`,
+                        borderRadius: missingRequired.has(q.questionId) ? 4 : 0,
+                        background: missingRequired.has(q.questionId) ? 'var(--red-bg)' : undefined,
+                      }}>
                         <div style={{ marginBottom: 8 }}>
                           <span style={{ fontWeight: 600, fontSize: 13.5 }}>{q.text}</span>
                           {q.isRequired && <span style={{ color: 'var(--red-text)', marginLeft: 4 }}>*</span>}
@@ -319,6 +519,7 @@ export default function Questionnaire() {
                         <div className="form-row" style={{ marginBottom: 0 }}>
                           {renderInput(q)}
                         </div>
+                        {renderAttachments(q)}
                       </div>
                     ))}
                   </div>

@@ -10,6 +10,8 @@ public class UploadedReport
 {
     public Guid ReportId { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; }
+    public Guid? QuestionnaireResponseId { get; set; }
+    public Guid? QuestionId { get; set; }
     public string FileName { get; set; } = string.Empty;
     public ReportSourceType SourceType { get; set; } = ReportSourceType.Other;
     public long FileSizeBytes { get; set; }
@@ -27,4 +29,6 @@ public class UploadedReport
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public Project Project { get; set; } = null!;
+    public QuestionnaireResponse? QuestionnaireResponse { get; set; }
+    public Question? Question { get; set; }
 }

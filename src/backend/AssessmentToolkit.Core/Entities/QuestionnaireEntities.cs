@@ -38,6 +38,8 @@ public class Question
     public string? HelpText { get; set; }
     public QuestionType Type { get; set; }
     public bool IsRequired { get; set; }
+    public bool AllowCustomAnswer { get; set; }
+    public bool AllowAttachments { get; set; }
     public int Order { get; set; }
     /// <summary>JSON array of option strings for Select/MultiSelect types.</summary>
     public string? OptionsJson { get; set; }

@@ -2,7 +2,7 @@ import axios from 'axios';
 import type {
   Agent, AgentJobSummary, AssessmentResult, Customer, DatabaseInstance,
   EvidenceReport, Project, ProjectEnvironment,
-  QuestionnaireTemplate, QuestionnaireResponse,
+  QuestionnaireAttachment, QuestionnaireTemplate, QuestionnaireResponse,
 } from '../types';
 
 const api = axios.create({
@@ -69,6 +69,26 @@ export const saveAnswers = (id: string, answers: { questionId: string; value: st
   api.put(`/api/questionnaires/responses/${id}/answers`, { answers }).then(r => r.data);
 export const submitResponse = (id: string) =>
   api.post(`/api/questionnaires/responses/${id}/submit`).then(r => r.data);
+export const getQuestionnaireAttachments = (responseId: string) =>
+  api.get<QuestionnaireAttachment[]>(`/api/questionnaires/responses/${responseId}/attachments`).then(r => r.data);
+export const uploadQuestionnaireAttachment = (
+  projectId: string,
+  responseId: string,
+  questionId: string,
+  uploadedBy: string,
+  file: File,
+) => {
+  const form = new FormData();
+  form.append('projectId', projectId);
+  form.append('questionnaireResponseId', responseId);
+  form.append('questionId', questionId);
+  form.append('uploadedBy', uploadedBy);
+  form.append('sourceType', 'Other');
+  form.append('file', file);
+  return api.post<QuestionnaireAttachment>('/api/evidence/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data);
+};
 
 // Evidence
 export const getEvidence = (projectId: string) =>
@@ -77,6 +97,8 @@ export const getEvidenceDetail = (id: string) =>
   api.get<EvidenceReport>(`/api/evidence/${id}`).then(r => r.data);
 export const deleteEvidence = (id: string) =>
   api.delete(`/api/evidence/${id}`).then(r => r.data);
+export const downloadEvidence = (id: string) =>
+  api.get<Blob>(`/api/evidence/${id}/download`, { responseType: 'blob' }).then(r => r.data);
 export const reparseEvidence = (id: string) =>
   api.post(`/api/evidence/${id}/reparse`).then(r => r.data);
 export const uploadEvidence = (projectId: string, uploadedBy: string, sourceType: string, file: File) => {

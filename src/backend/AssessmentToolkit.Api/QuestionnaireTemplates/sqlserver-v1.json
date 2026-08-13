@@ -1,0 +1,119 @@
+{
+  "name": "SQL Server Migration Assessment",
+  "description": "Captures SQL Server-specific platform services, authentication, availability and target decisions that complement automated discovery.",
+  "phase": "Supplemental",
+  "version": 1,
+  "sections": [
+    {
+      "title": "SQL Server Workload Context",
+      "description": "Identify database scope, application coupling and service dependencies.",
+      "questions": [
+        {
+          "text": "Which databases are in scope, and must they be migrated as one consistency group?",
+          "type": "Textarea",
+          "required": true
+        },
+        {
+          "text": "Are cross-database transactions or three-part object references used by critical applications?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Which SQL Server platform services are required?",
+          "type": "MultiSelect",
+          "required": false,
+          "options": ["SQL Server Agent", "SSIS", "SSRS", "SSAS", "Database Mail", "Service Broker", "Machine Learning Services", "PolyBase", "Other", "None"]
+        },
+        {
+          "text": "Describe maintenance windows, reporting cycles, ETL schedules and month-end constraints.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "SQL Server Features & Compatibility",
+      "description": "Determine how SQL Server-specific capabilities should be handled on the target.",
+      "questions": [
+        {
+          "text": "Which database features are business-critical?",
+          "type": "MultiSelect",
+          "required": false,
+          "options": ["CLR assemblies", "FILESTREAM or FileTable", "Change Data Capture", "Change Tracking", "Replication", "Service Broker", "Full-text search", "In-Memory OLTP", "Columnstore", "Spatial", "Other", "None"]
+        },
+        {
+          "text": "Are linked servers used in synchronous application or reporting flows?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Can SQL Agent jobs, SSIS packages and external scripts be moved to cloud-native orchestration services?",
+          "type": "Select",
+          "required": true,
+          "options": ["Yes", "Partially", "No", "Not yet assessed"]
+        },
+        {
+          "text": "Describe dependencies on instance-level objects such as logins, credentials, proxies, endpoints and server triggers.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "Migration & Availability",
+      "description": "Select the SQL Server migration, cutover and resilience approach.",
+      "questions": [
+        {
+          "text": "What migration method is preferred for this SQL Server workload?",
+          "type": "Select",
+          "required": true,
+          "options": ["Backup and restore", "Log shipping", "Transactional replication", "Always On availability group", "Azure Database Migration Service", "BACPAC or data copy", "Application-led phased migration", "Not yet decided"]
+        },
+        {
+          "text": "Which availability technology is currently part of the recovery design?",
+          "type": "MultiSelect",
+          "required": false,
+          "options": ["Always On availability groups", "Failover cluster instance", "Database mirroring", "Log shipping", "Transactional replication", "Backup restore only", "Other", "None"]
+        },
+        {
+          "text": "Must connection strings remain unchanged after migration?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe the required rollback and transaction reconciliation process.",
+          "type": "Textarea",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Security, Licensing & Operations",
+      "description": "Capture identity, encryption, licensing and operating requirements.",
+      "questions": [
+        {
+          "text": "Which authentication methods must be supported?",
+          "type": "MultiSelect",
+          "required": true,
+          "options": ["SQL authentication", "Windows authentication", "Microsoft Entra ID", "Managed identity", "Contained database users", "Other"]
+        },
+        {
+          "text": "Are TDE certificates, column encryption keys or Always Encrypted enclaves in use?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Is Azure Hybrid Benefit or existing SQL Server licensing expected to be used?",
+          "type": "Select",
+          "required": true,
+          "options": ["Yes", "No", "Unknown", "Not applicable"]
+        },
+        {
+          "text": "Who will own backups, patching, SQL Agent replacement, monitoring and performance tuning after migration?",
+          "type": "Textarea",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

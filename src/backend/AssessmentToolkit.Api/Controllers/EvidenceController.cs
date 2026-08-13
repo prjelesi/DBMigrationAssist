@@ -25,6 +25,7 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
                 r.ReportId, r.FileName, r.SourceType,
                 r.FileSizeBytes, r.ParseStatus, r.ParseConfidence,
                 r.UploadedBy, r.UploadedAt, r.ParseErrorMessage,
+                r.QuestionnaireResponseId, r.QuestionId,
                 HasSummary = r.ParseSummaryJson != null
             })
             .ToListAsync());
@@ -36,18 +37,49 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
         return report is null ? NotFound() : Ok(report);
     }
 
+    [HttpGet("{id:guid}/download")]
+    public async Task<IActionResult> Download(Guid id)
+    {
+        var report = await db.UploadedReports.FirstOrDefaultAsync(r => r.ReportId == id);
+        if (report is null) return NotFound();
+        if (!System.IO.File.Exists(report.StoragePath)) return NotFound("File not found on storage.");
+
+        return PhysicalFile(report.StoragePath, "application/octet-stream", report.FileName);
+    }
+
     [HttpPost("upload")]
     [RequestSizeLimit(52_428_800)] // 50 MB
     public async Task<IActionResult> Upload(
         [FromForm] Guid projectId,
         [FromForm] string uploadedBy,
         [FromForm] string? sourceType,
+        [FromForm] Guid? questionnaireResponseId,
+        [FromForm] Guid? questionId,
         IFormFile file)
     {
         if (file.Length == 0) return BadRequest("File is empty.");
 
         var project = await db.Projects.FindAsync(projectId);
         if (project is null) return BadRequest("Project not found.");
+
+        if (questionnaireResponseId.HasValue != questionId.HasValue)
+            return BadRequest("Questionnaire response and question must be provided together.");
+
+        if (questionnaireResponseId.HasValue && questionId.HasValue)
+        {
+            var response = await db.QuestionnaireResponses.FindAsync(questionnaireResponseId.Value);
+            if (response is null || response.ProjectId != projectId)
+                return BadRequest("Questionnaire response does not belong to this project.");
+            if (response.Status == ResponseStatus.Submitted)
+                return BadRequest("Cannot attach documents to a submitted response.");
+
+            var allowsAttachments = await db.Questions.AnyAsync(question =>
+                question.QuestionId == questionId.Value &&
+                question.AllowAttachments &&
+                question.Section.TemplateId == response.TemplateId);
+            if (!allowsAttachments)
+                return BadRequest("This question does not allow attachments.");
+        }
 
         // Compute SHA-256 of file content
         await using var stream = file.OpenReadStream();
@@ -71,20 +103,23 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
         var report = new UploadedReport
         {
             ProjectId = projectId,
+            QuestionnaireResponseId = questionnaireResponseId,
+            QuestionId = questionId,
             FileName = file.FileName,
             SourceType = detectedType,
             FileSizeBytes = file.Length,
             FileHash = fileHash,
             StoragePath = storagePath,
-            ParseStatus = ParseStatus.Pending,
+            ParseStatus = questionnaireResponseId.HasValue ? ParseStatus.ReviewRequired : ParseStatus.Pending,
             UploadedBy = uploadedBy
         };
 
         db.UploadedReports.Add(report);
         await db.SaveChangesAsync();
 
-        // Parse inline (for PoC — would be a background worker job in production)
-        await ParseInlineAsync(report);
+        // Questionnaire documents are retained as respondent-supplied evidence and reviewed as-is.
+        if (!questionnaireResponseId.HasValue)
+            await ParseInlineAsync(report);
 
         return CreatedAtAction(nameof(Get), new { id = report.ReportId }, new
         {

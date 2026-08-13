@@ -155,8 +155,8 @@ export default function System() {
         </div>
 
         <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 16 }}>
-          Endpoint and deployment are stored in the database and take effect immediately.
-          The <strong>API key must be set as an environment variable</strong> — it cannot be stored here for security reasons.
+          Endpoint and deployment changes take effect immediately. Manage the encrypted API key and test model access in{' '}
+          <a href="/ai-settings">AI Settings</a>.
         </div>
 
         {aiTestResult && (
@@ -215,19 +215,17 @@ export default function System() {
                 </tr>
               );
             })}
-            {/* API key — env var only */}
+            {/* API key — managed through the dedicated write-only workflow */}
             <tr>
               <td>
                 <div style={{ fontWeight: 600 }}>API Key</div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontFamily: 'monospace' }}>AZURE_OPENAI_API_KEY or AiFoundry__ApiKey</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Write-only encrypted credential</div>
               </td>
               <td>
-                <span className="badge badge-yellow">Set via environment variable only</span>
+                <span className="badge badge-gray">Managed in AI Settings</span>
               </td>
               <td>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Set in docker-compose.yml or container env
-                </span>
+                <a className="btn btn-secondary btn-sm" href="/ai-settings">Configure</a>
               </td>
             </tr>
           </tbody>

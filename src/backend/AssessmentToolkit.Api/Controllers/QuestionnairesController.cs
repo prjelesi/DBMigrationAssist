@@ -1,5 +1,6 @@
 using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Core.Enums;
+using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,25 +9,85 @@ namespace AssessmentToolkit.Api.Controllers;
 
 [ApiController]
 [Route("api/questionnaires")]
-public class QuestionnairesController(AssessmentDbContext db) : ControllerBase
+public class QuestionnairesController(
+    AssessmentDbContext db,
+    IQuestionnaireTemplateLoader templateLoader) : ControllerBase
 {
     // ── Templates ────────────────────────────────────────────────────────
 
     [HttpGet("templates")]
     public async Task<IActionResult> ListTemplates() =>
         Ok(await db.QuestionnaireTemplates
+            .AsNoTracking()
             .Where(t => t.IsActive)
-            .Include(t => t.Sections.OrderBy(s => s.Order))
             .OrderBy(t => t.Phase).ThenBy(t => t.Name)
+            .Select(t => new
+            {
+                t.TemplateId,
+                t.Name,
+                t.Description,
+                t.Phase,
+                t.Version,
+                t.IsActive,
+                t.CreatedAt,
+                Sections = t.Sections
+                    .OrderBy(s => s.Order)
+                    .Select(s => new
+                    {
+                        s.SectionId,
+                        s.TemplateId,
+                        s.Title,
+                        s.Description,
+                        s.Order
+                    })
+                    .ToList()
+            })
             .ToListAsync());
 
     [HttpGet("templates/{id:guid}")]
     public async Task<IActionResult> GetTemplate(Guid id)
     {
         var t = await db.QuestionnaireTemplates
-            .Include(t => t.Sections.OrderBy(s => s.Order))
-                .ThenInclude(s => s.Questions.OrderBy(q => q.Order))
-            .FirstOrDefaultAsync(t => t.TemplateId == id);
+            .AsNoTracking()
+            .Where(t => t.TemplateId == id)
+            .Select(t => new
+            {
+                t.TemplateId,
+                t.Name,
+                t.Description,
+                t.Phase,
+                t.Version,
+                t.IsActive,
+                t.CreatedAt,
+                Sections = t.Sections
+                    .OrderBy(s => s.Order)
+                    .Select(s => new
+                    {
+                        s.SectionId,
+                        s.TemplateId,
+                        s.Title,
+                        s.Description,
+                        s.Order,
+                        Questions = s.Questions
+                            .OrderBy(q => q.Order)
+                            .Select(q => new
+                            {
+                                q.QuestionId,
+                                q.SectionId,
+                                q.Text,
+                                q.HelpText,
+                                q.Type,
+                                q.IsRequired,
+                                q.AllowCustomAnswer,
+                                q.AllowAttachments,
+                                q.Order,
+                                q.OptionsJson
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
         return t is null ? NotFound() : Ok(t);
     }
 
@@ -77,6 +138,30 @@ public class QuestionnairesController(AssessmentDbContext db) : ControllerBase
             .Include(r => r.Answers)
             .FirstOrDefaultAsync(r => r.ResponseId == id);
         return r is null ? NotFound() : Ok(r);
+    }
+
+    [HttpGet("responses/{id:guid}/attachments")]
+    public async Task<IActionResult> ListAttachments(Guid id)
+    {
+        if (!await db.QuestionnaireResponses.AnyAsync(response => response.ResponseId == id))
+            return NotFound();
+
+        return Ok(await db.UploadedReports
+            .Where(report => report.QuestionnaireResponseId == id)
+            .OrderBy(report => report.UploadedAt)
+            .Select(report => new
+            {
+                report.ReportId,
+                report.ProjectId,
+                report.QuestionnaireResponseId,
+                report.QuestionId,
+                report.FileName,
+                report.FileSizeBytes,
+                report.ParseStatus,
+                report.UploadedBy,
+                report.UploadedAt
+            })
+            .ToListAsync());
     }
 
     [HttpPut("responses/{id:guid}/answers")]
@@ -130,15 +215,26 @@ public class QuestionnairesController(AssessmentDbContext db) : ControllerBase
         var requiredQuestions = response.Template.Sections
             .SelectMany(s => s.Questions)
             .Where(q => q.IsRequired)
-            .Select(q => q.QuestionId)
+            .Select(q => new { q.QuestionId, q.AllowAttachments })
             .ToList();
 
         var answeredIds = response.Answers
-            .Where(a => !string.IsNullOrWhiteSpace(a.Value))
+            .Where(a => HasMeaningfulAnswer(a.Value))
             .Select(a => a.QuestionId)
             .ToHashSet();
 
-        var missing = requiredQuestions.Where(qId => !answeredIds.Contains(qId)).ToList();
+        var attachedQuestionIds = (await db.UploadedReports
+            .Where(report => report.QuestionnaireResponseId == id && report.QuestionId.HasValue)
+            .Select(report => report.QuestionId!.Value)
+            .ToListAsync())
+            .ToHashSet();
+
+        var missing = requiredQuestions
+            .Where(question =>
+                !answeredIds.Contains(question.QuestionId) &&
+                !(question.AllowAttachments && attachedQuestionIds.Contains(question.QuestionId)))
+            .Select(question => question.QuestionId)
+            .ToList();
         if (missing.Count > 0)
             return BadRequest(new { error = "Required questions are unanswered.", missingCount = missing.Count });
 
@@ -149,107 +245,69 @@ public class QuestionnairesController(AssessmentDbContext db) : ControllerBase
         return Ok(new { response.ResponseId, response.Status, response.SubmittedAt });
     }
 
-    // ── Seed ─────────────────────────────────────────────────────────────
+    private static bool HasMeaningfulAnswer(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
 
-    /// <summary>Seeds the default baseline questionnaire template if it does not exist.</summary>
+        return value.Split('|').Any(part =>
+        {
+            if (!part.StartsWith("Custom: ", StringComparison.Ordinal))
+                return !string.IsNullOrWhiteSpace(part);
+
+            var customValue = part["Custom: ".Length..];
+            try
+            {
+                customValue = Uri.UnescapeDataString(customValue);
+            }
+            catch (UriFormatException)
+            {
+                // Treat malformed escape sequences as their literal customer input.
+            }
+
+            return !string.IsNullOrWhiteSpace(customValue);
+        });
+    }
+
+    // ── Template synchronization ─────────────────────────────────────────
+
+    /// <summary>Imports new template versions from the API's QuestionnaireTemplates JSON directory.</summary>
     [HttpPost("templates/seed")]
     public async Task<IActionResult> Seed()
     {
-        if (await db.QuestionnaireTemplates.AnyAsync(t => t.Name == "Database Migration Baseline"))
-            return Ok(new { message = "Baseline template already exists." });
+        IReadOnlyList<QuestionnaireTemplate> yamlTemplates;
+        try
+        {
+            yamlTemplates = templateLoader.LoadTemplates();
+        }
+        catch (InvalidDataException exception)
+        {
+            return BadRequest(new { error = exception.Message });
+        }
 
-        var template = BuildBaselineTemplate();
-        db.QuestionnaireTemplates.Add(template);
+        var imported = new List<string>();
+        var unchanged = new List<string>();
+
+        foreach (var template in yamlTemplates)
+        {
+            var existingVersions = await db.QuestionnaireTemplates
+                .Where(item => item.Name == template.Name)
+                .ToListAsync();
+
+            if (existingVersions.Any(item => item.Version >= template.Version))
+            {
+                unchanged.Add($"{template.Name} v{template.Version}");
+                continue;
+            }
+
+            foreach (var existing in existingVersions)
+                existing.IsActive = false;
+
+            db.QuestionnaireTemplates.Add(template);
+            imported.Add($"{template.Name} v{template.Version}");
+        }
+
         await db.SaveChangesAsync();
-        return Ok(new { template.TemplateId, template.Name, sectionCount = template.Sections.Count });
-    }
-
-    private static QuestionnaireTemplate BuildBaselineTemplate()
-    {
-        var t = new QuestionnaireTemplate
-        {
-            Name = "Database Migration Baseline",
-            Description = "Captures business context, constraints and technical drivers needed to plan a database migration.",
-            Phase = QuestionnairePhase.Baseline
-        };
-
-        t.Sections.Add(new QuestionnaireSection
-        {
-            Title = "Business Context",
-            Description = "Understand the business drivers and stakeholders behind this migration.",
-            Order = 1,
-            Questions =
-            [
-                new Question { Text = "What is the primary business driver for this migration?", Type = QuestionType.Select, IsRequired = true, Order = 1,
-                    OptionsJson = """["Cost reduction","Cloud strategy","End of support","Performance improvement","Consolidation","Compliance","Other"]""" },
-                new Question { Text = "Who is the primary business owner / sponsor?", Type = QuestionType.Text, IsRequired = true, Order = 2 },
-                new Question { Text = "Describe the scope of this engagement in your own words.", Type = QuestionType.Textarea, IsRequired = false, Order = 3 },
-            ]
-        });
-
-        t.Sections.Add(new QuestionnaireSection
-        {
-            Title = "Availability & Risk",
-            Description = "Downtime tolerance and business criticality.",
-            Order = 2,
-            Questions =
-            [
-                new Question { Text = "What is the maximum tolerable downtime during cutover? (hours)", Type = QuestionType.Number, IsRequired = true, Order = 1 },
-                new Question { Text = "What is the Recovery Time Objective (RTO)?", Type = QuestionType.Select, IsRequired = true, Order = 2,
-                    OptionsJson = """["< 1 hour","1–4 hours","4–8 hours","8–24 hours","> 24 hours","Not defined"]""" },
-                new Question { Text = "What is the Recovery Point Objective (RPO)?", Type = QuestionType.Select, IsRequired = true, Order = 3,
-                    OptionsJson = """["Zero data loss","< 15 minutes","< 1 hour","< 4 hours","< 24 hours","Not defined"]""" },
-                new Question { Text = "Are there blackout periods when migration is not permitted?", Type = QuestionType.Boolean, IsRequired = true, Order = 4 },
-                new Question { Text = "If yes, describe the blackout periods (e.g. month-end, seasonal peaks).", Type = QuestionType.Textarea, IsRequired = false, Order = 5 },
-            ]
-        });
-
-        t.Sections.Add(new QuestionnaireSection
-        {
-            Title = "Compliance & Security",
-            Description = "Regulatory and data handling requirements.",
-            Order = 3,
-            Questions =
-            [
-                new Question { Text = "Which compliance frameworks apply?", Type = QuestionType.MultiSelect, IsRequired = false, Order = 1,
-                    OptionsJson = """["GDPR","PCI-DSS","HIPAA","ISO 27001","SOC 2","None","Other"]""" },
-                new Question { Text = "Is data residency / sovereignty a requirement?", Type = QuestionType.Boolean, IsRequired = true, Order = 2 },
-                new Question { Text = "Are there restrictions on data leaving the current environment?", Type = QuestionType.Boolean, IsRequired = true, Order = 3 },
-                new Question { Text = "Describe any specific security or audit requirements.", Type = QuestionType.Textarea, IsRequired = false, Order = 4 },
-            ]
-        });
-
-        t.Sections.Add(new QuestionnaireSection
-        {
-            Title = "Target Platform",
-            Description = "Preferences for the migration destination.",
-            Order = 4,
-            Questions =
-            [
-                new Question { Text = "What is the preferred target platform?", Type = QuestionType.Select, IsRequired = true, Order = 1,
-                    OptionsJson = """["Azure SQL Database","Azure SQL Managed Instance","Azure Database for PostgreSQL","Azure Database for MySQL","Azure Cosmos DB","SQL Server on IaaS","Not yet decided","Other"]""" },
-                new Question { Text = "Is the target platform already provisioned?", Type = QuestionType.Boolean, IsRequired = true, Order = 2 },
-                new Question { Text = "Is a hybrid / phased migration acceptable?", Type = QuestionType.Boolean, IsRequired = false, Order = 3 },
-                new Question { Text = "Are there preferred Azure regions?", Type = QuestionType.Text, IsRequired = false, Order = 4 },
-            ]
-        });
-
-        t.Sections.Add(new QuestionnaireSection
-        {
-            Title = "Technical Constraints",
-            Description = "Known limitations and dependencies.",
-            Order = 5,
-            Questions =
-            [
-                new Question { Text = "Are there applications tightly coupled to the database that must be migrated together?", Type = QuestionType.Boolean, IsRequired = true, Order = 1 },
-                new Question { Text = "List known application or integration dependencies.", Type = QuestionType.Textarea, IsRequired = false, Order = 2 },
-                new Question { Text = "Are there database-specific features in use that may not be supported on the target?", Type = QuestionType.Textarea, IsRequired = false, Order = 3,
-                    HelpText = "e.g. Oracle RAC, linked servers, CLR assemblies, specific collations" },
-                new Question { Text = "Is there an existing DBA team who will support the migration?", Type = QuestionType.Boolean, IsRequired = true, Order = 4 },
-            ]
-        });
-
-        return t;
+        return Ok(new { imported, unchanged });
     }
 }
 

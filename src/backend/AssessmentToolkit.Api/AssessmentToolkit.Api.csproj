@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,10 @@
     <ProjectReference Include="..\AssessmentToolkit.Core\AssessmentToolkit.Core.csproj" />
     <ProjectReference Include="..\AssessmentToolkit.Data\AssessmentToolkit.Data.csproj" />
     <ProjectReference Include="..\..\shared\AssessmentToolkit.Shared\AssessmentToolkit.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="QuestionnaireTemplates\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

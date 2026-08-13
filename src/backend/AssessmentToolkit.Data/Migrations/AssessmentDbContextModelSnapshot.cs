@@ -510,6 +510,12 @@ namespace AssessmentToolkit.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AllowAttachments")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowCustomAnswer")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("HelpText")
                         .HasColumnType("text");
 
@@ -688,6 +694,12 @@ namespace AssessmentToolkit.Data.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("QuestionnaireResponseId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("SourceType")
                         .HasColumnType("integer");
 
@@ -710,6 +722,10 @@ namespace AssessmentToolkit.Data.Migrations
                     b.HasIndex("FileHash");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("QuestionnaireResponseId", "QuestionId");
 
                     b.ToTable("uploaded_report", "assessment");
                 });
@@ -910,7 +926,21 @@ namespace AssessmentToolkit.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AssessmentToolkit.Core.Entities.Question", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AssessmentToolkit.Core.Entities.QuestionnaireResponse", "QuestionnaireResponse")
+                        .WithMany()
+                        .HasForeignKey("QuestionnaireResponseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Project");
+
+                    b.Navigation("Question");
+
+                    b.Navigation("QuestionnaireResponse");
                 });
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.Agent", b =>

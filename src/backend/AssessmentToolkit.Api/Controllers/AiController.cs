@@ -1,6 +1,7 @@
 using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Data;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,11 @@ namespace AssessmentToolkit.Api.Controllers;
 
 [ApiController]
 [Route("api/ai")]
-public class AiController(AssessmentDbContext db, IAiAdapterService ai) : ControllerBase
+public class AiController(
+    AssessmentDbContext db,
+    IAiAdapterService ai,
+    IDataProtectionProvider dataProtectionProvider,
+    IServiceProvider services) : ControllerBase
 {
     // ── Providers ────────────────────────────────────────────────────────
 
@@ -88,29 +93,100 @@ public class AiController(AssessmentDbContext db, IAiAdapterService ai) : Contro
     public IActionResult Status() => Ok(new
     {
         available  = ai.IsAvailable,
-        message    = ai.IsAvailable
-            ? "AI Foundry is configured and available."
-            : "AI Foundry is not configured. Set AiFoundry:Endpoint, AiFoundry:ApiKey and AiFoundry:Deployment environment variables.",
-        configuredVia = "Environment variables (AiFoundry:Endpoint / AZURE_OPENAI_ENDPOINT)"
+        connectionStatus = !ai.IsAvailable
+            ? "Not configured"
+            : ai.LastConnectionSucceeded switch
+            {
+                true => "Connected",
+                false => "Connection failed",
+                null => "Not tested"
+            },
+        message = !ai.IsAvailable
+            ? "AI Foundry is not configured. Enter the endpoint, deployment and API key below."
+            : ai.LastConnectionSucceeded switch
+            {
+                true => "The configured deployment responded successfully.",
+                false => "The last connection test failed. Check the endpoint, deployment and API key.",
+                null => "Configuration loaded. Test the connection to verify model access."
+            },
+        configuredVia = ai.ConfiguredVia,
+        endpoint = ai.Endpoint,
+        deployment = ai.Deployment,
+        hasStoredCredential = ai.HasStoredCredential,
+        lastConnectionTestedAt = ai.LastConnectionTestedAt
     });
+
+    [HttpPut("configuration")]
+    public async Task<IActionResult> Configure([FromBody] ConfigureAiRequest req, CancellationToken ct)
+    {
+        if (!Uri.TryCreate(req.Endpoint, UriKind.Absolute, out var endpoint) ||
+            endpoint.Scheme != Uri.UriSchemeHttps)
+        {
+            return BadRequest(new { error = "Endpoint must be a valid HTTPS URL." });
+        }
+
+        if (string.IsNullOrWhiteSpace(req.Deployment))
+            return BadRequest(new { error = "Deployment name is required." });
+
+        var existingCredential = await db.SystemConfigs
+            .FirstOrDefaultAsync(c => c.Key == AiConfigKeys.ProtectedApiKey, ct);
+        if (string.IsNullOrWhiteSpace(req.ApiKey) && existingCredential is null)
+            return BadRequest(new { error = "API key is required for the initial configuration." });
+
+        await UpsertConfig(AiConfigKeys.Endpoint, endpoint.ToString(), "AI Foundry endpoint", false, ct);
+        await UpsertConfig(AiConfigKeys.Deployment, req.Deployment.Trim(), "AI Foundry deployment", false, ct);
+
+        if (!string.IsNullOrWhiteSpace(req.ApiKey))
+        {
+            var protector = dataProtectionProvider.CreateProtector("AssessmentToolkit.AiFoundry.ApiKey.v1");
+            await UpsertConfig(
+                AiConfigKeys.ProtectedApiKey,
+                protector.Protect(req.ApiKey.Trim()),
+                "Encrypted AI Foundry API key",
+                true,
+                ct);
+        }
+
+        await db.SaveChangesAsync(ct);
+        await ai.ReloadConfigAsync(services);
+
+        return Ok(new
+        {
+            available = ai.IsAvailable,
+            configuredVia = ai.ConfiguredVia,
+            endpoint = ai.Endpoint,
+            deployment = ai.Deployment,
+            hasStoredCredential = ai.HasStoredCredential
+        });
+    }
+
+    [HttpDelete("configuration/credential")]
+    public async Task<IActionResult> ClearStoredCredential(CancellationToken ct)
+    {
+        var credential = await db.SystemConfigs
+            .FirstOrDefaultAsync(c => c.Key == AiConfigKeys.ProtectedApiKey, ct);
+        if (credential is not null)
+        {
+            db.SystemConfigs.Remove(credential);
+            await db.SaveChangesAsync(ct);
+        }
+
+        await ai.ReloadConfigAsync(services);
+        return NoContent();
+    }
 
     // ── Test connection ───────────────────────────────────────────────────
 
     [HttpPost("test")]
     public async Task<IActionResult> Test(CancellationToken ct)
     {
-        if (!ai.IsAvailable)
-            return BadRequest("AI Foundry is not configured.");
+        var result = await ai.TestConnectionAsync(ct);
+        if (!result.Succeeded)
+            return ai.IsAvailable
+                ? StatusCode(502, result)
+                : BadRequest(result);
 
-        var result = await ai.CompleteAsync(
-            "You are a helpful assistant.",
-            "Reply with exactly: {\"status\":\"ok\",\"message\":\"Connection successful\"}",
-            ct);
-
-        if (result is null)
-            return StatusCode(502, new { error = "AI returned no response." });
-
-        return Ok(new { raw = result, aiAvailable = true });
+        return Ok(result);
     }
 
     // ── Finding enrichment ───────────────────────────────────────────────
@@ -230,6 +306,27 @@ public class AiController(AssessmentDbContext db, IAiAdapterService ai) : Contro
         }
         catch { return baseJson; }
     }
+
+    private async Task UpsertConfig(
+        string key,
+        string value,
+        string description,
+        bool isSensitive,
+        CancellationToken ct)
+    {
+        var config = await db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == key, ct);
+        if (config is null)
+        {
+            config = new SystemConfig { Key = key };
+            db.SystemConfigs.Add(config);
+        }
+
+        config.Value = value;
+        config.Description = description;
+        config.IsSensitive = isSensitive;
+        config.UpdatedAt = DateTimeOffset.UtcNow;
+        config.UpdatedBy = "portal";
+    }
 }
 
 public record RegisterProviderRequest(
@@ -243,3 +340,5 @@ public record UpdateProviderRequest(
     AiProviderStatus? Status, bool? IsDefault);
 
 public record GenerateReportRequest(Guid ProjectId);
+
+public record ConfigureAiRequest(string Endpoint, string Deployment, string? ApiKey);

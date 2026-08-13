@@ -28,13 +28,14 @@ The portal should feel like a professional assessment workspace for architects, 
 - Portfolios: grouping, readiness and migration scope.
 - Communication Maps: dependencies, flows and validation states.
 - Reports: draft generation, review, approval and export.
+- AI Settings: active connection configuration, verified status and provider registry.
 
 ## 4. Key user journeys
 
 | Journey | Main steps | Success outcome |
 | --- | --- | --- |
 | Create project | Create customer, project, deployment mode, storage location | Empty project workspace is ready. |
-| Collect questionnaire | Assign sections, save progress, validate completeness | Required baseline context is captured. |
+| Collect questionnaire | Select a versioned template, save progress, add custom answers or supporting documents, validate completeness, submit | Required baseline and engine-specific context is captured with linked evidence. |
 | Register agent | Create bootstrap package, deploy agent, verify heartbeat | Agent is ready for assessment jobs. |
 | Upload evidence | Upload report, parse, review extracted values | Evidence appears in project inventory. |
 | Build portfolio | Select grouping logic, review members, save portfolio | Database group is ready for planning. |
@@ -46,12 +47,13 @@ The portal should feel like a professional assessment workspace for architects, 
 | Screen | Required elements |
 | --- | --- |
 | Project dashboard | Completion score, evidence status, open risks, agents online/offline, recent activities. |
-| Questionnaire | Section progress, required fields, save draft, validation errors, reviewer comments. |
+| Questionnaire | Versioned template selector, JSON template synchronization, section progress, required-field validation, custom answers, question attachments, save draft and immutable submitted state. |
 | Agent management | Agent status, plugin list, last heartbeat, jobs, bootstrap package state. |
 | Inventory | Filter by environment, engine, criticality, owner, portfolio and readiness. |
 | Portfolio view | Grouping rules, member list, risk summary, dependency constraints and wave assignment. |
 | Communication map | Graph canvas, filters, edge confidence, source evidence panel and validation actions. |
 | Report review | Draft sections, source traceability, comments, approval and export target. |
+| AI Settings | Endpoint, deployment and masked credential entry; configuration source; explicit connection test; `Not configured`, `Not tested`, `Connected` and `Connection failed` states. |
 
 ## 6. UX principles
 
