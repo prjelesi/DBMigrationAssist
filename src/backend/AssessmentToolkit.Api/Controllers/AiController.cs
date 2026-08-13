@@ -93,6 +93,7 @@ public class AiController(
     public IActionResult Status() => Ok(new
     {
         available  = ai.IsAvailable,
+        readyForReporting = ai.IsAvailable && ai.LastConnectionSucceeded == true,
         connectionStatus = !ai.IsAvailable
             ? "Not configured"
             : ai.LastConnectionSucceeded switch
@@ -236,7 +237,16 @@ public class AiController(
     public async Task<IActionResult> GenerateReport([FromBody] GenerateReportRequest req, CancellationToken ct)
     {
         if (!ai.IsAvailable)
-            return BadRequest("AI Foundry is not configured.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "Microsoft Foundry is required for report generation. Configure it in AI Settings."
+            });
+
+        if (ai.LastConnectionSucceeded != true)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "Microsoft Foundry must pass a connection test before report generation. Test it in AI Settings."
+            });
 
         var project = await db.Projects.Include(p => p.Customer).FirstOrDefaultAsync(p => p.ProjectId == req.ProjectId, ct);
         if (project is null) return BadRequest("Project not found.");

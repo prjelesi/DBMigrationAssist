@@ -183,8 +183,20 @@ export const generateReport = (projectId: string) =>
     '/api/ai/generate-report', { projectId }
   ).then(r => r.data);
 
+export interface AiStatus {
+  available: boolean;
+  readyForReporting: boolean;
+  connectionStatus: 'Not configured' | 'Not tested' | 'Connected' | 'Connection failed';
+  message: string;
+  configuredVia: string;
+  endpoint?: string;
+  deployment?: string;
+  hasStoredCredential: boolean;
+  lastConnectionTestedAt?: string;
+}
+
 export const getAiStatus = () =>
-  api.get<{ available: boolean; message: string }>('/api/ai/status').then(r => r.data);
+  api.get<AiStatus>('/api/ai/status').then(r => r.data);
 
 export interface SystemStatus {
   components: { name: string; status: string; detail: string }[];

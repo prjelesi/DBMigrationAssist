@@ -107,7 +107,7 @@ export default function Reports() {
   // ── Generate ──────────────────────────────────────────────────────────────
 
   const handleGenerate = async () => {
-    if (!genProjectId) return;
+    if (!genProjectId || !aiStatus.data?.readyForReporting) return;
     const project = projects.data?.find(p => p.projectId === genProjectId);
     if (!project) return;
 
@@ -170,6 +170,7 @@ export default function Reports() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   const aiAvailable = aiStatus.data?.available ?? false;
+  const readyForReporting = aiStatus.data?.readyForReporting ?? false;
 
   return (
     <div>
@@ -180,11 +181,12 @@ export default function Reports() {
         </button>
       </div>
 
-      {/* AI not configured warning */}
-      {aiStatus.isSuccess && !aiAvailable && (
+      {/* AI reporting prerequisite */}
+      {aiStatus.isSuccess && !readyForReporting && (
         <div className="warn-msg" style={{ marginBottom: 20 }}>
-          ⚠ AI Foundry is not configured. Configure it in{' '}
-          <a href="/ai-settings">AI Settings</a> to enable report generation.
+          {aiAvailable
+            ? <>Microsoft Foundry must pass a connection test before reports can be generated. Open <a href="/ai-settings">AI Settings</a> to test it.</>
+            : <>Microsoft Foundry is required for report generation. Configure it in <a href="/ai-settings">AI Settings</a>.</>}
         </div>
       )}
 
@@ -300,9 +302,11 @@ export default function Reports() {
               </select>
             </div>
 
-            {!aiAvailable && (
+            {!readyForReporting && (
               <div className="warn-msg" style={{ marginTop: 8 }}>
-                AI Foundry is not configured. Configure it in <a href="/ai-settings">AI Settings</a> first.
+                {aiAvailable
+                  ? <>Microsoft Foundry must pass a connection test. Test it in <a href="/ai-settings">AI Settings</a> first.</>
+                  : <>Microsoft Foundry is required. Configure it in <a href="/ai-settings">AI Settings</a> first.</>}
               </div>
             )}
 
@@ -311,7 +315,7 @@ export default function Reports() {
               <button
                 className="btn btn-primary"
                 onClick={handleGenerate}
-                disabled={!genProjectId || generating || !aiAvailable}
+                disabled={!genProjectId || generating || !readyForReporting}
               >
                 {generating ? 'Generating…' : 'Generate'}
               </button>

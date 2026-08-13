@@ -23,6 +23,7 @@ interface AiProvider {
 
 interface AiStatus {
   available: boolean;
+  readyForReporting: boolean;
   connectionStatus: 'Not configured' | 'Not tested' | 'Connected' | 'Connection failed';
   message: string;
   configuredVia: string;
@@ -236,16 +237,16 @@ export default function AiSettings() {
                 desc: 'Extracts structured findings from AWR, Statspack and unsupported report formats.' },
               { feature: 'Finding Enrichment', active: status.data?.available,
                 desc: 'Adds migration path, risk level and remediation steps to raw discovery agent results.' },
-              { feature: 'Report Generation', active: status.data?.available,
-                desc: 'Generates executive summary, risk register, wave recommendation and next steps.' },
+              { feature: 'Report Generation', active: status.data?.readyForReporting, inactiveLabel: 'Blocked',
+                desc: 'Requires a successful Microsoft Foundry connection test before generating executive and technical content.' },
               { feature: 'Rules-based Fallback', active: true,
-                desc: 'Always available — deterministic classification when AI is not configured.' },
+                desc: 'Provides deterministic classification for supported workflows, but does not generate assessment reports.' },
             ].map(row => (
               <tr key={row.feature}>
                 <td style={{ fontWeight: 600 }}>{row.feature}</td>
                 <td>
                   <span className={`badge ${row.active ? 'badge-green' : 'badge-yellow'}`}>
-                    {row.active ? 'Active' : 'Fallback only'}
+                    {row.active ? 'Active' : row.inactiveLabel ?? 'Fallback only'}
                   </span>
                 </td>
                 <td style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>{row.desc}</td>
