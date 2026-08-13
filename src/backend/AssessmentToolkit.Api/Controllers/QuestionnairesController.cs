@@ -306,6 +306,15 @@ public class QuestionnairesController(
             imported.Add($"{template.Name} v{template.Version}");
         }
 
+        foreach (var versions in db.ChangeTracker.Entries<QuestionnaireTemplate>()
+                     .Select(entry => entry.Entity)
+                     .GroupBy(template => template.Name))
+        {
+            var latestVersion = versions.Max(template => template.Version);
+            foreach (var template in versions)
+                template.IsActive = template.Version == latestVersion;
+        }
+
         await db.SaveChangesAsync();
         return Ok(new { imported, unchanged });
     }

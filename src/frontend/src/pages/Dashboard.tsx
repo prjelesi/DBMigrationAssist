@@ -1,4 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import {
+  Database24Regular,
+  Folder24Regular,
+  PlugConnected24Regular,
+  Warning24Regular,
+  ArrowTrending24Regular,
+  CheckmarkCircle24Regular,
+} from "@fluentui/react-icons";
 import { getAgents, getDatabases, getProjects } from "../lib/api";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -44,53 +53,53 @@ export default function Dashboard() {
       {/* Stat cards */}
       <div className="stat-grid">
         <div className="stat-card">
-          <div className="stat-icon">📁</div>
+          <div className="stat-icon"><Folder24Regular /></div>
           <div className="stat-value">{totalProjects || "—"}</div>
           <div className="stat-label">Active Projects</div>
           <div className={`stat-delta ${totalProjects > 0 ? "up" : "warn"}`}>
-            {totalProjects > 0 ? "▲ In progress" : "No projects yet"}
+            {totalProjects > 0 && <ArrowTrending24Regular />} {totalProjects > 0 ? "In progress" : "No projects yet"}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">🗄️</div>
+          <div className="stat-icon"><Database24Regular /></div>
           <div className="stat-value">{totalDbs || "—"}</div>
           <div className="stat-label">Databases in Scope</div>
-          <div className="stat-delta up">▲ Across all environments</div>
+          <div className="stat-delta up"><ArrowTrending24Regular /> Across all environments</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">🔌</div>
+          <div className="stat-icon"><PlugConnected24Regular /></div>
           <div className="stat-value" style={{ color: agentHealthy ? "var(--green-text)" : totalAgents > 0 ? "var(--amber-text)" : undefined }}>
             {totalAgents > 0 ? `${activeAgents}/${totalAgents}` : "—"}
           </div>
           <div className="stat-label">Agents Online</div>
           <div className={`stat-delta ${agentHealthy ? "up" : totalAgents > 0 ? "warn" : "warn"}`}>
-            {agentHealthy ? "▲ All agents healthy" : totalAgents > 0 ? "⚠ Some agents offline" : "No agents registered"}
+            {agentHealthy && <CheckmarkCircle24Regular />} {agentHealthy ? "All agents healthy" : totalAgents > 0 ? "Some agents offline" : "No agents registered"}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">⚠️</div>
+          <div className="stat-icon"><Warning24Regular /></div>
           <div className="stat-value" style={{ color: criticalDbs > 0 ? "var(--red-text)" : "var(--green-text)" }}>
             {criticalDbs || "0"}
           </div>
           <div className="stat-label">High / Critical DBs</div>
           <div className={`stat-delta ${criticalDbs > 0 ? "down" : "up"}`}>
-            {criticalDbs > 0 ? `▼ ${criticalDbs} require attention` : "▲ All within threshold"}
+            {criticalDbs === 0 && <CheckmarkCircle24Regular />} {criticalDbs > 0 ? `${criticalDbs} require attention` : "All within threshold"}
           </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div className="dashboard-panels">
         {/* Recent projects */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">Recent Projects</span>
-            <a href="/projects" className="btn btn-ghost btn-sm">View all →</a>
+            <Link to="/projects" className="btn btn-ghost btn-sm">View all</Link>
           </div>
           {projects.isLoading && <div className="loading" />}
           {!projects.isLoading && (projects.data?.length ?? 0) === 0 && (
             <div className="empty-state">
-              <div className="empty-state-icon">📁</div>
-              <p>No projects yet.<br /><a href="/projects">Create your first project →</a></p>
+              <div className="empty-state-icon"><Folder24Regular /></div>
+              <p>No projects yet.<br /><Link to="/projects">Create your first project</Link></p>
             </div>
           )}
           {(projects.data?.length ?? 0) > 0 && (
@@ -116,19 +125,19 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Agent Status</span>
-            <a href="/agents" className="btn btn-ghost btn-sm">Manage →</a>
+            <Link to="/agents" className="btn btn-ghost btn-sm">Manage</Link>
           </div>
           {agents.isLoading && <div className="loading" />}
           {!agents.isLoading && !firstProjectId && (
             <div className="empty-state">
-              <div className="empty-state-icon">🔌</div>
+              <div className="empty-state-icon"><PlugConnected24Regular /></div>
               <p>Create a project first to view agents.</p>
             </div>
           )}
           {firstProjectId && !agents.isLoading && (agents.data?.length ?? 0) === 0 && (
             <div className="empty-state">
-              <div className="empty-state-icon">🔌</div>
-              <p>No agents registered.<br /><a href="/agents">Register an agent →</a></p>
+              <div className="empty-state-icon"><PlugConnected24Regular /></div>
+              <p>No agents registered.<br /><Link to="/agents">Register an agent</Link></p>
             </div>
           )}
           {(agents.data?.length ?? 0) > 0 && (
@@ -162,7 +171,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Database Inventory — {firstProjectId && projects.data?.[0]?.name}</span>
-            <a href="/inventory" className="btn btn-ghost btn-sm">Full inventory →</a>
+            <Link to="/inventory" className="btn btn-ghost btn-sm">Full inventory</Link>
           </div>
           <table className="data-table">
             <thead><tr><th>Name</th><th>Engine</th><th>Host</th><th>Criticality</th></tr></thead>

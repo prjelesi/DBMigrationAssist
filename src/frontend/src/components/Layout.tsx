@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Home24Regular,
@@ -13,7 +14,11 @@ import {
   DocumentText24Regular,
   Bot24Regular,
   DataBarVertical24Regular,
+  Dismiss24Regular,
+  Navigation24Regular,
+  Pulse24Regular,
 } from "@fluentui/react-icons";
+import { Button, Tooltip } from "@fluentui/react-components";
 import "./Layout.css";
 
 const NAV = [
@@ -68,17 +73,22 @@ const PAGE_META: Record<string, { title: string; sub: string; badge?: string }> 
 
 export default function Layout() {
   const location = useLocation();
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const meta = PAGE_META[location.pathname] ?? { title: "Assessment Toolkit", sub: "" };
 
   return (
     <div className="layout">
-      <aside className="sidebar">
+      {navigationOpen && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
+      <aside className={`sidebar${navigationOpen ? " open" : ""}`} aria-label="Primary navigation">
         <div className="sidebar-brand">
           <div className="brand-logo"><DataBarVertical24Regular /></div>
           <div className="brand-text">
-            <span className="brand-name">DB Assess</span>
-            <span className="brand-sub">Migration Toolkit</span>
+            <span className="brand-name">DB Migration Assist</span>
+            <span className="brand-sub">Assessment workspace</span>
           </div>
+          <Tooltip content="Close navigation" relationship="label">
+            <Button className="nav-close" appearance="subtle" icon={<Dismiss24Regular />} onClick={() => setNavigationOpen(false)} />
+          </Tooltip>
         </div>
 
         <nav className="sidebar-nav">
@@ -93,9 +103,13 @@ export default function Layout() {
                   to={item.to}
                   end={item.to === "/"}
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                  onClick={() => setNavigationOpen(false)}
                 >
                   <span className="nav-icon">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span className="nav-copy">
+                    <span className="nav-label">{item.label}</span>
+                    <span className="nav-description">{item.sub}</span>
+                  </span>
                 </NavLink>
               ))}
             </div>
@@ -103,17 +117,20 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-avatar">A</div>
+          <div className="workspace-status"><Pulse24Regular /></div>
           <div className="user-info">
-            <span className="user-name">Admin</span>
-            <span className="user-role">Delivery Engineer</span>
+            <span className="user-name">Workspace services</span>
+            <span className="user-role">Connected</span>
           </div>
-          <div className="status-dot" title="Online" />
+          <div className="status-dot" title="Services connected" />
         </div>
       </aside>
 
       <div className="main-area">
         <header className="topbar">
+          <Tooltip content="Open navigation" relationship="label">
+            <Button className="nav-open" appearance="subtle" icon={<Navigation24Regular />} onClick={() => setNavigationOpen(true)} />
+          </Tooltip>
           <div className="topbar-left">
             <span className="page-title">{meta.title}</span>
             {meta.sub && <span className="page-sub">{meta.sub}</span>}
@@ -121,7 +138,7 @@ export default function Layout() {
           <div className="topbar-right">
             {meta.badge && (
               <span className="topbar-badge">
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
+                <span className="live-dot" />
                 {meta.badge}
               </span>
             )}

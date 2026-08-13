@@ -11,14 +11,70 @@ public class ProjectsController(AssessmentDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List() =>
-        Ok(await db.Projects.Include(p => p.Customer).ToListAsync());
+        Ok(await db.Projects
+            .AsNoTracking()
+            .Select(p => new
+            {
+                p.ProjectId,
+                p.CustomerId,
+                p.Name,
+                p.Description,
+                p.DeploymentMode,
+                p.Status,
+                p.CreatedBy,
+                p.CreatedAt,
+                p.UpdatedAt,
+                Customer = new
+                {
+                    p.Customer.CustomerId,
+                    p.Customer.Name,
+                    p.Customer.Industry,
+                    p.Customer.Region,
+                    p.Customer.CreatedAt,
+                    p.Customer.UpdatedAt
+                }
+            })
+            .ToListAsync());
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var project = await db.Projects.Include(p => p.Customer)
-            .Include(p => p.Environments)
-            .FirstOrDefaultAsync(p => p.ProjectId == id);
+        var project = await db.Projects
+            .AsNoTracking()
+            .Where(p => p.ProjectId == id)
+            .Select(p => new
+            {
+                p.ProjectId,
+                p.CustomerId,
+                p.Name,
+                p.Description,
+                p.DeploymentMode,
+                p.Status,
+                p.CreatedBy,
+                p.CreatedAt,
+                p.UpdatedAt,
+                Customer = new
+                {
+                    p.Customer.CustomerId,
+                    p.Customer.Name,
+                    p.Customer.Industry,
+                    p.Customer.Region,
+                    p.Customer.CreatedAt,
+                    p.Customer.UpdatedAt
+                },
+                Environments = p.Environments.Select(e => new
+                {
+                    e.EnvironmentId,
+                    e.ProjectId,
+                    e.Name,
+                    e.Type,
+                    e.Location,
+                    e.ConnectivityZone,
+                    e.CreatedAt,
+                    e.UpdatedAt
+                })
+            })
+            .FirstOrDefaultAsync();
         return project is null ? NotFound() : Ok(project);
     }
 

@@ -1,0 +1,68 @@
+{
+  "name": "MySQL Migration Assessment",
+  "description": "Captures MySQL and MariaDB-specific target, compatibility, replication, validation, security and operating decisions that complement automated discovery.",
+  "phase": "Supplemental",
+  "version": 2,
+  "sections": [
+    {
+      "title": "MySQL Workload & Target",
+      "description": "Identify product lineage, database scope, application constraints and the intended target.",
+      "questions": [
+        { "text": "Which source product is being migrated?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Oracle MySQL Community", "Oracle MySQL Enterprise", "MariaDB", "Percona Server", "Amazon Aurora MySQL", "Other"] },
+        { "text": "Which databases are in scope, and do applications require cross-database queries?", "type": "Textarea", "required": true },
+        { "text": "Is application behavior dependent on case-sensitive table or column naming?", "type": "Boolean", "required": true },
+        { "text": "Describe peak periods, batch jobs, reporting cycles and maintenance windows.", "type": "Textarea", "required": false },
+        { "text": "Which migration destination and target major version are being evaluated?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Azure Database for MySQL Flexible Server", "MySQL on Azure Virtual Machines", "MariaDB on Azure Virtual Machines", "Azure Database for PostgreSQL", "Another managed database service", "Another database engine", "Not yet decided", "Other"] }
+      ]
+    },
+    {
+      "title": "MySQL Features & Compatibility",
+      "description": "Decide how discovered engine features, fork differences and application assumptions will be handled.",
+      "questions": [
+        { "text": "Which discovered MySQL features are business-critical, removable or require replacement?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Stored routines", "Triggers", "Event Scheduler", "Generated columns", "Full-text indexes", "Spatial data", "Partitioning", "JSON", "User-defined functions", "Federated tables", "Other", "None"] },
+        { "text": "Are non-InnoDB storage engines required by any application?", "type": "Boolean", "required": true },
+        { "text": "Do routines, views, events or triggers depend on specific DEFINER accounts?", "type": "Boolean", "required": true },
+        { "text": "Describe dependencies on server plugins, file-system access, custom functions or fork-specific features.", "type": "Textarea", "required": false },
+        { "text": "Have source-to-target major-version and MySQL, MariaDB or Percona compatibility differences been assessed?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Assessed - no blockers", "Assessed - remediation required", "Partially assessed", "Not assessed"] },
+        { "text": "Does application behavior depend on source character set, collation, sql_mode or time-zone semantics?", "type": "Select", "required": true, "options": ["Yes", "No", "Unknown - assessment required"] },
+        { "text": "Are database proxies, connection routers or load balancers required by applications?", "type": "Select", "required": false, "allowCustomAnswer": true, "options": ["ProxySQL", "MySQL Router", "Cloud or network load balancer", "Application-native routing", "None", "Unknown", "Other"] },
+        { "text": "Describe partitioned tables, large LOBs or exceptionally large tables that constrain migration.", "type": "Textarea", "required": false }
+      ]
+    },
+    {
+      "title": "Migration & Replication",
+      "description": "Define data movement, replication continuity, connectivity and rollback requirements.",
+      "questions": [
+        { "text": "What migration method is preferred for this MySQL workload?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["mysqldump and restore", "MySQL Shell dump and load", "Physical backup", "Native replication", "Third-party replication", "Azure Database Migration Service", "Application-led phased migration", "Not yet decided", "Other"] },
+        { "text": "Must existing replicas or downstream binlog consumers continue during migration?", "type": "Boolean", "required": true },
+        { "text": "Are GTID values required to remain compatible with the existing replication topology?", "type": "Boolean", "required": true },
+        { "text": "Have binlog format, retention and downstream-consumer requirements been verified for the migration workflow?", "type": "Select", "required": true, "options": ["Verified", "Partially verified", "Not verified", "Not applicable"] },
+        { "text": "How will auto-increment values be synchronized and protected from collisions at cutover?", "type": "Textarea", "required": false },
+        { "text": "Has secure connectivity and sustained migration throughput been tested with production-scale data?", "type": "Select", "required": true, "options": ["Yes", "Connectivity only - throughput not tested", "No", "Not yet"] },
+        { "text": "Can database and application changes be frozen during final migration and validation?", "type": "Select", "required": true, "options": ["Yes", "Partially", "No", "Not yet agreed"] },
+        { "text": "Describe the rollback method, data reconciliation process and rollback decision triggers.", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Validation & Cutover Readiness",
+      "description": "Define acceptance evidence, performance thresholds, rehearsals and approvals.",
+      "questions": [
+        { "text": "Which source-to-target validation checks are required for acceptance?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Schema and object comparison", "Row counts", "Checksums or row-level comparison", "Auto-increment values", "LOB validation", "Character set, collation and time-zone checks", "Business query comparison", "Application functional testing", "Performance and concurrency testing", "Replication or binlog-consumer testing", "Backup and restore test", "Disaster recovery test", "Other"] },
+        { "text": "Who owns data reconciliation and can accept documented variances?", "type": "Text", "required": true },
+        { "text": "Have peak-load baselines and target performance acceptance thresholds been agreed?", "type": "Select", "required": true, "options": ["Yes", "Baselines captured but thresholds not agreed", "No", "Not applicable"] },
+        { "text": "What is the status of the production-scale migration rehearsal?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Completed and accepted", "Completed with open findings", "Scheduled", "Required but not scheduled", "Not required"] },
+        { "text": "Who provides final business, application, database, security and operations sign-off?", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Security & Operations",
+      "description": "Capture authentication, encryption, configuration and post-migration ownership requirements.",
+      "questions": [
+        { "text": "Which authentication methods or plugins must be supported?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "options": ["mysql_native_password", "caching_sha2_password", "LDAP", "PAM", "Microsoft Entra ID", "Managed identity", "Client certificates", "Other"] },
+        { "text": "Are application connections required to use TLS with certificate validation?", "type": "Boolean", "required": true },
+        { "text": "Which global variables or server settings are mandatory, and what is their target disposition?", "type": "Textarea", "required": false, "allowAttachments": true },
+        { "text": "Who will own backups, version upgrades, parameter changes, monitoring and query tuning after migration?", "type": "Textarea", "required": true }
+      ]
+    }
+  ]
+}

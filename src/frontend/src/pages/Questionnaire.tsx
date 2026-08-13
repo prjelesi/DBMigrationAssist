@@ -360,7 +360,7 @@ export default function Questionnaire() {
 
       {!activeResponseId ? (
         // ── Response list + template picker ──────────────────────────────
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="questionnaire-overview">
           {/* Active responses */}
           <div className="card">
             <div className="card-header">

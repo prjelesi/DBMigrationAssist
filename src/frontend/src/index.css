@@ -1,11 +1,8 @@
-/* Inter kept as cross-platform fallback; Windows uses Segoe UI Variable natively */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* ── Typography ── Fluent 2: Segoe UI Variable, Inter as cross-platform fallback */
-  --font: "Segoe UI Variable", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  /* Typography: Fluent 2 native UI stack */
+  --font: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-size-100: 10px;   /* Base100 */
   --font-size-200: 12px;   /* Base200 — caption */
   --font-size-300: 14px;   /* Base300 — body (default) */
@@ -24,13 +21,6 @@
   --accent-400:  #2886C7;   /* colorBrandBackgroundSelected */
   --accent-100:  #DCEDF9;   /* colorBrandBackground2Hover */
   --accent-50:   #EBF3FC;   /* colorBrandBackground2 */
-
-  /* ── Sidebar (dark shell – Windows 11 / Azure Portal style) ── */
-  --sidebar-bg:     #1B1B1B;
-  --sidebar-border: #2B2B2B;
-  --sidebar-text:   #9E9E9E;
-  --sidebar-hover:  #292929;
-  --sidebar-active: #003869;   /* dark brand-blue tint */
 
   /* ── Surface ── Fluent 2 neutral backgrounds */
   --bg:           #F0F0F0;   /* colorNeutralBackground3 */
@@ -83,6 +73,10 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+
+html, body, #root { min-width: 320px; min-height: 100%; }
+button, input, select, textarea { letter-spacing:0; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--accent-600); outline-offset:2px; }
 
 a { color: var(--accent-600); text-decoration: none; }
 a:hover { text-decoration: underline; color: var(--accent-500); }

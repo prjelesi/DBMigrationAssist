@@ -1,0 +1,66 @@
+{
+  "name": "PostgreSQL Migration Assessment",
+  "description": "Captures PostgreSQL-specific target, compatibility, migration, validation and operating decisions that complement automated discovery.",
+  "phase": "Supplemental",
+  "version": 2,
+  "sections": [
+    {
+      "title": "PostgreSQL Workload & Target",
+      "description": "Identify scope, workload ownership, release constraints and the intended target.",
+      "questions": [
+        { "text": "Which databases and schemas are in scope for this migration?", "type": "Textarea", "required": true },
+        { "text": "What are the primary workload patterns?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "options": ["Transactional", "Analytical", "Mixed workload", "Reporting", "Time series", "Geospatial", "Batch processing", "Other"] },
+        { "text": "Are application deployments tightly coupled to database schema migrations?", "type": "Boolean", "required": true },
+        { "text": "Describe peak periods, maintenance windows and long-running batch processes.", "type": "Textarea", "required": false },
+        { "text": "Which PostgreSQL migration destination and target major version are being evaluated?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Azure Database for PostgreSQL Flexible Server", "PostgreSQL on Azure Virtual Machines", "Azure Arc-enabled PostgreSQL", "Another managed PostgreSQL service", "Another database engine", "Not yet decided", "Other"] }
+      ]
+    },
+    {
+      "title": "Extensions & Compatibility",
+      "description": "Decide how discovered extensions, privileged capabilities and PostgreSQL semantics will be handled.",
+      "questions": [
+        { "text": "Which discovered extensions are business-critical, removable or require replacement on the target?", "helpText": "Identify each required extension, its business purpose, target support status and remediation owner.", "type": "Textarea", "required": true, "allowAttachments": true },
+        { "text": "Does application code require superuser privileges or direct access to the server file system?", "type": "Boolean", "required": true },
+        { "text": "Are foreign data wrappers used in critical data paths?", "type": "Boolean", "required": true },
+        { "text": "Describe dependencies on logical decoding, custom C extensions, procedural languages, large objects or unlogged tables.", "type": "Textarea", "required": false },
+        { "text": "Does application behavior depend on source locale, collation, encoding or time-zone semantics?", "type": "Select", "required": true, "options": ["Yes", "No", "Unknown - assessment required"] },
+        { "text": "Are PgBouncer, another connection pooler or connection-routing proxies required?", "type": "Select", "required": false, "allowCustomAnswer": true, "options": ["PgBouncer", "Application-native pooling", "Other proxy or pooler", "None", "Unknown", "Other"] },
+        { "text": "Describe large-table partitioning, sequence synchronization or large-object constraints that affect migration.", "type": "Textarea", "required": false }
+      ]
+    },
+    {
+      "title": "Migration & High Availability",
+      "description": "Define data movement, compatibility, cutover and continuity expectations.",
+      "questions": [
+        { "text": "What migration method is preferred for this PostgreSQL workload?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["pg_dump and pg_restore", "Physical backup and restore", "Logical replication", "Third-party replication", "Application-led phased migration", "Not yet decided", "Other"] },
+        { "text": "Must existing replication slots or downstream logical subscribers be preserved?", "type": "Boolean", "required": true },
+        { "text": "What target high-availability model is required?", "type": "Select", "required": true, "options": ["Single zone", "Zone redundant", "Cross-region read replica", "Cross-region disaster recovery", "Not yet decided"] },
+        { "text": "Have source-to-target version, extension, collation, encoding and feature compatibility prerequisites been verified?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Verified", "Partially verified", "Not verified", "Not applicable"] },
+        { "text": "Has secure connectivity and sustained migration throughput been tested with production-scale data?", "type": "Select", "required": true, "options": ["Yes", "Connectivity only - throughput not tested", "No", "Not yet"] },
+        { "text": "Can source schema and application changes be frozen during final migration and validation?", "type": "Select", "required": true, "options": ["Yes", "Partially", "No", "Not yet agreed"] },
+        { "text": "Describe the rollback method and rollback decision triggers.", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Validation & Cutover Readiness",
+      "description": "Define acceptance evidence, performance thresholds, rehearsals and approvals.",
+      "questions": [
+        { "text": "Which source-to-target validation checks are required for acceptance?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Schema and object comparison", "Row counts", "Checksums or row-level comparison", "Sequence values", "Large-object validation", "Encoding, collation and time-zone checks", "Business query comparison", "Application functional testing", "Performance and concurrency testing", "Backup and restore test", "Disaster recovery test", "Other"] },
+        { "text": "Who owns data reconciliation and can accept documented variances?", "type": "Text", "required": true },
+        { "text": "Have peak-load baselines and target performance acceptance thresholds been agreed?", "type": "Select", "required": true, "options": ["Yes", "Baselines captured but thresholds not agreed", "No", "Not applicable"] },
+        { "text": "What is the status of the production-scale migration rehearsal?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Completed and accepted", "Completed with open findings", "Scheduled", "Required but not scheduled", "Not required"] },
+        { "text": "Who provides final business, application, database, security and operations sign-off?", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Security & Operations",
+      "description": "Capture authentication, configuration and post-migration ownership requirements.",
+      "questions": [
+        { "text": "Which authentication methods must be supported on the target?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "options": ["Password", "Microsoft Entra ID", "Kerberos or GSSAPI", "Client certificates", "LDAP", "Managed identity", "Other"] },
+        { "text": "Which custom pg_hba.conf, postgresql.conf or operating-system settings are mandatory, and what is their target disposition?", "type": "Textarea", "required": false, "allowAttachments": true },
+        { "text": "Describe current backup, point-in-time recovery, vacuum and statistics maintenance processes.", "type": "Textarea", "required": false },
+        { "text": "Who will own extension upgrades, query tuning, monitoring and incident response after migration?", "type": "Textarea", "required": true }
+      ]
+    }
+  ]
+}

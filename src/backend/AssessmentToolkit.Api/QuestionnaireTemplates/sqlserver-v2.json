@@ -1,0 +1,67 @@
+{
+  "name": "SQL Server Migration Assessment",
+  "description": "Captures SQL Server-specific target, compatibility, platform-service, validation, licensing and operating decisions that complement automated discovery.",
+  "phase": "Supplemental",
+  "version": 2,
+  "sections": [
+    {
+      "title": "SQL Server Workload & Target",
+      "description": "Identify database scope, application coupling, service dependencies and the intended target.",
+      "questions": [
+        { "text": "Which databases are in scope, and must they be migrated as one consistency group?", "type": "Textarea", "required": true },
+        { "text": "Are cross-database transactions or three-part object references used by critical applications?", "type": "Boolean", "required": true },
+        { "text": "Which SQL Server platform services are business-critical?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "options": ["SQL Server Agent", "SSIS", "SSRS", "SSAS", "Database Mail", "Service Broker", "Machine Learning Services", "PolyBase", "Other", "None"] },
+        { "text": "Describe maintenance windows, reporting cycles, ETL schedules and month-end constraints.", "type": "Textarea", "required": false },
+        { "text": "Which SQL Server migration destination is being evaluated?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Azure SQL Database", "Azure SQL Managed Instance", "SQL Server on Azure Virtual Machines", "Azure Arc-enabled SQL Managed Instance", "Azure Database for PostgreSQL", "Another platform", "Not yet decided", "Other"] }
+      ]
+    },
+    {
+      "title": "SQL Server Features & Compatibility",
+      "description": "Decide how discovered SQL Server capabilities and compatibility constraints will be handled.",
+      "questions": [
+        { "text": "Which discovered SQL Server features are business-critical, removable or require replacement?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "allowAttachments": true, "options": ["CLR assemblies", "FILESTREAM or FileTable", "Change Data Capture", "Change Tracking", "Replication", "Service Broker", "Full-text search", "In-Memory OLTP", "Columnstore", "Spatial", "Other", "None"] },
+        { "text": "Are linked servers used in synchronous application or reporting flows?", "type": "Boolean", "required": true },
+        { "text": "Can SQL Agent jobs, SSIS packages and external scripts be moved to cloud-native orchestration services?", "type": "Select", "required": true, "options": ["Yes", "Partially", "No", "Not yet assessed"] },
+        { "text": "Who owns migration or replacement of SQL Agent, SSIS, SSRS, SSAS and related platform services?", "type": "Textarea", "required": false },
+        { "text": "Describe dependencies on instance-level objects such as logins, credentials, proxies, endpoints and server triggers.", "type": "Textarea", "required": false },
+        { "text": "Are MSDTC or other distributed transactions required by critical applications?", "type": "Select", "required": true, "options": ["Yes", "No", "Unknown - assessment required"] },
+        { "text": "Have database compatibility level, deprecated features, collation and time-zone dependencies been assessed against the target?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Assessed - no blockers", "Assessed - remediation required", "Partially assessed", "Not assessed"] }
+      ]
+    },
+    {
+      "title": "Migration & Availability",
+      "description": "Select the migration workflow and confirm connectivity, continuity and rollback readiness.",
+      "questions": [
+        { "text": "What migration method is preferred for this SQL Server workload?", "type": "Select", "required": true, "allowCustomAnswer": true, "options": ["Backup and restore", "Log shipping", "Transactional replication", "Always On availability group", "Azure Database Migration Service", "BACPAC or data copy", "Application-led phased migration", "Not yet decided", "Other"] },
+        { "text": "Which availability technology is currently part of the recovery design?", "type": "MultiSelect", "required": false, "allowCustomAnswer": true, "options": ["Always On availability groups", "Failover cluster instance", "Database mirroring", "Log shipping", "Transactional replication", "Backup restore only", "Other", "None"] },
+        { "text": "Must CDC, replication or downstream transaction-log consumers continue during migration?", "type": "Boolean", "required": true },
+        { "text": "Must connection strings remain unchanged after migration?", "type": "Boolean", "required": true },
+        { "text": "Has secure connectivity and sustained migration throughput been tested with production-scale data?", "type": "Select", "required": true, "options": ["Yes", "Connectivity only - throughput not tested", "No", "Not yet"] },
+        { "text": "Can database and application changes be frozen during final migration and validation?", "type": "Select", "required": true, "options": ["Yes", "Partially", "No", "Not yet agreed"] },
+        { "text": "Describe the rollback method, transaction reconciliation process and rollback decision triggers.", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Validation & Cutover Readiness",
+      "description": "Define acceptance evidence, performance thresholds, rehearsals and approvals.",
+      "questions": [
+        { "text": "Which source-to-target validation checks are required for acceptance?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "allowAttachments": true, "options": ["Schema and object comparison", "Row counts", "Checksums or row-level comparison", "Identity and sequence values", "Data type and precision checks", "Collation and time-zone checks", "Business query comparison", "Application functional testing", "Performance and concurrency testing", "SQL Agent or integration workflow testing", "Backup and restore test", "Disaster recovery test", "Other"] },
+        { "text": "Who owns data and transaction reconciliation and can accept documented variances?", "type": "Text", "required": true },
+        { "text": "Have peak-load baselines and target performance acceptance thresholds been agreed?", "type": "Select", "required": true, "options": ["Yes", "Baselines captured but thresholds not agreed", "No", "Not applicable"] },
+        { "text": "What is the status of the production-scale migration rehearsal?", "type": "Select", "required": true, "allowAttachments": true, "options": ["Completed and accepted", "Completed with open findings", "Scheduled", "Required but not scheduled", "Not required"] },
+        { "text": "Who provides final business, application, database, security and operations sign-off?", "type": "Textarea", "required": true, "allowAttachments": true }
+      ]
+    },
+    {
+      "title": "Security, Licensing & Operations",
+      "description": "Capture identity, encryption, licensing and post-migration ownership requirements.",
+      "questions": [
+        { "text": "Which authentication methods must be supported?", "type": "MultiSelect", "required": true, "allowCustomAnswer": true, "options": ["SQL authentication", "Windows authentication", "Microsoft Entra ID", "Managed identity", "Contained database users", "Other"] },
+        { "text": "Are TDE certificates, column encryption keys or Always Encrypted enclaves in use?", "type": "Boolean", "required": true },
+        { "text": "Is an edition or major-version change required, and what licensing constraints apply?", "type": "Textarea", "required": false, "allowAttachments": true },
+        { "text": "Is Azure Hybrid Benefit or existing SQL Server licensing expected to be used?", "type": "Select", "required": true, "options": ["Yes", "No", "Unknown", "Not applicable"] },
+        { "text": "Who will own backups, patching, SQL Agent replacement, monitoring and performance tuning after migration?", "type": "Textarea", "required": true }
+      ]
+    }
+  ]
+}

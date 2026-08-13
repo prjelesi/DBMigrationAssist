@@ -1,0 +1,224 @@
+{
+  "name": "Database Migration Baseline",
+  "description": "Captures business context, constraints, governance and acceptance criteria needed to plan a database migration.",
+  "phase": "Baseline",
+  "version": 2,
+  "sections": [
+    {
+      "title": "Business Context",
+      "description": "Understand the business drivers, timing, stakeholders and commercial constraints.",
+      "questions": [
+        {
+          "text": "What is the primary business driver for this migration?",
+          "type": "Select",
+          "required": true,
+          "allowCustomAnswer": true,
+          "options": ["Cost reduction", "Cloud strategy", "End of support", "Performance improvement", "Consolidation", "Compliance", "Other"]
+        },
+        {
+          "text": "Who is the primary business owner or sponsor?",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "text": "Describe the scope of this engagement in your own words.",
+          "type": "Textarea",
+          "required": false,
+          "allowAttachments": true
+        },
+        {
+          "text": "Is there a fixed migration deadline or business event driving the schedule?",
+          "helpText": "Include the date, event, contractual commitment or end-of-support milestone.",
+          "type": "Textarea",
+          "required": true
+        },
+        {
+          "text": "Which budget or commercial constraints could affect the migration approach or target selection?",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "Availability & Risk",
+      "description": "Define downtime tolerance, recovery objectives and operational timing constraints.",
+      "questions": [
+        {
+          "text": "What is the maximum tolerable downtime during cutover? (hours)",
+          "type": "Number",
+          "required": true
+        },
+        {
+          "text": "What is the Recovery Time Objective (RTO)?",
+          "type": "Select",
+          "required": true,
+          "options": ["< 1 hour", "1-4 hours", "4-8 hours", "8-24 hours", "> 24 hours", "Not defined"]
+        },
+        {
+          "text": "What is the Recovery Point Objective (RPO)?",
+          "type": "Select",
+          "required": true,
+          "options": ["Zero data loss", "< 15 minutes", "< 1 hour", "< 4 hours", "< 24 hours", "Not defined"]
+        },
+        {
+          "text": "Are there blackout periods when migration is not permitted?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe blackout periods, peak events or other timing restrictions.",
+          "type": "Textarea",
+          "required": false
+        },
+        {
+          "text": "What annual data growth and planning horizon must the target support?",
+          "helpText": "Provide an estimated annual growth rate or volume and the number of years to size for.",
+          "type": "Textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "title": "Compliance, Security & Data Governance",
+      "description": "Capture regulatory, data handling, retention and test-data requirements.",
+      "questions": [
+        {
+          "text": "Which compliance frameworks apply?",
+          "type": "MultiSelect",
+          "required": false,
+          "allowCustomAnswer": true,
+          "options": ["GDPR", "PCI-DSS", "HIPAA", "ISO 27001", "SOC 2", "None", "Other"]
+        },
+        {
+          "text": "Which data classifications are present in the migration scope?",
+          "type": "MultiSelect",
+          "required": true,
+          "allowCustomAnswer": true,
+          "options": ["Public", "Internal", "Confidential", "Restricted", "Personal data", "Payment data", "Health data", "Credentials or secrets", "Unknown", "Other"]
+        },
+        {
+          "text": "Is data residency or sovereignty a requirement?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Are there restrictions on data leaving the current environment?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Describe retention, deletion, archival or legal-hold requirements that the target must preserve.",
+          "type": "Textarea",
+          "required": false,
+          "allowAttachments": true
+        },
+        {
+          "text": "What production-like test-data and masking requirements apply to migration rehearsals?",
+          "type": "Select",
+          "required": true,
+          "allowCustomAnswer": true,
+          "options": ["Masked production data required", "Synthetic data acceptable", "Unmasked production data approved", "No production-like data permitted", "Not yet decided", "Other"]
+        },
+        {
+          "text": "Describe any specific security or audit requirements.",
+          "type": "Textarea",
+          "required": false,
+          "allowAttachments": true
+        }
+      ]
+    },
+    {
+      "title": "Target Platform & Connectivity",
+      "description": "Record target preferences, operating model and infrastructure readiness.",
+      "questions": [
+        {
+          "text": "What is the preferred target platform?",
+          "type": "Select",
+          "required": true,
+          "allowCustomAnswer": true,
+          "options": ["Azure SQL Database", "Azure SQL Managed Instance", "Azure Database for PostgreSQL", "Azure Database for MySQL", "Azure Cosmos DB", "SQL Server on Azure Virtual Machines", "Oracle Database@Azure", "Not yet decided", "Other"]
+        },
+        {
+          "text": "Is the target platform already provisioned?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "Is a hybrid or phased migration acceptable?",
+          "type": "Boolean",
+          "required": false
+        },
+        {
+          "text": "Are there preferred Azure regions?",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "text": "Who owns source-to-target network, firewall, DNS and private-connectivity approvals?",
+          "type": "Textarea",
+          "required": true
+        },
+        {
+          "text": "What target operating model is expected?",
+          "type": "Select",
+          "required": true,
+          "allowCustomAnswer": true,
+          "options": ["Fully managed database service", "Customer-managed database on virtual machines", "Shared responsibility", "Managed service provider", "Not yet decided", "Other"]
+        }
+      ]
+    },
+    {
+      "title": "Technical Constraints",
+      "description": "Confirm application coupling, dependencies and remediation ownership.",
+      "questions": [
+        {
+          "text": "Are there applications tightly coupled to the database that must be migrated together?",
+          "type": "Boolean",
+          "required": true
+        },
+        {
+          "text": "List known application or integration dependencies and their owners.",
+          "type": "Textarea",
+          "required": false,
+          "allowAttachments": true
+        },
+        {
+          "text": "Which discovered database-specific features are business-critical, removable or require remediation?",
+          "helpText": "Identify the feature, disposition and remediation owner rather than repeating facts collected by the assessment agent.",
+          "type": "Textarea",
+          "required": false,
+          "allowAttachments": true
+        },
+        {
+          "text": "Is there an existing DBA team who will support the migration?",
+          "type": "Boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Acceptance & Lifecycle",
+      "description": "Define approval authority, coexistence and source retirement expectations.",
+      "questions": [
+        {
+          "text": "Who can accept data reconciliation, application behavior, performance, security and operational readiness?",
+          "type": "Textarea",
+          "required": true,
+          "allowAttachments": true
+        },
+        {
+          "text": "Is a source and target coexistence period required after cutover?",
+          "type": "Select",
+          "required": true,
+          "options": ["No", "Yes - read-only source", "Yes - dual operation", "Yes - phased application transition", "Not yet decided"]
+        },
+        {
+          "text": "What criteria and approvals are required to decommission the source and terminate related licenses or contracts?",
+          "type": "Textarea",
+          "required": false,
+          "allowAttachments": true
+        }
+      ]
+    }
+  ]
+}
