@@ -170,7 +170,7 @@ namespace AssessmentToolkit.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AgentId")
+                    b.Property<Guid?>("AgentId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
@@ -770,9 +770,7 @@ namespace AssessmentToolkit.Data.Migrations
                 {
                     b.HasOne("AssessmentToolkit.Core.Entities.Agent", "Agent")
                         .WithMany("Jobs")
-                        .HasForeignKey("AgentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("AgentId");
 
                     b.HasOne("AssessmentToolkit.Core.Entities.DatabaseInstance", "Database")
                         .WithMany()

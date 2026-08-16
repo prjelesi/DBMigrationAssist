@@ -135,6 +135,7 @@
 .loading::before { content:''; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent-500); border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
 .error-msg { background:var(--red-bg); color:var(--red-text); padding:12px 16px; border-radius:var(--radius); font-size:13.5px; margin-bottom:16px; border:1px solid #fecaca; }
+.success-msg { background:var(--green-bg); color:var(--green-text); padding:12px 16px; border-radius:var(--radius); font-size:13.5px; margin-bottom:16px; border:1px solid #bbf7d0; }
 .warn-msg  { background:var(--amber-bg); color:var(--amber-text); padding:12px 16px; border-radius:var(--radius); font-size:13.5px; border:1px solid #fde68a; }
 .tag { display:inline-block; background:var(--accent-50); color:var(--accent-600); border:1px solid var(--accent-100); border-radius:var(--radius-sm); padding:2px 8px; font-size:11.5px; font-weight:500; margin:2px; }
 .divider { border:none; border-top:1px solid var(--border-light); margin:16px 0; }

@@ -25,6 +25,8 @@ services:
       Api__PublicUrl: "http://localhost:5000"
       Evidence__StorageRoot: "/app/evidence"
       DataProtection__KeysPath: "/app/data-protection"
+      LocalAgent__BootstrapPath: "/app/local-agent/bootstrap.json"
+      LocalAgent__BackendUrl: "http://api:8080"
       # ── AI Foundry ── uncomment and fill in to enable AI features ──────
       # AiFoundry__Endpoint: "https://<your-resource>.openai.azure.com/"
       # AiFoundry__ApiKey: "<your-api-key>"
@@ -32,6 +34,7 @@ services:
     volumes:
       - evidence_data:/app/evidence
       - data_protection_keys:/app/data-protection
+      - local_agent_bootstrap:/app/local-agent
     ports:
       - "5000:8080"
     depends_on:
@@ -61,8 +64,23 @@ services:
     depends_on:
       - api
 
-  # Agent is deployed separately in the customer network.
-  # This service is for local PoC testing only.
+  local-agent:
+    build:
+      context: ./src/agent/AssessmentToolkit.Agent
+      dockerfile: Dockerfile
+    environment:
+      AGENT_AUTO_REGISTER: "true"
+      AGENT_BOOTSTRAP_PATH: "/app/bootstrap/bootstrap.json"
+      AGENT_DATABASES_PATH: "/app/config/databases.json"
+    volumes:
+      - local_agent_bootstrap:/app/bootstrap:ro
+      - ./local-agent:/app/config:ro
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+  # This profile is retained for isolated tests with temporary agent identities.
   agent-dev:
     build:
       context: ./src/agent/AssessmentToolkit.Agent
@@ -81,3 +99,4 @@ volumes:
   postgres_data:
   evidence_data:
   data_protection_keys:
+  local_agent_bootstrap:

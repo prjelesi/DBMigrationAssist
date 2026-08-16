@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { dispatchJob, getAgentJobs, getAgents, getDatabases, getJobResults, getProjects, registerAgent } from "../lib/api";
-import type { Agent, AgentJobSummary, AssessmentResult, DatabaseInstance, PskMode, RegisterAgentResponse } from "../types";
+import { dispatchJob, getAgentJobs, getAllAgents, getDatabases, getJobResults, getProjects, registerAgent } from "../lib/api";
+import type { Agent, AgentJobSummary, AssessmentResult, DatabaseInstance, Project, PskMode, RegisterAgentResponse } from "../types";
 
 const STATUS_BADGE: Record<string, string> = {
   Active: "badge-green", Registered: "badge-blue",
@@ -161,9 +161,19 @@ const ENGINE_TO_PLUGIN: Record<string, string> = {
   MySQL: "mysql", MongoDB: "mongodb",
 };
 
+interface ProjectAgentRow {
+  project: Project;
+  agent: Agent | null;
+  activeCount: number;
+  inactiveCount: number;
+  groupIndex: number;
+  groupSize: number;
+}
+
 export default function Agents() {
   const qc = useQueryClient();
   const [selectedProject, setSelectedProject] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [bootstrapResult, setBootstrapResult] = useState<RegisterAgentResponse | null>(null);
   const [dispatchTarget, setDispatchTarget] = useState<Agent | null>(null);
@@ -190,9 +200,8 @@ export default function Agents() {
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
 
   const agents = useQuery({
-    queryKey: ["agents", selectedProject],
-    queryFn: () => getAgents(selectedProject),
-    enabled: !!selectedProject,
+    queryKey: ["agents"],
+    queryFn: getAllAgents,
     refetchInterval: 30_000,
   });
 
@@ -262,51 +271,89 @@ export default function Agents() {
     return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
   };
 
+  const filteredProjects = (projects.data ?? []).filter(project =>
+    !projectFilter || project.projectId === projectFilter
+  );
+
+  const projectAgentRows: ProjectAgentRow[] = filteredProjects.flatMap<ProjectAgentRow>(project => {
+    const projectAgents = (agents.data ?? []).filter(agent =>
+      agent.projectId === project.projectId || agent.createdBy === "PlatformLocalAgent"
+    );
+    const activeCount = projectAgents.filter(agent => agent.status === "Active").length;
+    const inactiveCount = projectAgents.length - activeCount;
+
+    if (projectAgents.length === 0) {
+      return [{ project, agent: null, activeCount, inactiveCount, groupIndex: 0, groupSize: 1 }];
+    }
+
+    return projectAgents.map((agent, groupIndex) => ({
+      project, agent, activeCount, inactiveCount, groupIndex, groupSize: projectAgents.length,
+    }));
+  });
+
   return (
     <div>
       <div className="page-header">
         <h2>Discovery Agents</h2>
-        <button className="btn btn-primary" disabled={!selectedProject} onClick={() => setShowRegister(true)}>
+        <button
+          className="btn btn-primary"
+          disabled={(projects.data?.length ?? 0) === 0}
+          onClick={() => {
+            setSelectedProject(current => current || projects.data?.[0]?.projectId || "");
+            setShowRegister(true);
+          }}
+        >
           + Register Discovery Agent
         </button>
       </div>
 
-      {/* Project selector */}
       <div className="filter-bar">
-        <div className="form-row" style={{ marginBottom: 0, minWidth: 300 }}>
-          <label>Project</label>
-            <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setJobHistoryAgent(null); setViewFindingsJob(null); }}>
-            <option value="">Choose a project…</option>
-            {projects.data?.map(p => <option key={p.projectId} value={p.projectId}>{p.name}</option>)}
+        <div className="form-row" style={{ marginBottom: 0, minWidth: 280 }}>
+          <label>Filter by project</label>
+          <select value={projectFilter} onChange={event => setProjectFilter(event.target.value)}>
+            <option value="">All projects</option>
+            {projects.data?.map(project => (
+              <option key={project.projectId} value={project.projectId}>{project.name}</option>
+            ))}
           </select>
         </div>
       </div>
 
       {/* Agent table */}
-      {selectedProject && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Registered Discovery Agents</span>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Refreshes every 30s</span>
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Discovery Agents by Project</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Refreshes every 30s</span>
+        </div>
+        {(projects.isLoading || agents.isLoading) && <div className="loading" />}
+        {!projects.isLoading && (projects.data?.length ?? 0) === 0 && (
+          <div className="empty-state">
+            <p>Create a project before registering discovery agents.</p>
           </div>
-          {agents.isLoading && <div className="loading" />}
-          {!agents.isLoading && (agents.data?.length ?? 0) === 0 && (
-            <div className="empty-state">
-              <div className="empty-state-icon">🔌</div>
-              <p>No discovery agents registered for this project.</p>
-            </div>
-          )}
-          {(agents.data?.length ?? 0) > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Discovery Agent</th><th>Status</th><th>Plugins</th>
-                  <th>Last Heartbeat</th><th>Registered</th><th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.data?.map((a: Agent) => (
-                  <tr key={a.agentId}>
+        )}
+        {projectAgentRows.length > 0 && (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Project</th><th>Discovery Agent</th><th>Status</th><th>Plugins</th>
+                <th>Last Heartbeat</th><th>Registered</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projectAgentRows.map(({ project, agent: a, activeCount, inactiveCount, groupIndex, groupSize }) => (
+                <tr key={`${project.projectId}-${a?.agentId ?? "empty"}`}>
+                  {groupIndex === 0 && (
+                    <td rowSpan={groupSize} style={{ verticalAlign: "top", minWidth: 190 }}>
+                      <div style={{ fontWeight: 600 }}>{project.name}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 3 }}>{project.customer?.name}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                        <span className="badge badge-green">{activeCount} active</span>
+                        <span className={`badge ${inactiveCount > 0 ? "badge-yellow" : "badge-gray"}`}>{inactiveCount} inactive</span>
+                      </div>
+                    </td>
+                  )}
+                  {a ? (
+                    <>
                     <td>
                       <div style={{ fontWeight: 600 }}>{a.name}</div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, fontFamily: "monospace" }}>
@@ -326,6 +373,7 @@ export default function Agents() {
                         <button
                           className="btn btn-primary btn-sm"
                           onClick={() => {
+                            setSelectedProject(project.projectId);
                             setDispatchTarget(a);
                             setJobForm(f => ({ ...f, pluginId: a.allowedPlugins[0] ?? "postgresql", port: DEFAULT_PORTS[a.allowedPlugins[0]] ?? 5432 }));
                           }}
@@ -340,13 +388,26 @@ export default function Agents() {
                         </button>
                       </div>
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+                    </>
+                  ) : (
+                    <>
+                      <td colSpan={5} style={{ color: "var(--text-muted)" }}>No discovery agents registered.</td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => { setSelectedProject(project.projectId); setShowRegister(true); }}
+                        >
+                          Register Agent
+                        </button>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* Job history panel */}
       {jobHistoryAgent && (
@@ -616,6 +677,14 @@ export default function Agents() {
             {registerMutation.isError && <div className="error-msg">Registration failed. Check the form and try again.</div>}
 
             <div className="form-row">
+              <label>Project *</label>
+              <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+                <option value="">Choose a project…</option>
+                {projects.data?.map(project => <option key={project.projectId} value={project.projectId}>{project.name}</option>)}
+              </select>
+            </div>
+
+            <div className="form-row">
               <label>Discovery Agent Name *</label>
               <input value={regForm.name} onChange={e => setRegForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. Prod-Oracle-Discovery-1" />
@@ -657,7 +726,7 @@ export default function Agents() {
 
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowRegister(false)}>Cancel</button>
-              <button className="btn btn-primary" disabled={registerMutation.isPending}
+              <button className="btn btn-primary" disabled={registerMutation.isPending || !selectedProject || !regForm.name.trim()}
                 onClick={() => registerMutation.mutate({
                   projectId: selectedProject,
                   name: regForm.name,

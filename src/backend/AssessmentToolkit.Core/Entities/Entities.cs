@@ -128,7 +128,7 @@ public class Agent
 public class AssessmentJob
 {
     public Guid JobId { get; set; } = Guid.NewGuid();
-    public Guid AgentId { get; set; }
+    public Guid? AgentId { get; set; }
     public Guid? DatabaseId { get; set; }
     public string PluginId { get; set; } = string.Empty;
     public JobStatus Status { get; set; } = JobStatus.Pending;
@@ -138,7 +138,7 @@ public class AssessmentJob
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public Agent Agent { get; set; } = null!;
+    public Agent? Agent { get; set; }
     public DatabaseInstance? Database { get; set; }
     public ICollection<AssessmentResult> Results { get; set; } = [];
 }

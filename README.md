@@ -12,6 +12,7 @@ A self-hosted portal for assessing database estates before migration to the clou
   - [Prerequisites](#prerequisites)
   - [Quick start — local](#quick-start--local)
   - [Portal walkthrough](#portal-walkthrough)
+  - [Offline database assessment](#offline-database-assessment)
   - [Questionnaire templates](#questionnaire-templates)
   - [Deploying Discovery Agents](#deploying-discovery-agents)
     - [Supported plugins](#supported-plugins)
@@ -128,6 +129,25 @@ On first start, EF Core migrations run automatically and all database schemas ar
 | Evidence | `/evidence` | Upload assessment reports and questionnaire supporting documents |
 | Reports | `/reports` | AI-generated migration assessment reports |
 | AI Settings | `/ai-settings` | Configure Azure OpenAI / AI Foundry |
+
+---
+
+## Offline database assessment
+
+Use this workflow when a Discovery Agent cannot reach a database:
+
+1. Create the database definition in **DB Inventory**.
+2. In that database row, select **Download offline assessment script** and transfer the generated PowerShell script to the customer.
+3. Install the database's native command-line client on the execution host, then run the script with a read-only database account:
+
+```powershell
+pwsh ./collect-<database>-assessment.ps1 -Username <read-only-user>
+```
+
+4. Enter the password at the secure prompt. The script writes an assessment JSON file beside the script; it does not store the password.
+5. Have the customer return the JSON file. In the same database row, select **Upload assessment result** and upload it.
+
+The collector embeds the inventory database ID and engine plugin. The portal rejects a result uploaded against a different database, an incompatible engine, an unsupported schema version, a non-JSON file, or a file larger than 10 MB. Uploaded results are stored as unverified assessments until reviewed.
 
 ---
 
@@ -257,9 +277,19 @@ docker run -d \
 
 ---
 
-### 4. Docker Compose profile (local PoC)
+### 4. Platform Local Agent
 
-The `docker-compose.yml` includes an `agent-dev` service under the `agent` profile. To use it:
+The default Docker Compose stack includes one **Platform Local Agent**. The API provisions its identity and PSK into a private Docker volume, and the agent reuses that identity across container restarts. It appears in Discovery Agents for every project and supports all four implemented plugins.
+
+```powershell
+docker compose up -d
+```
+
+Use Compose service names such as `postgres` for databases in the same Docker network. Use `host.docker.internal` for a database running directly on the Docker host. Ad-hoc credentials can be supplied when dispatching a job; for locally held credentials, see `local-agent/databases.example.json`.
+
+### 5. Docker Compose profile (isolated testing)
+
+The `docker-compose.yml` retains an `agent-dev` service under the `agent` profile for isolated tests with temporary or manually registered identities. To use it:
 
 1. Edit `docker-compose.yml` and fill in `AGENT_ID` and `AGENT_PSK` from the bootstrap package:
 
@@ -282,7 +312,7 @@ docker compose --profile agent up -d
 
 ---
 
-### 5. bootstrap.json file
+### 6. bootstrap.json file
 
 For air-gapped environments where injecting env vars is inconvenient, save the bootstrap package as `bootstrap.json` and mount it into the container:
 
@@ -308,7 +338,7 @@ The agent looks for `bootstrap.json` in `/app/` by default, or at the path set i
 
 ---
 
-### 6. Kubernetes / bare-metal
+### 7. Kubernetes / bare-metal
 
 Create a Kubernetes Secret from the bootstrap values and reference it in a Deployment:
 

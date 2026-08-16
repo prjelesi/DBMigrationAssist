@@ -27,6 +27,7 @@ src/frontend/.env.local
 
 # Secrets / bootstrap packages - NEVER commit PSKs or bootstrap packages
 src/agent/**/*bootstrap*.json
+local-agent/databases.json
 **/.env.local
 **/*.pfx
 **/appsettings.Development.json

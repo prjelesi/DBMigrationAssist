@@ -69,6 +69,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
+await LocalAgentProvisioner.ProvisionAsync(app.Services, app.Configuration);
 await app.Services.GetRequiredService<IAiAdapterService>().ReloadConfigAsync(app.Services);
 
 await app.RunAsync();

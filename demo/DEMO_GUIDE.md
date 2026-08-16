@@ -47,6 +47,7 @@ Total: approximately 25 minutes.
 
 - Docker Desktop is running.
 - .NET 8 SDK, Node.js 20 or later, and PowerShell 7 are installed if a rebuild is needed.
+- The native database client is installed on the offline execution host (`sqlplus`, `psql`, `mysql`, `sqlcmd`, `mongosh`, `cqlsh`, or `isql`, as applicable).
 - Ports `3000`, `5000`, and `5432` are available.
 - The repository is open at `C:\github\DBMigrationReady`.
 
@@ -210,8 +211,8 @@ Zava's product innovation environment contains proprietary smart-fabric designs,
 ```mermaid
 flowchart LR
     DB[(Restricted Oracle)] --> Tool[Approved Offline Collector]
-    Tool --> Bundle[Reviewed Evidence Files]
-    Bundle -. Controlled transfer .-> Upload[Portal Evidence Upload]
+    Tool --> Result[Reviewed Assessment JSON]
+    Result -. Controlled transfer .-> Upload[Database Result Upload]
     Upload --> API[Assessment API]
     API --> Store[(Assessment Store)]
 ```
@@ -234,9 +235,41 @@ flowchart LR
 | smart-fabric-rnd-oracle | Oracle | 19c | rnd-db-host | 1521 | Critical | Product Innovation Data Team |
 | athlete-models-oracle | Oracle | 12.2 | research-db-host-02 | 1521 | High | Sports Science Systems Team |
 
-### Prepare safe demonstration evidence
+### Prepare the offline assessment
 
-Use synthetic, sanitized files only. Do not use real customer data.
+1. Open **DB Inventory** and filter to **Zava Product Innovation Assessment**.
+2. Find `smart-fabric-rnd-oracle` and select **Download offline assessment script**.
+3. Transfer the generated script to the simulated restricted environment.
+4. Confirm that PowerShell 7, `sqlplus`, and a read-only assessment account are available.
+5. Run the collector:
+
+```powershell
+pwsh ./collect-smart-fabric-rnd-oracle-assessment.ps1 `
+    -Username assessment_reader `
+    -OutputPath ./smart-fabric-rnd-oracle-result.json
+```
+
+Enter the database password only at the secure prompt. For Oracle, the password is sent to `sqlplus` through standard input and is not placed in the process arguments. The script clears credential variables when collection completes.
+
+The generated JSON uses the `offline-2.0` collector contract. Each query is recorded as an independent section with a `success` or `failed` status, so a denied privileged view does not discard successful baseline findings.
+
+For Oracle, point out these sections during the demo:
+
+- `identity`, `capacity`, and `objects`
+- `invalidObjects` and `wrappedCode`
+- `unsupportedObjects`
+- `lobSize`
+- `dailyRedoGeneration`
+
+Open the result in a text editor inside the simulated secure boundary and verify:
+
+- `databaseId` matches the intended inventory database.
+- `pluginId` is `oracle` and `pluginVersion` is `offline-2.0`.
+- `findingJson.contractVersion` is `2.0`.
+- The file contains metadata findings only, not application table rows.
+- No password or connection secret appears in the file.
+
+Use synthetic, sanitized supporting evidence only. Do not use real customer data.
 
 Create a small CSV such as `demo-airgapped-inventory.csv`:
 
@@ -259,24 +292,32 @@ Offline assessment summary
 
 ### Demonstrate the air-gapped workflow
 
-1. Open **Evidence** and select the Air-gapped project.
-2. Upload the sanitized inventory CSV and assessment summary.
-3. Explain file hashing, source-type detection, parse status, and evidence traceability.
-4. Open **Questionnaire** and start Database Migration Baseline v3.
-5. Highlight the questions covering:
+1. Transfer `smart-fabric-rnd-oracle-result.json` through the simulated controlled-media process.
+2. Open **DB Inventory**, locate `smart-fabric-rnd-oracle`, and select **Upload assessment result**.
+3. Choose the JSON file and confirm that the portal reports it was linked to `smart-fabric-rnd-oracle`.
+4. Explain that the API validates the embedded database ID, engine plugin, schema version, JSON format, and 10 MB file limit.
+5. Open the resulting assessment and show the successful sections and any isolated failed sections.
+6. Explain that a manually imported assessment is marked unverified until an assessor reviews it and that no Discovery Agent identity is assigned.
+7. Open **Evidence** and select the Air-gapped project.
+8. Upload the sanitized inventory CSV and assessment summary as supporting evidence.
+9. Explain file hashing, source-type detection, parse status, and evidence traceability.
+10. Open **Questionnaire** and start Database Migration Baseline v3.
+11. Highlight the questions covering:
    - Assessment script security approval
    - Read-only metadata collection
    - Missing prerequisites and owners
    - Data residency and transfer restrictions
    - RACI and sign-off
-6. Start Oracle Migration Assessment v3.
-7. Highlight AWR or Statspack evidence, unsupported Oracle objects, offline migration, reconciliation, rollback, and licensing.
-8. Show that no active Discovery Agent is required for the manual evidence workflow.
-9. Open **Portfolio** and place the databases into separate waves based on criticality and remediation effort.
+12. Start Oracle Migration Assessment v3.
+13. Highlight AWR or Statspack evidence, unsupported Oracle objects, offline migration, reconciliation, rollback, and licensing.
+14. Show that no active Discovery Agent is required for offline result collection or upload.
+15. Open **Portfolio** and place the databases into separate waves based on criticality and remediation effort.
+
+For a PostgreSQL or MySQL variant, the generated collector also includes migration signals such as missing primary keys, problematic or JSON columns, partitions, non-InnoDB tables, special columns, authentication plugin counts, and buffer-pool occupancy.
 
 ### Be explicit about the current boundary
 
-The current product supports manual evidence upload for Air-gapped projects. It does not yet provide a signed offline export/import bundle command or enforce removable-media approval policy. Those controls remain part of the customer's operating process.
+The product generates a database-bound collector and validates the returned result during upload. The offline result is not cryptographically signed, and the product does not enforce removable-media approval or independently verify that the collector was unchanged. Those controls remain part of the customer's operating and review process, which is why imported assessments remain unverified.
 
 ### Air-gapped scenario message
 
@@ -321,21 +362,21 @@ flowchart LR
 
 1. Open **System** and show API, database, worker, and AI Foundry status.
 2. Explain that the core assessment workflow works when AI Foundry is not configured.
-3. Open **Discovery Agents** and register `Zava-Factory-Discovery`.
-4. Show the local Docker deployment pattern using `http://api:8080` inside the Compose network.
+3. Open **Discovery Agents** and select the automatically provisioned `Platform Local Agent`.
+4. Show that its identity is persisted in a private Docker volume and it reaches the API using `http://api:8080`.
 5. Dispatch a local PostgreSQL assessment.
 6. Open the findings and compare them with the inventory record.
 7. Start the baseline and PostgreSQL questionnaires.
 8. Upload a local evidence file.
 9. Demonstrate the dashboard counts and recent project activity.
 
-The local Discovery Agent pattern is:
+The Platform Local Agent starts with the default stack:
 
 ```powershell
-docker compose --profile agent up -d
+docker compose up -d
 ```
 
-The `agent-dev` configuration requires a valid registered agent ID and PSK. Do not commit bootstrap secrets to the repository.
+Use `postgres` for the included PostgreSQL container or `host.docker.internal` for a database running on the Docker host. The separate `agent-dev` profile remains available for temporary E2E identities.
 
 ### Standalone scenario message
 
@@ -349,7 +390,7 @@ Use this table to conclude the demo:
 | --- | --- | --- | --- |
 | Portal location | Central/shared | Separate from source zone | Customer-local |
 | Discovery Agent communication | Live outbound HTTPS | No live connection | Local network or Docker network |
-| Evidence transfer | Automatic result upload and manual files | Controlled manual file transfer | Local automatic upload and manual files |
+| Evidence transfer | Automatic result upload and manual files | Generated assessment JSON plus controlled manual transfer | Local automatic upload and manual files |
 | Questionnaire workflow | Supported | Supported | Supported |
 | AI Foundry | Optional, centrally configured | Typically disabled or separately approved | Optional; core workflow works without it |
 | Best fit | Enterprise shared service | Restricted or classified networks | PoC, departmental, or self-contained use |
@@ -364,7 +405,8 @@ Before presenting:
 - [ ] The v3 baseline and Oracle questionnaire templates are active.
 - [ ] Three projects exist with the correct deployment modes.
 - [ ] Each project has at least one environment and database record.
-- [ ] Synthetic Air-gapped evidence files are ready.
+- [ ] The generated Air-gapped collector and a synthetic `offline-2.0` result are ready.
+- [ ] The offline result is linked to the intended inventory database and contains no credentials.
 - [ ] A Connected or Standalone Discovery Agent result is available.
 - [ ] No real credentials, PSKs, customer names, or sensitive evidence are visible.
 - [ ] AI Foundry is either tested or clearly described as optional and not configured.
@@ -407,6 +449,19 @@ Check:
 - The requested plugin is in the agent's allowed plugin list.
 - The database hostname resolves from the Discovery Agent network.
 - The database account has the documented read-only permissions.
+
+### Offline assessment result is rejected
+
+Check:
+
+- The result is uploaded from the same database row used to generate the collector.
+- `databaseId`, `pluginId`, and `schemaVersion` were not edited.
+- The file is valid JSON and smaller than 10 MB.
+- The collector completed and wrote the final envelope rather than a partial console capture.
+
+### An offline assessment section failed
+
+This does not invalidate successful sections. Review the section error, confirm that the native client returned a nonzero exit code, and grant only the documented read-only catalog permission if the missing section is required. Run and upload a new result after approval.
 
 ### AI status is Not Configured
 

@@ -1,0 +1,13 @@
+{
+  "databases": [
+    {
+      "databaseId": "00000000-0000-0000-0000-000000000000",
+      "pluginId": "postgresql",
+      "host": "host.docker.internal",
+      "port": 5432,
+      "database": "database_name",
+      "username": "assessment_reader",
+      "password": "replace_locally"
+    }
+  ]
+}

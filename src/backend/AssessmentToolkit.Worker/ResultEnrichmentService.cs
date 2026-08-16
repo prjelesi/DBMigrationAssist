@@ -55,7 +55,7 @@ public sealed class ResultEnrichmentService(
         // "migrationPath" is the key injected by the API's EnrichFinding endpoint.
         var unenriched = await db.Results
             .Where(r => r.Job.Status == JobStatus.Completed
-                     && !r.FindingJson.Contains("\"migrationPath\""))
+                     && !EF.Functions.JsonExists(r.FindingJson, "migrationPath"))
             .Select(r => r.ResultId)
             .Take(10) // process in small batches per cycle
             .ToListAsync(ct);

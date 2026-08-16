@@ -21,6 +21,7 @@ export const createProject = (data: {
 // Agents
 export const getAgents = (projectId: string) =>
   api.get<Agent[]>('/api/agents', { params: { projectId } }).then(r => r.data);
+export const getAllAgents = () => api.get<Agent[]>('/api/agents').then(r => r.data);
 
 export const registerAgent = (data: {
   projectId: string; environmentId?: string; name: string;
@@ -42,6 +43,52 @@ export const dispatchJob = (agentId: string, data: {
 // Databases
 export const getDatabases = (projectId: string) =>
   api.get<DatabaseInstance[]>('/api/databases', { params: { projectId } }).then(r => r.data);
+
+export const createDatabase = (data: {
+  projectId: string; environmentId?: string; name: string; engine: string;
+  version?: string; hostName?: string; port?: number;
+  criticality: string; ownerName?: string;
+}) => api.post<DatabaseInstance>('/api/databases', data).then(r => r.data);
+
+export interface DatabaseImportResult {
+  imported: number;
+}
+
+export interface DatabaseImportErrorResponse {
+  message: string;
+  errors?: { row: number; message: string }[];
+}
+
+export const downloadDatabaseImportTemplate = () =>
+  api.get<Blob>('/api/databases/import-template', { responseType: 'blob' }).then(r => r.data);
+
+export const downloadOfflineAssessmentScript = (databaseId: string) =>
+  api.get<Blob>(`/api/databases/${databaseId}/assessment-script`, { responseType: 'blob' }).then(r => r.data);
+
+export interface ManualAssessmentResult {
+  resultId: string;
+  databaseId: string;
+  pluginId: string;
+  confidence: string;
+  assessedAt: string;
+}
+
+export const uploadOfflineAssessmentResult = (databaseId: string, file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return api.post<ManualAssessmentResult>(`/api/databases/${databaseId}/assessment-results`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data);
+};
+
+export const importDatabases = (projectId: string, file: File) => {
+  const form = new FormData();
+  form.append('projectId', projectId);
+  form.append('file', file);
+  return api.post<DatabaseImportResult>('/api/databases/import', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data);
+};
 
 // Environments
 export const getEnvironments = (projectId: string) =>

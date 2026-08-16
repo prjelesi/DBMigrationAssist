@@ -26,7 +26,7 @@ namespace AssessmentToolkit.Agent.Plugins;
 public sealed class OraclePlugin : IAssessmentPlugin
 {
     public string PluginId      => "oracle";
-    public string PluginVersion => "1.1.0";
+    public string PluginVersion => "1.2.0";
     public string TargetEngine  => "Oracle";
 
     public async Task<PluginResult> RunAsync(PluginContext ctx, CancellationToken ct)
@@ -40,6 +40,7 @@ public sealed class OraclePlugin : IAssessmentPlugin
             await conn.OpenAsync(ct);
 
             var findings = new Dictionary<string, object>();
+            var sectionErrors = new Dictionary<string, string>();
 
             // ── Server identity ─────────────────────────────────────────────────────────────
             findings["db_version"] = await ScalarAsync(conn,
@@ -169,6 +170,43 @@ public sealed class OraclePlugin : IAssessmentPlugin
             }
             catch { findings["invalid_objects"] = "access denied"; }
 
+                        // Migration compatibility signals
+                        await CollectListSectionAsync(findings, sectionErrors, "wrapped_code", conn, @"
+                                SELECT OWNER, NAME AS OBJECT_NAME, TYPE AS OBJECT_TYPE
+                                FROM DBA_SOURCE
+                                WHERE LINE = 1
+                                    AND LOWER(TEXT) LIKE '%wrapped%'
+                                    AND OWNER NOT IN ('SYS','SYSTEM')
+                                ORDER BY OWNER, TYPE, NAME", ct);
+                        await CollectListSectionAsync(findings, sectionErrors, "unsupported_objects", conn, @"
+                                SELECT OWNER, OBJECT_TYPE, OBJECT_NAME, STATUS
+                                FROM DBA_OBJECTS
+                                WHERE OWNER NOT IN ('SYS','SYSTEM')
+                                    AND OBJECT_TYPE IN (
+                                            'DATABASE LINK','DIRECTORY','EDITION','EVALUATION CONTEXT',
+                                            'JAVA CLASS','JAVA RESOURCE','JAVA SOURCE','MATERIALIZED VIEW',
+                                            'MATERIALIZED VIEW LOG','RULE','RULE SET','SYNONYM',
+                                            'TYPE','TYPE BODY','XML SCHEMA')
+                                ORDER BY OWNER, OBJECT_TYPE, OBJECT_NAME", ct);
+                        await CollectListSectionAsync(findings, sectionErrors, "lob_size", conn, @"
+                                SELECT l.OWNER, l.TABLE_NAME, l.COLUMN_NAME, l.SEGMENT_NAME,
+                                             ROUND(SUM(s.BYTES) / 1048576, 2) AS SIZE_MB
+                                FROM DBA_LOBS l
+                                JOIN DBA_SEGMENTS s
+                                    ON s.OWNER = l.OWNER AND s.SEGMENT_NAME = l.SEGMENT_NAME
+                                WHERE l.OWNER NOT IN ('SYS','SYSTEM')
+                                GROUP BY l.OWNER, l.TABLE_NAME, l.COLUMN_NAME, l.SEGMENT_NAME
+                                ORDER BY SIZE_MB DESC", ct);
+                        await CollectListSectionAsync(findings, sectionErrors, "daily_redo_generation", conn, @"
+                                SELECT TO_CHAR(TRUNC(FIRST_TIME), 'YYYY-MM-DD') AS REDO_DAY,
+                                             COUNT(*) AS ARCHIVED_LOGS,
+                                             ROUND(SUM(BLOCKS * BLOCK_SIZE) / 1073741824, 2) AS REDO_GB
+                                FROM V$ARCHIVED_LOG
+                                WHERE FIRST_TIME >= SYSDATE - 7
+                                    AND NAME IS NOT NULL
+                                GROUP BY TRUNC(FIRST_TIME)
+                                ORDER BY TRUNC(FIRST_TIME)", ct);
+
             // Partitioned tables
             try
             {
@@ -200,6 +238,9 @@ public sealed class OraclePlugin : IAssessmentPlugin
                     SELECT ROUND(SUM(bytes)/1048576) FROM dba_data_files", ct);
             }
             catch { findings["total_size_mb"] = "access denied"; }
+
+            if (sectionErrors.Count > 0)
+                findings["section_errors"] = sectionErrors;
 
             var findingJson = JsonSerializer.Serialize(findings);
             return new PluginResult(true, findingJson, findingJson);
@@ -243,5 +284,23 @@ public sealed class OraclePlugin : IAssessmentPlugin
             rows.Add(row);
         }
         return rows;
+    }
+
+    private static async Task CollectListSectionAsync(
+        IDictionary<string, object> findings,
+        IDictionary<string, string> sectionErrors,
+        string sectionName,
+        OracleConnection conn,
+        string sql,
+        CancellationToken ct)
+    {
+        try
+        {
+            findings[sectionName] = await ListAsync(conn, sql, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            sectionErrors[sectionName] = ex.GetType().Name;
+        }
     }
 }

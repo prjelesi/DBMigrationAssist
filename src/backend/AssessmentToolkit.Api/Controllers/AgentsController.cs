@@ -1,5 +1,6 @@
 using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Core.Enums;
+using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Data;
 using AssessmentToolkit.Shared.Auth;
 using AssessmentToolkit.Shared.Models;
@@ -15,8 +16,10 @@ namespace AssessmentToolkit.Api.Controllers;
 public class AgentsController(AssessmentDbContext db, IConfiguration config) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] Guid projectId) =>
-        Ok(await db.Agents.Where(a => a.ProjectId == projectId).ToListAsync());
+    public async Task<IActionResult> List([FromQuery] Guid? projectId) =>
+        Ok(await db.Agents
+            .Where(a => !projectId.HasValue || a.ProjectId == projectId || a.CreatedBy == LocalAgentProvisioner.CreatedBy)
+            .ToListAsync());
 
     [HttpPost]
     public async Task<IActionResult> Register([FromBody] RegisterAgentRequest req)
