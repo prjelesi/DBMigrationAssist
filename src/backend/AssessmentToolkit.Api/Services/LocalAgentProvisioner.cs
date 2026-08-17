@@ -63,7 +63,7 @@ public static class LocalAgentProvisioner
             db.Agents.Add(agent);
         }
 
-        agent.AllowedPlugins = ["postgresql", "oracle", "sqlserver", "mysql"];
+        agent.AllowedPlugins = ["postgresql", "oracle", "sqlserver", "mysql", "mongodb", "cassandra", "sybase"];
         agent.PskSalt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
         agent.PskHash = ComputeSaltedHash(psk, agent.PskSalt);
         agent.PskIssuedAt = persisted?.IssuedAt ?? DateTimeOffset.UtcNow;

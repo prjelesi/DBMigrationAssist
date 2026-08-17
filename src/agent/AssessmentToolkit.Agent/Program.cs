@@ -25,6 +25,12 @@ var host = Host.CreateDefaultBuilder(args)
 
         if (bootstrap.AllowedPlugins.Contains("mysql"))
             services.AddSingleton<IAssessmentPlugin, MySqlPlugin>();
+        if (bootstrap.AllowedPlugins.Contains("mongodb"))
+            services.AddSingleton<IAssessmentPlugin, MongoDbPlugin>();
+        if (bootstrap.AllowedPlugins.Contains("cassandra"))
+            services.AddSingleton<IAssessmentPlugin, CassandraPlugin>();
+        if (bootstrap.AllowedPlugins.Contains("sybase"))
+            services.AddSingleton<IAssessmentPlugin, SybasePlugin>();
 
         services.AddHostedService<JobPollerService>();
     })

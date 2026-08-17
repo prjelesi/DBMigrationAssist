@@ -144,10 +144,22 @@ Use this workflow when a Discovery Agent cannot reach a database:
 pwsh ./collect-<database>-assessment.ps1 -Username <read-only-user>
 ```
 
-4. Enter the password at the secure prompt. The script writes an assessment JSON file beside the script; it does not store the password.
+4. Enter the password at the secure prompt. The script writes an assessment JSON file beside the script and removes temporary credential state when collection finishes.
 5. Have the customer return the JSON file. In the same database row, select **Upload assessment result** and upload it.
 
-The collector embeds the inventory database ID and engine plugin. The portal rejects a result uploaded against a different database, an incompatible engine, an unsupported schema version, a non-JSON file, or a file larger than 10 MB. Uploaded results are stored as unverified assessments until reviewed.
+| Engine | Required client | Credential handling |
+| --- | --- | --- |
+| PostgreSQL | `psql` | Temporary `PGPASSWORD` environment variable |
+| Oracle | `sqlplus` | Login sent through standard input to `/nolog` |
+| SQL Server | `sqlcmd` | Temporary `SQLCMDPASSWORD` environment variable |
+| MySQL / MariaDB | `mysql` | Temporary `MYSQL_PWD` environment variable |
+| MongoDB | `mongosh` | Native hidden password prompt; no password argument |
+| Cassandra | `cqlsh` | Permission-restricted temporary credentials file, deleted on exit |
+| Sybase ASE | `isql` | Native password prompt; no password argument |
+
+The `offline-2.0` collector stores findings under `findingJson.sections`. Every metadata query has an independent `success` or `failed` status, so a denied optional catalog query does not discard sections that completed successfully. PostgreSQL, Oracle, and MySQL collectors also include engine-specific migration signals such as missing primary keys, problematic data types, wrapped or unsupported objects, LOB and redo sizing, non-InnoDB tables, partitions, authentication plugin counts, and buffer-pool occupancy. The collector does not query application table rows, and section errors redact the collected password.
+
+The collector embeds the inventory database ID and engine plugin. The portal rejects a result uploaded against a different database, an incompatible engine, an unsupported schema version, a non-JSON file, or a file larger than 10 MB. Uploaded results have no Discovery Agent identity and are stored as unverified assessments until reviewed. The result is not cryptographically signed, so controlled transfer and collector integrity verification remain part of the customer's operating process.
 
 ---
 
@@ -189,8 +201,11 @@ The Discovery Agent is a .NET 8 background service that runs **inside the custom
 | `oracle` | Oracle Database | 1521 | Supported |
 | `sqlserver` | Microsoft SQL Server | 1433 | Supported |
 | `mysql` | MySQL / MariaDB | 3306 | Supported |
+| `mongodb` | MongoDB | 27017 | Supported |
+| `cassandra` | Apache Cassandra | 9042 | Supported |
+| `sybase` | SAP/Sybase ASE | 5000 | Supported |
 
-MongoDB may appear in inventory data or the portal selector, but an executable MongoDB Discovery Agent plugin is not yet included. Do not enable `mongodb` on deployed Discovery Agents.
+The connected plugins collect server, topology, schema, sizing and compatibility metadata. They do not read application-row or document content. Optional metadata sections report a section-level error when the assessment account lacks permission instead of failing the complete assessment.
 
 ### 1. Register a Discovery Agent in the portal
 
@@ -198,7 +213,7 @@ MongoDB may appear in inventory data or the portal selector, but an executable M
 2. Click **+ Register Discovery Agent**.
 3. Fill in:
   - **Discovery Agent Name** — a descriptive label (e.g. `Prod-Oracle-Discovery-1`)
-  - **Allowed Plugins** — select only the engines this Discovery Agent can reach: `postgresql`, `oracle`, `sqlserver`, and/or `mysql`
+  - **Allowed Plugins** — select only the engines this Discovery Agent can reach: `postgresql`, `oracle`, `sqlserver`, `mysql`, `mongodb`, `cassandra`, and/or `sybase`
    - **PSK Mode** — `System generated` (recommended) or `User supplied`
 4. Click **Register Discovery Agent**.
 5. A **bootstrap package** is shown **once** — copy or download it immediately:
@@ -208,7 +223,7 @@ MongoDB may appear in inventory data or the portal selector, but an executable M
   "agentId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "backendUrl": "https://your-portal-api-url",
   "psk": "your-pre-shared-key",
-  "allowedPlugins": ["postgresql", "oracle", "sqlserver", "mysql"],
+  "allowedPlugins": ["postgresql", "oracle", "sqlserver", "mysql", "mongodb", "cassandra", "sybase"],
   "issuedAt": "2026-07-28T10:00:00Z"
 }
 ```
@@ -258,7 +273,7 @@ docker run -d \
   -e AGENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   -e AGENT_PSK="your-pre-shared-key" \
   -e AGENT_BACKEND_URL="https://your-portal-api-url" \
-  -e AGENT_PLUGINS="postgresql,oracle,sqlserver,mysql" \
+  -e AGENT_PLUGINS="postgresql,oracle,sqlserver,mysql,mongodb,cassandra,sybase" \
   dbmigrationready-agent:latest
 ```
 
@@ -279,7 +294,7 @@ docker run -d \
 
 ### 4. Platform Local Agent
 
-The default Docker Compose stack includes one **Platform Local Agent**. The API provisions its identity and PSK into a private Docker volume, and the agent reuses that identity across container restarts. It appears in Discovery Agents for every project and supports all four implemented plugins.
+The default Docker Compose stack includes one **Platform Local Agent**. The API provisions its identity and PSK into a private Docker volume, and the agent reuses that identity across container restarts. It appears in Discovery Agents for every project and supports all seven implemented plugins.
 
 ```powershell
 docker compose up -d
@@ -299,7 +314,7 @@ agent-dev:
     AGENT_BACKEND_URL: "http://api:8080"
     AGENT_ID: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # ← paste here
     AGENT_PSK: "your-pre-shared-key"                    # ← paste here
-    AGENT_PLUGINS: "postgresql,oracle,sqlserver,mysql"
+    AGENT_PLUGINS: "postgresql,oracle,sqlserver,mysql,mongodb,cassandra,sybase"
 ```
 
 2. Start with the `agent` profile:
@@ -323,7 +338,7 @@ cat > bootstrap.json << 'EOF'
   "agentId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "backendUrl": "https://your-portal-api-url",
   "psk": "your-pre-shared-key",
-  "allowedPlugins": ["postgresql", "oracle", "sqlserver", "mysql"]
+  "allowedPlugins": ["postgresql", "oracle", "sqlserver", "mysql", "mongodb", "cassandra", "sybase"]
 }
 EOF
 
@@ -375,7 +390,7 @@ spec:
                 name: dbmr-agent-bootstrap
           env:
             - name: AGENT_PLUGINS
-              value: "postgresql,oracle,sqlserver,mysql"
+              value: "postgresql,oracle,sqlserver,mysql,mongodb,cassandra,sybase"
 ```
 
 > Each registered agent should have its own bootstrap package. Running multiple replicas of the same agent GUID is not supported.
@@ -387,7 +402,7 @@ cd /opt/dbmr-agent
 export AGENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export AGENT_PSK="your-pre-shared-key"
 export AGENT_BACKEND_URL="https://your-portal-api-url"
-export AGENT_PLUGINS="postgresql,oracle,sqlserver,mysql"
+export AGENT_PLUGINS="postgresql,oracle,sqlserver,mysql,mongodb,cassandra,sybase"
 dotnet AssessmentToolkit.Agent.dll
 ```
 
@@ -481,7 +496,7 @@ In **Job History**, select the finding count for a completed job. The portal sho
 | Authentication fails | Use the PSK from the one-time bootstrap package and synchronize the agent clock; signed requests allow a five-minute skew. |
 | Database connection fails | Test name resolution and the database port from the agent host; verify the read-only account and database/service name. |
 | Local credentials are ignored | Ensure the job uses an inventory database and its `databaseId` exactly matches the local profile. Restart after changing local files or environment variables. |
-| Plugin is skipped | Enable one of the implemented plugin IDs and restart the agent: `postgresql`, `oracle`, `sqlserver`, or `mysql`. |
+| Plugin is skipped | Enable the matching implemented plugin ID and restart the agent: `postgresql`, `oracle`, `sqlserver`, `mysql`, `mongodb`, `cassandra`, or `sybase`. |
 
 ---
 
@@ -571,6 +586,18 @@ GRANT SELECT, REPLICATION CLIENT, PROCESS ON *.*
 ```
 
 Restrict the account host to the agent host or subnet. `SELECT` provides metadata access; `REPLICATION CLIENT` and `PROCESS` enable replication and connection findings.
+
+### MongoDB
+
+Use a dedicated user with metadata privileges for the target database. It must be able to run `listDatabases`, `listCollections`, `listIndexes`, `dbStats`, `collStats`, and `buildInfo`. Cluster-level sections such as replica-set status, sharding and feature compatibility are optional; grant the corresponding cluster-monitoring privileges only when those findings are required. The plugin estimates collection counts but never reads application documents.
+
+### Cassandra
+
+Use a dedicated login with permission to connect and read metadata from `system` and `system_schema`. Grant access to `system_distributed` only when your Cassandra version or topology requires it for operational metadata. The plugin does not query application keyspace rows.
+
+### SAP/Sybase ASE
+
+Use a dedicated login with catalog read access in the assessed database. Access to the `master` database catalogs is recommended for server-wide database, device and remote-server findings; when it is unavailable, those optional sections report permission errors while database-local collection continues. Do not grant `sa_role` solely for assessment.
 
 ---
 
@@ -707,7 +734,7 @@ Use that URL as `AGENT_BACKEND_URL` when configuring agents against the cloud de
 | `AGENT_ID` | Agent GUID (from bootstrap package) |
 | `AGENT_PSK` | Pre-shared key (from bootstrap package) |
 | `AGENT_BACKEND_URL` | Portal API base URL |
-| `AGENT_PLUGINS` | Comma-separated plugin IDs: `postgresql`, `oracle`, `sqlserver`, `mysql` |
+| `AGENT_PLUGINS` | Comma-separated plugin IDs: `postgresql`, `oracle`, `sqlserver`, `mysql`, `mongodb`, `cassandra`, `sybase` |
 | `AGENT_BOOTSTRAP_PATH` | Path to `bootstrap.json` (alternative to env vars) |
 | `AGENT_DATABASES_PATH` | Path to local database credential profiles (default: `databases.json`) |
 | `AGENT_DB_n_ID` | Inventory database GUID for local profile index `n`, starting at zero |

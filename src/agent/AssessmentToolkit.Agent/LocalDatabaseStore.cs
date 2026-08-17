@@ -14,7 +14,7 @@ namespace AssessmentToolkit.Agent;
 ///   "databases": [
 ///     {
 ///       "databaseId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-///       "pluginId":   "postgresql",     // postgresql | oracle | sqlserver | mysql | mongodb
+///       "pluginId":   "postgresql",     // postgresql | oracle | sqlserver | mysql | mongodb | cassandra | sybase
 ///       "host":       "db.internal",
 ///       "port":       5432,
 ///       "database":   "mydb",

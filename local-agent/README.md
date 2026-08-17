@@ -8,6 +8,10 @@ The agent can assess:
 - Databases running on the Docker host through `host.docker.internal`.
 - Other database hosts reachable from the Docker network.
 
+Connected plugins are available for PostgreSQL, Oracle, SQL Server, MySQL/MariaDB,
+MongoDB, Cassandra and SAP/Sybase ASE. Use plugin IDs `postgresql`, `oracle`,
+`sqlserver`, `mysql`, `mongodb`, `cassandra` and `sybase` in local profiles.
+
 Ad-hoc credentials entered when dispatching a job require no local file. To keep credentials out of the portal, copy `databases.example.json` to `databases.json`, then map each profile to the database ID shown in the portal inventory. `databases.json` is excluded from Git.
 
 Restart the agent after changing the file:

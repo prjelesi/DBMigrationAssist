@@ -89,7 +89,7 @@ services:
       AGENT_BACKEND_URL: "http://api:8080"
       AGENT_ID: ""        # Set after registering the agent via the API
       AGENT_PSK: ""       # Set from the bootstrap package returned by the API
-      AGENT_PLUGINS: "postgresql,oracle,sqlserver,mysql"
+      AGENT_PLUGINS: "postgresql,oracle,sqlserver,mysql,mongodb,cassandra,sybase"
     depends_on:
       - api
     profiles:

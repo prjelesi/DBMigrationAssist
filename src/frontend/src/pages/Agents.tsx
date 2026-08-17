@@ -13,10 +13,11 @@ const JOB_BADGE: Record<string, string> = {
   Completed: "badge-green", Failed: "badge-red", Cancelled: "badge-gray",
 };
 
-const ALL_PLUGINS = ["oracle", "postgresql", "sqlserver", "mysql", "mongodb"];
+const ALL_PLUGINS = ["oracle", "postgresql", "sqlserver", "mysql", "mongodb", "cassandra", "sybase"];
 
 const DEFAULT_PORTS: Record<string, number> = {
-  oracle: 1521, postgresql: 5432, sqlserver: 1433, mysql: 3306, mongodb: 27017,
+  oracle: 1521, postgresql: 5432, sqlserver: 1433, mysql: 3306,
+  mongodb: 27017, cassandra: 9042, sybase: 5000,
 };
 
 // ── Findings helpers ─────────────────────────────────────────────────
@@ -158,7 +159,7 @@ function FindingCard({ result }: { result: AssessmentResult }) {
 
 const ENGINE_TO_PLUGIN: Record<string, string> = {
   Oracle: "oracle", PostgreSQL: "postgresql", SqlServer: "sqlserver",
-  MySQL: "mysql", MongoDB: "mongodb",
+  MySQL: "mysql", MongoDB: "mongodb", Cassandra: "cassandra", Sybase: "sybase",
 };
 
 interface ProjectAgentRow {
