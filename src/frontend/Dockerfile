@@ -2,5 +2,7 @@
 # No npm install or build happens inside Docker.
 FROM nginx:alpine
 COPY dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV API_UPSTREAM=http://api:8080 \
+	NGINX_ENVSUBST_FILTER=^API_UPSTREAM$
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 EXPOSE 80

@@ -25,9 +25,11 @@
 .nav-description { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10.5px; line-height:15px; color:var(--text-muted); }
 .sidebar-footer { min-height:58px; padding:10px 16px; border-top:1px solid var(--border-light); display:flex; align-items:center; gap:10px; }
 .workspace-status { width:30px; height:30px; border-radius:var(--radius); background:var(--surface-2); color:var(--text-secondary); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.user-info { display:flex; flex-direction:column; }
+.user-info { min-width:0; display:flex; flex:1; flex-direction:column; }
+.user-name,.user-role { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .user-name { font-size:12px; font-weight:600; color:var(--text-primary); }
 .user-role { font-size:10.5px; color:var(--green-text); }
+.sign-out { flex-shrink:0; }
 .status-dot,.live-dot { width:7px; height:7px; border-radius:50%; background:#107c10; flex-shrink:0; }
 .status-dot { margin-left:auto; box-shadow:0 0 0 2px var(--green-bg); }
 
@@ -54,7 +56,7 @@
 /* ══════════════════════════════════════════════════
    STAT CARDS
 ══════════════════════════════════════════════════ */
-.stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(165px,1fr)); gap:16px; margin-bottom:24px; }
+.stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
 .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; box-shadow:none; display:flex; flex-direction:column; gap:4px; position:relative; overflow:hidden; transition:border-color .12s,box-shadow .12s; }
 .stat-card:hover { border-color:#c7c7c7; box-shadow:var(--shadow-sm); }
 .stat-card::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--accent-600); }
@@ -149,6 +151,62 @@
 .system-status-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
 .system-status-name { min-width:0; overflow-wrap:anywhere; font-size:13px; font-weight:600; }
 .system-status-detail { color:var(--text-muted); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+
+@media (min-width: 1440px) and (min-height: 800px) {
+   body { font-size:15px; }
+   .sidebar { width:288px; }
+   .sidebar-brand { min-height:76px; padding:16px 18px; gap:13px; }
+   .brand-logo { width:40px; height:40px; }
+   .brand-name { font-size:15px; }
+   .brand-sub { font-size:12px; }
+   .sidebar-nav { padding:10px; }
+   .nav-section { padding:16px 11px 6px; }
+   .nav-section-label { font-size:11px; }
+   .nav-item { min-height:52px; gap:12px; padding:8px 11px; }
+   .nav-icon { width:24px; }
+   .nav-icon svg { width:22px; height:22px; }
+   .nav-label { font-size:14px; line-height:19px; }
+   .nav-description { font-size:11.5px; line-height:16px; }
+   .sidebar-footer { min-height:64px; padding:11px 18px; }
+   .workspace-status { width:34px; height:34px; }
+   .user-name { font-size:13px; }
+   .user-role { font-size:11.5px; }
+
+   .topbar { min-height:76px; padding:12px 36px; }
+   .page-title { font-size:21px; line-height:27px; }
+   .page-sub { font-size:13px; }
+   .topbar-badge { font-size:13px; padding:5px 11px; }
+   .content { padding:30px 36px 44px; }
+   .content > * { max-width:1600px; }
+
+   .card { padding:22px 24px; margin-bottom:22px; }
+   .card-header { margin-bottom:20px; }
+   .card-title { font-size:13px; }
+   .stat-grid { gap:18px; margin-bottom:26px; }
+   .stat-card { min-height:168px; padding:21px 23px; }
+   .stat-icon { width:36px; height:36px; margin-bottom:8px; }
+   .stat-icon svg { width:22px; height:22px; }
+   .stat-value { font-size:32px; }
+   .stat-label { font-size:13px; }
+   .stat-delta { font-size:12.5px; }
+
+   .data-table { font-size:14px; }
+   .data-table th { padding:11px 16px; font-size:12px; }
+   .data-table td { padding:13px 16px; }
+   .badge { font-size:12px; padding:4px 10px; }
+   .tag { font-size:12px; padding:3px 8px; }
+   .btn { font-size:14px; padding:9px 17px; }
+   .btn-sm { font-size:13px; padding:6px 12px; }
+   .form-row label { font-size:13.5px; }
+   .form-row input,.form-row select,.form-row textarea { font-size:14.5px; padding:10px 13px; }
+   .modal-title { font-size:19px; }
+   .modal-sub { font-size:14px; }
+   .system-status-grid { gap:12px; }
+   .system-status-item { padding:14px; }
+   .system-status-name { font-size:14px; }
+   .system-status-detail { font-size:13px; }
+   .dashboard-panels,.questionnaire-overview { gap:22px; margin-bottom:22px; }
+}
 
 @media (max-width: 980px) {
    .sidebar { position:fixed; inset:0 auto 0 0; transform:translateX(-100%); transition:transform .2s ease; box-shadow:var(--shadow-lg); }

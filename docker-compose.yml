@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: assessment
-      POSTGRES_PASSWORD: assessment_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: assessmentdb
     ports:
       - "5432:5432"
@@ -21,12 +21,17 @@ services:
       dockerfile: Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=assessment_dev_password"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       Api__PublicUrl: "http://localhost:5000"
       Evidence__StorageRoot: "/app/evidence"
       DataProtection__KeysPath: "/app/data-protection"
       LocalAgent__BootstrapPath: "/app/local-agent/bootstrap.json"
       LocalAgent__BackendUrl: "http://api:8080"
+      Authentication__Enabled: "${AUTHENTICATION_ENABLED:-false}"
+      AzureAd__TenantId: "${ENTRA_TENANT_ID:-}"
+      AzureAd__ClientId: "${ENTRA_API_CLIENT_ID:-}"
+      Authentication__SpaClientId: "${ENTRA_SPA_CLIENT_ID:-}"
+      Authentication__ApiScope: "${ENTRA_API_SCOPE:-}"
       # ── AI Foundry ── uncomment and fill in to enable AI features ──────
       # AiFoundry__Endpoint: "https://<your-resource>.openai.azure.com/"
       # AiFoundry__ApiKey: "<your-api-key>"
@@ -47,7 +52,7 @@ services:
       dockerfile: Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=assessment_dev_password"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       Worker__ApiBaseUrl: "http://api:8080"
     depends_on:
       postgres:

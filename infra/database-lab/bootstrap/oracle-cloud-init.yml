@@ -1,0 +1,131 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - jq
+
+write_files:
+  - path: /usr/local/sbin/bootstrap-dbmigration-oracle.sh
+    permissions: '0700'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -Eeuo pipefail
+      exec > >(tee -a /var/log/dbmigration-oracle-bootstrap.log) 2>&1
+
+      lab_root=/opt/dbmigration-lab
+      ready_file="$lab_root/READY"
+      key_vault_name='__KEY_VAULT_NAME__'
+      identity_client_id='__IDENTITY_CLIENT_ID__'
+
+      if [[ -f "$ready_file" ]]; then
+        exit 0
+      fi
+
+      mkdir -p "$lab_root" /opt/oracle
+      data_device=/dev/disk/azure/scsi1/lun0
+      for attempt in {1..60}; do
+        [[ -b "$data_device" ]] && break
+        sleep 2
+      done
+      [[ -b "$data_device" ]]
+      if ! blkid "$data_device" >/dev/null 2>&1; then
+        mkfs.xfs -f "$data_device"
+      fi
+      data_uuid=$(blkid -s UUID -o value "$data_device")
+      grep -q "UUID=$data_uuid" /etc/fstab || echo "UUID=$data_uuid /opt/oracle xfs defaults,nofail 0 2" >> /etc/fstab
+      mountpoint -q /opt/oracle || mount /opt/oracle
+
+      token=''
+      for attempt in {1..30}; do
+        token=$(curl --fail --silent --show-error --get \
+          --header Metadata:true \
+          --data-urlencode api-version=2018-02-01 \
+          --data-urlencode resource=https://vault.azure.net \
+          --data-urlencode client_id="$identity_client_id" \
+          http://169.254.169.254/metadata/identity/oauth2/token | jq -r '.access_token // empty') || true
+        [[ -n "$token" ]] && break
+        sleep 10
+      done
+      [[ -n "$token" ]]
+
+      oracle_password=$(curl --fail --silent --show-error \
+        --header "Authorization: Bearer $token" \
+        "https://$key_vault_name.vault.azure.net/secrets/oracle-sys-password?api-version=7.4" | jq -r '.value')
+      [[ -n "$oracle_password" && "$oracle_password" != null ]]
+
+      dnf install -y oracle-database-preinstall-21c
+      if ! rpm -q oracle-database-xe-21c >/dev/null 2>&1; then
+        curl --fail --location --output /tmp/oracle-database-xe-21c.rpm \
+          https://download.oracle.com/otn-pub/otn_software/db-express/oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm
+        dnf localinstall -y /tmp/oracle-database-xe-21c.rpm
+        rm -f /tmp/oracle-database-xe-21c.rpm
+      fi
+
+      if [[ ! -d /opt/oracle/oradata/XE ]]; then
+        printf '%s\n%s\n' "$oracle_password" "$oracle_password" | /etc/init.d/oracle-xe-21c configure
+      fi
+      systemctl enable --now oracle-xe-21c
+
+      export ORACLE_SID=XE
+      export ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE
+      export PATH="$ORACLE_HOME/bin:$PATH"
+
+      for attempt in {1..60}; do
+        if lsnrctl status >/dev/null 2>&1; then
+          break
+        fi
+        sleep 10
+      done
+      lsnrctl status >/dev/null
+
+      sqlplus -s "sys/$oracle_password@localhost:1521/XEPDB1 as sysdba" <<SQL
+      WHENEVER SQLERROR EXIT SQL.SQLCODE
+      DECLARE
+        user_count NUMBER;
+      BEGIN
+        SELECT COUNT(*) INTO user_count FROM dba_users WHERE username = 'MIGRATION_LAB';
+        IF user_count = 0 THEN
+          EXECUTE IMMEDIATE 'CREATE USER migration_lab IDENTIFIED BY "${oracle_password}" DEFAULT TABLESPACE USERS QUOTA UNLIMITED ON USERS';
+          EXECUTE IMMEDIATE 'GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE, CREATE PROCEDURE, CREATE TRIGGER TO migration_lab';
+        END IF;
+        SELECT COUNT(*) INTO user_count FROM dba_users WHERE username = 'ASSESSMENT_READER';
+        IF user_count = 0 THEN
+          EXECUTE IMMEDIATE 'CREATE USER assessment_reader IDENTIFIED BY "${oracle_password}"';
+          EXECUTE IMMEDIATE 'GRANT CREATE SESSION TO assessment_reader';
+        END IF;
+      END;
+      /
+      ALTER SESSION SET CURRENT_SCHEMA = migration_lab;
+      BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE employee_seq START WITH 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
+      /
+      BEGIN EXECUTE IMMEDIATE 'CREATE TABLE departments (department_id NUMBER PRIMARY KEY, name VARCHAR2(80) NOT NULL UNIQUE)'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
+      /
+      BEGIN EXECUTE IMMEDIATE 'CREATE TABLE employees (employee_id NUMBER DEFAULT employee_seq.NEXTVAL PRIMARY KEY, department_id NUMBER REFERENCES departments(department_id), name VARCHAR2(100) NOT NULL, salary NUMBER(12,2), hire_date DATE, profile_xml XMLTYPE)'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
+      /
+      MERGE INTO departments d USING (SELECT 10 department_id,'Engineering' name FROM dual UNION ALL SELECT 20,'Finance' FROM dual UNION ALL SELECT 30,'Operations' FROM dual) s ON (d.department_id=s.department_id) WHEN NOT MATCHED THEN INSERT VALUES(s.department_id,s.name);
+      INSERT INTO employees(department_id,name,salary,hire_date,profile_xml) SELECT 10,'Alice Smith',95000,DATE '2019-03-15',XMLTYPE('<skills><skill>Oracle</skill></skills>') FROM dual WHERE NOT EXISTS (SELECT 1 FROM employees);
+      INSERT INTO employees(department_id,name,salary,hire_date,profile_xml) SELECT 20,'Eve Torres',88000,DATE '2017-05-30',XMLTYPE('<skills><skill>Analytics</skill></skills>') FROM dual WHERE (SELECT COUNT(*) FROM employees)=1;
+      INSERT INTO employees(department_id,name,salary,hire_date,profile_xml) SELECT 30,'Ravi Kumar',79000,DATE '2022-09-12',XMLTYPE('<skills><skill>ERP</skill></skills>') FROM dual WHERE (SELECT COUNT(*) FROM employees)=2;
+      CREATE OR REPLACE VIEW v_employee_summary AS SELECT e.employee_id,e.name,d.name department,e.salary FROM employees e JOIN departments d ON d.department_id=e.department_id;
+      CREATE OR REPLACE PROCEDURE employees_by_department(p_department_id IN NUMBER, p_rows OUT SYS_REFCURSOR) AS BEGIN OPEN p_rows FOR SELECT * FROM employees WHERE department_id=p_department_id; END;
+      /
+      GRANT SELECT ON migration_lab.departments TO assessment_reader;
+      GRANT SELECT ON migration_lab.employees TO assessment_reader;
+      GRANT SELECT ON migration_lab.v_employee_summary TO assessment_reader;
+      GRANT EXECUTE ON migration_lab.employees_by_department TO assessment_reader;
+      COMMIT;
+      DECLARE row_count NUMBER; BEGIN SELECT COUNT(*) INTO row_count FROM migration_lab.employees; IF row_count != 3 THEN RAISE_APPLICATION_ERROR(-20001,'Seed verification failed'); END IF; END;
+      /
+      EXIT
+      SQL
+
+      unset oracle_password token
+      printf 'ready=%s\nengine=oracle-xe-21c\nservice=XEPDB1\n' "$(date --iso-8601=seconds)" > "$ready_file"
+
+runcmd:
+  - /usr/local/sbin/bootstrap-dbmigration-oracle.sh
+
+final_message: 'Database migration Oracle host bootstrap finished.'

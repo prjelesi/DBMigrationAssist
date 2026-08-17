@@ -5,9 +5,22 @@ import type {
   QuestionnaireAttachment, QuestionnaireTemplate, QuestionnaireResponse,
 } from '../types';
 
+type AccessTokenProvider = () => Promise<string | null>;
+let accessTokenProvider: AccessTokenProvider | null = null;
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '',
   headers: { 'Content-Type': 'application/json' },
+});
+
+export const configureAccessTokenProvider = (provider: AccessTokenProvider | null) => {
+  accessTokenProvider = provider;
+};
+
+api.interceptors.request.use(async config => {
+  const accessToken = await accessTokenProvider?.();
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  return config;
 });
 
 // Projects

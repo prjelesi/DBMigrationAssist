@@ -1,6 +1,7 @@
 using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Core.Enums;
 using AssessmentToolkit.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,7 @@ namespace AssessmentToolkit.Api.Controllers;
 /// this controller is reached.
 /// </summary>
 [ApiController]
+[AllowAnonymous]
 [Route("api/agent/{agentId:guid}")]
 public class AgentJobsController(AssessmentDbContext db) : ControllerBase
 {

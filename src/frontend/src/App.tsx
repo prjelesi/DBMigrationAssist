@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import Layout from "./components/Layout";
+import AuthProvider from "./auth/AuthProvider";
 
 const Dashboard       = lazy(() => import("./pages/Dashboard"));
 const Environments    = lazy(() => import("./pages/Environments"));
@@ -22,28 +23,30 @@ const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 3
 export default function App() {
   return (
     <FluentProvider theme={webLightTheme}>
-      <QueryClientProvider client={qc}>
-        <BrowserRouter>
-          <Suspense fallback={<div className="loading" />}>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="system" element={<System />} />
-                <Route path="projects" element={<Projects />} />
-                <Route path="questionnaire" element={<Questionnaire />} />
-                <Route path="evidence" element={<Evidence />} />
-                <Route path="agents" element={<Agents />} />
-                <Route path="inventory" element={<Inventory />} />
-                <Route path="environments" element={<Environments />} />
-                <Route path="portfolio" element={<Portfolio />} />
-                <Route path="communication-map" element={<CommunicationMap />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="ai-settings" element={<AiSettings />} />
-              </Route>
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={qc}>
+          <BrowserRouter>
+            <Suspense fallback={<div className="loading" />}>
+              <Routes>
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="system" element={<System />} />
+                  <Route path="projects" element={<Projects />} />
+                  <Route path="questionnaire" element={<Questionnaire />} />
+                  <Route path="evidence" element={<Evidence />} />
+                  <Route path="agents" element={<Agents />} />
+                  <Route path="inventory" element={<Inventory />} />
+                  <Route path="environments" element={<Environments />} />
+                  <Route path="portfolio" element={<Portfolio />} />
+                  <Route path="communication-map" element={<CommunicationMap />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="ai-settings" element={<AiSettings />} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </AuthProvider>
     </FluentProvider>
   );
 }

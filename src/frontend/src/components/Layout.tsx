@@ -17,8 +17,10 @@ import {
   Dismiss24Regular,
   Navigation24Regular,
   Pulse24Regular,
+  SignOut24Regular,
 } from "@fluentui/react-icons";
 import { Button, Tooltip } from "@fluentui/react-components";
+import { useAuth } from "../auth/AuthContext";
 import "./Layout.css";
 
 const NAV = [
@@ -72,6 +74,7 @@ const PAGE_META: Record<string, { title: string; sub: string; badge?: string }> 
 };
 
 export default function Layout() {
+  const { account, authenticationEnabled, signOut } = useAuth();
   const location = useLocation();
   const [navigationOpen, setNavigationOpen] = useState(false);
   const meta = PAGE_META[location.pathname] ?? { title: "Assessment Toolkit", sub: "" };
@@ -119,10 +122,19 @@ export default function Layout() {
         <div className="sidebar-footer">
           <div className="workspace-status"><Pulse24Regular /></div>
           <div className="user-info">
-            <span className="user-name">Workspace services</span>
-            <span className="user-role">Connected</span>
+            <span className="user-name">{account?.name ?? "Local development"}</span>
+            <span className="user-role">{account?.username ?? "Authentication disabled"}</span>
           </div>
-          <div className="status-dot" title="Services connected" />
+          {authenticationEnabled ? (
+            <Tooltip content="Sign out" relationship="label">
+              <Button
+                className="sign-out"
+                appearance="subtle"
+                icon={<SignOut24Regular />}
+                onClick={() => void signOut()}
+              />
+            </Tooltip>
+          ) : <div className="status-dot" title="Local development" />}
         </div>
       </aside>
 

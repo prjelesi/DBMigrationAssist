@@ -39,6 +39,7 @@ A self-hosted portal for assessing database estates before migration to the clou
     - [Option A — Environment variables (recommended)](#option-a--environment-variables-recommended)
     - [Option B — Portal UI](#option-b--portal-ui)
     - [Verifying AI is active](#verifying-ai-is-active)
+  - [Microsoft Entra authentication](#microsoft-entra-authentication)
   - [Azure deployment](#azure-deployment)
     - [Parameters](#parameters)
     - [Deploy steps](#deploy-steps)
@@ -97,19 +98,25 @@ cd c:\github\DBMigrationReady
 dotnet restore src/AssessmentToolkit.sln
 .\build.ps1
 
-# 2. Build Docker images
+# 2. Create local configuration and set a strong development password
+Copy-Item .env.example .env
+notepad .env
+
+# 3. Build Docker images
 docker compose build
 
-# 3. Start the stack
+# 4. Start the stack
 docker compose up -d
 
-# 4. Open the portal
+# 5. Open the portal
 start http://localhost:3000
 ```
 
 The API is available at `http://localhost:5000` (Swagger UI at `/swagger`).
 
 On first start, EF Core migrations run automatically and all database schemas are created.
+
+Authentication is disabled by default in the local Compose environment. Discovery Agent endpoints remain protected by their existing PSK/HMAC signatures independently of portal authentication.
 
 ---
 
@@ -653,6 +660,27 @@ Once configured, the worker automatically enriches completed assessment results 
 
 ---
 
+## Microsoft Entra authentication
+
+The portal uses application-managed Microsoft Entra authentication. The React SPA signs users in with MSAL and sends a delegated access token to the API. All portal API controllers require that token and the configured delegated scope. Routes under `/api/agent/*` continue to use PSK/HMAC authentication, and `/health` plus `/api/auth/config` remain anonymous.
+
+Create two single-tenant app registrations in the same tenant:
+
+1. **API registration**: expose an API scope named `access_as_user`, using an Application ID URI such as `api://<api-client-id>`.
+2. **SPA registration**: add a Single-page application redirect URI for the portal origin, such as `http://localhost:3000` or the Azure HTTPS portal URL. Grant delegated permission to the API's `access_as_user` scope and provide admin consent when tenant policy requires it.
+
+Set these values in `.env` for Docker Compose:
+
+```dotenv
+AUTHENTICATION_ENABLED=true
+ENTRA_TENANT_ID=<tenant-id>
+ENTRA_API_CLIENT_ID=<api-registration-client-id>
+ENTRA_SPA_CLIENT_ID=<spa-registration-client-id>
+ENTRA_API_SCOPE=api://<api-registration-client-id>/access_as_user
+```
+
+Rebuild the precompiled artifacts and containers after changing authentication dependencies. Tenant and client identifiers are public configuration; do not place client secrets in the SPA. This flow uses delegated user tokens and does not require a SPA client secret.
+
 ## Azure deployment
 
 Production deployment uses Azure Container Apps via the Bicep template in `infra/main.bicep`.
@@ -663,10 +691,15 @@ Production deployment uses Azure Container Apps via the Bicep template in `infra
 |-----------|-------------|
 | `location` | Azure region (default: resource group location) |
 | `environmentName` | Base name for all resources |
-| `postgresAdminPassword` | Password for the PostgreSQL Flexible Server admin account |
+| `postgresAdminPassword` | Password for the PostgreSQL Flexible Server admin account (marked `@secure`) |
 | `acrServer` | Azure Container Registry login server (e.g. `myregistry.azurecr.io`) |
 | `acrUsername` | ACR username |
 | `acrPassword` | ACR password (marked `@secure`) |
+| `authenticationEnabled` | Enables Microsoft Entra portal authentication (default: `false`) |
+| `entraTenantId` | Entra tenant ID; required when authentication is enabled |
+| `entraApiClientId` | API app registration client ID; required when authentication is enabled |
+| `entraSpaClientId` | SPA app registration client ID; required when authentication is enabled |
+| `entraApiScope` | Delegated API scope; required when authentication is enabled |
 
 ### Deploy steps
 
@@ -680,15 +713,26 @@ az acr build --registry myregistry --image dbmr-worker:latest  ./src/backend/Ass
 az acr build --registry myregistry --image dbmr-frontend:latest ./src/frontend
 az acr build --registry myregistry --image dbmr-agent:latest   ./src/agent/AssessmentToolkit.Agent
 
-# 3. Deploy infrastructure
-az deployment group create \
-  --resource-group rg-dbmr \
-  --template-file infra/main.bicep \
-  --parameters \
-      environmentName=assessment-toolkit \
-      postgresAdminPassword='<secure-password>' \
-      acrServer=myregistry.azurecr.io \
-      acrUsername=myregistry \
+# 3. Preview infrastructure changes
+az deployment group what-if `
+  --resource-group rg-dbmr `
+  --template-file infra/main.bicep `
+  --parameters `
+      environmentName=assessment-toolkit `
+      postgresAdminPassword='<secure-password>' `
+      acrServer=myregistry.azurecr.io `
+      acrUsername=myregistry `
+      acrPassword='<acr-password>'
+
+# 4. Deploy after reviewing the preview
+az deployment group create `
+  --resource-group rg-dbmr `
+  --template-file infra/main.bicep `
+  --parameters `
+      environmentName=assessment-toolkit `
+      postgresAdminPassword='<secure-password>' `
+      acrServer=myregistry.azurecr.io `
+      acrUsername=myregistry `
       acrPassword='<acr-password>'
 ```
 

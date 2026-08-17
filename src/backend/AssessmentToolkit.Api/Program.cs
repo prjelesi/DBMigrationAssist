@@ -1,8 +1,11 @@
 using AssessmentToolkit.Api.Middleware;
 using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Web;
 using Npgsql;
 using Serilog;
 
@@ -11,6 +14,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+var authenticationEnabled = builder.Configuration.GetValue("Authentication:Enabled", true);
 
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
@@ -30,8 +34,28 @@ var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
 if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
     dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 
-builder.Services.AddControllers()
+var controllers = builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+if (authenticationEnabled)
+{
+    var requiredScope = builder.Configuration["Authentication:ApiScope"]?.Split('/').LastOrDefault();
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+    builder.Services.AddAuthorization(options =>
+        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context =>
+                !string.IsNullOrWhiteSpace(requiredScope) &&
+                context.User.FindAll("scp")
+                    .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    .Contains(requiredScope, StringComparer.Ordinal))
+            .Build());
+}
+else
+{
+    builder.Services.AddAuthorization();
+}
 
 // AI Foundry adapter — singleton, used by evidence parser, finding enricher and report generator
 builder.Services.AddSingleton<IAiAdapterService, AiAdapterService>();
@@ -54,6 +78,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+if (authenticationEnabled)
+    app.UseAuthentication();
+app.UseAuthorization();
 
 // Agent endpoints use PSK/HMAC auth - applied only to /api/agent/* routes
 app.UseWhen(
@@ -61,7 +88,7 @@ app.UseWhen(
     branch => branch.UseMiddleware<AgentHmacAuthMiddleware>());
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 using (var scope = app.Services.CreateScope())
 {

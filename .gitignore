@@ -26,12 +26,14 @@ src/frontend/.env.local
 .env
 
 # Secrets / bootstrap packages - NEVER commit PSKs or bootstrap packages
+.copilot-azure/
 src/agent/**/*bootstrap*.json
 local-agent/databases.json
 **/.env.local
 **/*.pfx
 **/appsettings.Development.json
 **/*.p12
+!.env.example
 
 # OS
 .DS_Store
