@@ -1,25 +1,35 @@
 import axios from 'axios';
 import type {
   Agent, AgentJobSummary, AssessmentResult, Customer, DatabaseInstance,
-  EvidenceReport, Project, ProjectEnvironment,
+  EvidenceReport, GeneratedReport, Project, ProjectEnvironment, ReportState,
   QuestionnaireAttachment, QuestionnaireTemplate, QuestionnaireResponse,
 } from '../types';
 
-type AccessTokenProvider = () => Promise<string | null>;
-let accessTokenProvider: AccessTokenProvider | null = null;
+const baseURL = import.meta.env.VITE_API_URL ?? '';
+let antiforgeryToken: string | null = null;
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '',
+  baseURL,
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
-export const configureAccessTokenProvider = (provider: AccessTokenProvider | null) => {
-  accessTokenProvider = provider;
-};
+export async function getAntiforgeryToken() {
+  if (antiforgeryToken) return antiforgeryToken;
+  const response = await fetch(`${baseURL}/api/auth/antiforgery`, { credentials: 'include' });
+  if (!response.ok) throw new Error('Unable to secure this request.');
+  antiforgeryToken = (await response.json() as { token: string }).token;
+  return antiforgeryToken;
+}
+
+export function clearAntiforgeryToken() {
+  antiforgeryToken = null;
+}
 
 api.interceptors.request.use(async config => {
-  const accessToken = await accessTokenProvider?.();
-  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  const method = config.method?.toUpperCase() ?? 'GET';
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method))
+    config.headers['X-CSRF-TOKEN'] = await getAntiforgeryToken();
   return config;
 });
 
@@ -239,9 +249,15 @@ export const deleteGraphEdge = (edgeId: string) =>
 
 // AI / Reports
 export const generateReport = (projectId: string) =>
-  api.post<{ projectId: string; reportJson: string; generatedAt: string }>(
+  api.post<GeneratedReport>(
     '/api/ai/generate-report', { projectId }
   ).then(r => r.data);
+
+export const getGeneratedReports = (projectId: string) =>
+  api.get<GeneratedReport[]>('/api/ai/reports', { params: { projectId } }).then(r => r.data);
+
+export const transitionGeneratedReport = (id: string, state: ReportState) =>
+  api.post<GeneratedReport>(`/api/ai/reports/${id}/transition`, { state }).then(r => r.data);
 
 export interface AiStatus {
   available: boolean;

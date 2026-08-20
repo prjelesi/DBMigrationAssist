@@ -21,6 +21,11 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
 
     // System
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
+    public DbSet<ProjectMembership> ProjectMemberships => Set<ProjectMembership>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<GeneratedReport> GeneratedReports => Set<GeneratedReport>();
+    public DbSet<EvidenceBundle> EvidenceBundles => Set<EvidenceBundle>();
 
     // Graph
     public DbSet<GraphEdge> GraphEdges => Set<GraphEdge>();
@@ -144,5 +149,44 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
 
         // Schema: core — system config
         mb.Entity<SystemConfig>().ToTable("system_config", "core").HasKey(e => e.Key);
+
+        // Schema: core — application users
+        mb.Entity<AppUser>().ToTable("app_user", "core").HasKey(e => e.UserId);
+        mb.Entity<AppUser>().HasIndex(e => e.NormalizedEmail).IsUnique();
+        mb.Entity<AppUser>().Property(e => e.Email).HasMaxLength(320);
+        mb.Entity<AppUser>().Property(e => e.NormalizedEmail).HasMaxLength(320);
+        mb.Entity<AppUser>().Property(e => e.DisplayName).HasMaxLength(200);
+        mb.Entity<AppUser>().Property(e => e.Role).HasMaxLength(32);
+
+        // Schema: governance
+        mb.Entity<ProjectMembership>().ToTable("project_membership", "core").HasKey(e => e.MembershipId);
+        mb.Entity<ProjectMembership>().HasOne(e => e.Project).WithMany().HasForeignKey(e => e.ProjectId);
+        mb.Entity<ProjectMembership>().HasOne(e => e.Environment).WithMany().HasForeignKey(e => e.EnvironmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+        mb.Entity<ProjectMembership>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+        mb.Entity<ProjectMembership>().HasIndex(e => new { e.ProjectId, e.EnvironmentId, e.UserId }).IsUnique();
+        mb.Entity<ProjectMembership>().Property(e => e.Role).HasMaxLength(32);
+
+        mb.Entity<AuditEvent>().ToTable("audit_event", "audit").HasKey(e => e.AuditEventId);
+        mb.Entity<AuditEvent>().HasIndex(e => new { e.ProjectId, e.OccurredAt });
+        mb.Entity<AuditEvent>().Property(e => e.ActorId).HasMaxLength(100);
+        mb.Entity<AuditEvent>().Property(e => e.Action).HasMaxLength(100);
+        mb.Entity<AuditEvent>().Property(e => e.ResourceType).HasMaxLength(100);
+        mb.Entity<AuditEvent>().Property(e => e.Method).HasMaxLength(16);
+
+        // Schema: reporting
+        mb.Entity<GeneratedReport>().ToTable("generated_report", "reporting").HasKey(e => e.GeneratedReportId);
+        mb.Entity<GeneratedReport>().Property(e => e.ReportJson).HasColumnType("jsonb");
+        mb.Entity<GeneratedReport>().HasOne(e => e.Project).WithMany().HasForeignKey(e => e.ProjectId);
+        mb.Entity<GeneratedReport>().HasOne(e => e.EvidenceBundle).WithMany().HasForeignKey(e => e.EvidenceBundleId)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<GeneratedReport>().HasIndex(e => new { e.ProjectId, e.GeneratedAt });
+        mb.Entity<GeneratedReport>().Property(e => e.State).HasMaxLength(32);
+
+        mb.Entity<EvidenceBundle>().ToTable("evidence_bundle", "reporting").HasKey(e => e.EvidenceBundleId);
+        mb.Entity<EvidenceBundle>().Property(e => e.BundleJson).HasColumnType("jsonb");
+        mb.Entity<EvidenceBundle>().HasOne(e => e.Project).WithMany().HasForeignKey(e => e.ProjectId);
+        mb.Entity<EvidenceBundle>().HasIndex(e => new { e.ProjectId, e.CreatedAt });
+        mb.Entity<EvidenceBundle>().HasIndex(e => e.ContentHash);
     }
 }

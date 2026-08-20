@@ -4,6 +4,10 @@ using AssessmentToolkit.Data;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace AssessmentToolkit.Api.Controllers;
 
@@ -13,7 +17,8 @@ public class AiController(
     AssessmentDbContext db,
     IAiAdapterService ai,
     IDataProtectionProvider dataProtectionProvider,
-    IServiceProvider services) : ControllerBase
+    IServiceProvider services,
+    ProjectAccessService projectAccess) : ControllerBase
 {
     // ── Providers ────────────────────────────────────────────────────────
 
@@ -260,6 +265,58 @@ public class AiController(
         var evidence     = await db.UploadedReports
             .Where(e => e.ProjectId == req.ProjectId && e.ParseStatus == Core.Enums.ParseStatus.Parsed)
             .ToListAsync(ct);
+        var questionnaireResponses = await db.QuestionnaireResponses.AsNoTracking()
+            .AsSplitQuery()
+            .Include(response => response.Template)
+            .Include(response => response.Answers)
+                .ThenInclude(answer => answer.Question)
+            .Where(response => response.ProjectId == req.ProjectId)
+            .ToListAsync(ct);
+        var graphEdges = await db.GraphEdges.AsNoTracking()
+            .Where(edge => edge.ProjectId == req.ProjectId)
+            .Select(edge => new { edge.EdgeId, edge.SourceDatabaseId, edge.TargetDatabaseId, edge.RelationType, edge.Confidence })
+            .ToListAsync(ct);
+        var portfolios = await db.Portfolios.AsNoTracking()
+            .Where(portfolio => portfolio.ProjectId == req.ProjectId)
+            .Select(portfolio => new { portfolio.PortfolioId, portfolio.Name, portfolio.DatabaseIds })
+            .ToListAsync(ct);
+
+        var bundleJson = JsonSerializer.Serialize(new
+        {
+            project = new { project.ProjectId, project.Name, project.DeploymentMode },
+            databases = databases.Select(database => new
+            {
+                database.DatabaseId, database.Name, database.Engine, database.Version,
+                database.Criticality, database.EnvironmentId
+            }),
+            evidence = evidence.Select(item => new
+            {
+                item.ReportId, item.FileName, item.SourceType, item.FileHash,
+                item.ParseConfidence, item.ParseSummaryJson
+            }),
+            results = agentResults.Select(result => new
+            {
+                result.ResultId, result.DatabaseId, result.PluginId, result.PluginVersion,
+                result.Confidence, result.PayloadHash, result.FindingJson, result.AssessedAt
+            }),
+            questionnaireResponses = questionnaireResponses.Select(response => new
+            {
+                response.ResponseId,
+                response.TemplateId,
+                templateName = response.Template.Name,
+                response.Status,
+                response.SubmittedAt,
+                answers = response.Answers.Select(answer => new
+                {
+                    answer.QuestionId,
+                    question = answer.Question.Text,
+                    answer.Value,
+                    answer.UpdatedAt
+                })
+            }),
+            graphEdges,
+            portfolios
+        });
 
         var systemPrompt = """
             You are a senior database migration consultant writing a professional assessment report.
@@ -276,31 +333,149 @@ public class AiController(
             Return ONLY valid JSON.
             """;
 
-        var dbSummary = string.Join("\n", databases.Select(d =>
-            $"- {d.Name} ({d.Engine} {d.Version}) | Criticality: {d.Criticality} | Host: {d.HostName}"));
-
-        var evidenceSummary = string.Join("\n", evidence.Select(e =>
-            $"- {e.FileName} ({e.SourceType}) | Confidence: {e.ParseConfidence}"));
+        var promptEvidence = JsonSerializer.Serialize(new
+        {
+            databases = databases.Select(database => new
+            {
+                database.Name, database.Engine, database.Version, database.Criticality, database.HostName
+            }),
+            evidence = evidence.Select(item => new
+            {
+                item.FileName,
+                item.SourceType,
+                item.ParseConfidence,
+                parsedSummary = Truncate(item.ParseSummaryJson, 2000)
+            }),
+            assessmentResults = agentResults.Select(result => new
+            {
+                result.DatabaseId,
+                result.PluginId,
+                result.PluginVersion,
+                result.Confidence,
+                findings = Truncate(result.FindingJson, 3000)
+            }),
+            questionnaireResponses = questionnaireResponses.Select(response => new
+            {
+                template = response.Template.Name,
+                response.Status,
+                answers = response.Answers.Select(answer => new
+                {
+                    question = answer.Question.Text,
+                    value = Truncate(answer.Value, 1000)
+                })
+            }),
+            graphEdges,
+            portfolios
+        });
 
         var userPrompt = $"""
             Project: {project.Name}
             Customer: {project.Customer?.Name}
             Deployment mode: {project.DeploymentMode}
 
-            Databases in scope ({databases.Count}):
-            {dbSummary}
-
-            Evidence files ingested ({evidence.Count}):
-            {evidenceSummary}
-
-            Assessment results available: {agentResults.Count}
+            Use the following project evidence. Do not invent facts that are absent from it:
+            {promptEvidence}
             """;
 
         var reportJson = await ai.CompleteAsync(systemPrompt, userPrompt, ct);
         if (reportJson is null) return StatusCode(502, new { error = "Report generation failed." });
 
-        return Ok(new { projectId = req.ProjectId, reportJson, generatedAt = DateTimeOffset.UtcNow });
+        var actor = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name ?? "unknown";
+        var evidenceBundle = new EvidenceBundle
+        {
+            ProjectId = req.ProjectId,
+            BundleJson = bundleJson,
+            ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(bundleJson))).ToLowerInvariant(),
+            CreatedBy = actor
+        };
+        db.EvidenceBundles.Add(evidenceBundle);
+
+        var generatedReport = new GeneratedReport
+        {
+            ProjectId = req.ProjectId,
+            EvidenceBundleId = evidenceBundle.EvidenceBundleId,
+            ReportJson = reportJson,
+            GeneratedBy = actor
+        };
+        db.GeneratedReports.Add(generatedReport);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(ToReportResponse(generatedReport));
     }
+
+    [HttpGet("reports")]
+    public async Task<IActionResult> ListReports([FromQuery] Guid projectId, CancellationToken ct) =>
+        Ok(await db.GeneratedReports.AsNoTracking()
+            .Where(report => report.ProjectId == projectId)
+            .OrderByDescending(report => report.GeneratedAt)
+            .Select(report => ToReportResponse(report))
+            .ToListAsync(ct));
+
+    [HttpGet("reports/{id:guid}")]
+    public async Task<IActionResult> GetReport(Guid id, CancellationToken ct)
+    {
+        var report = await db.GeneratedReports.AsNoTracking().SingleOrDefaultAsync(
+            candidate => candidate.GeneratedReportId == id, ct);
+        return report is null ? NotFound() : Ok(ToReportResponse(report));
+    }
+
+    [HttpPost("reports/{id:guid}/transition")]
+    public async Task<IActionResult> TransitionReport(
+        Guid id,
+        [FromBody] TransitionReportRequest request,
+        CancellationToken ct)
+    {
+        var report = await db.GeneratedReports.SingleOrDefaultAsync(
+            candidate => candidate.GeneratedReportId == id, ct);
+        if (report is null) return NotFound();
+        if (request.State == "Approved" && !await projectAccess.IsOwnerAsync(User, report.ProjectId, ct))
+            return Forbid();
+
+        var allowed = report.State switch
+        {
+            "DraftReady" => request.State == "InReview",
+            "InReview" => request.State is "DraftReady" or "Approved",
+            "Approved" => request.State == "Exported",
+            _ => false
+        };
+        if (!allowed) return Conflict(new { message = $"Cannot transition report from {report.State} to {request.State}." });
+
+        var actor = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name ?? "unknown";
+        report.State = request.State;
+        report.UpdatedAt = DateTimeOffset.UtcNow;
+        if (request.State == "InReview")
+        {
+            report.ReviewedBy = actor;
+            report.ReviewedAt = DateTimeOffset.UtcNow;
+        }
+        if (request.State == "Approved")
+        {
+            report.ApprovedBy = actor;
+            report.ApprovedAt = DateTimeOffset.UtcNow;
+        }
+        await db.SaveChangesAsync(ct);
+        return Ok(ToReportResponse(report));
+    }
+
+    private static object ToReportResponse(GeneratedReport report) => new
+    {
+        report.GeneratedReportId,
+        report.ProjectId,
+        report.EvidenceBundleId,
+        report.ReportJson,
+        report.State,
+        report.Version,
+        report.GeneratedBy,
+        report.GeneratedAt,
+        report.ReviewedBy,
+        report.ReviewedAt,
+        report.ApprovedBy,
+        report.ApprovedAt,
+        report.UpdatedAt
+    };
+
+    private static string? Truncate(string? value, int maxLength) =>
+        value is null || value.Length <= maxLength ? value : value[..maxLength];
 
     private static string MergeJson(string baseJson, string enrichmentJson)
     {
@@ -350,5 +525,7 @@ public record UpdateProviderRequest(
     AiProviderStatus? Status, bool? IsDefault);
 
 public record GenerateReportRequest(Guid ProjectId);
+
+public record TransitionReportRequest(string State);
 
 public record ConfigureAiRequest(string Endpoint, string Deployment, string? ApiKey);

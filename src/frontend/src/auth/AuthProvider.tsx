@@ -1,90 +1,32 @@
-import {
-  InteractionRequiredAuthError,
-  PublicClientApplication,
-  type AccountInfo,
-} from '@azure/msal-browser';
-import { Button, Spinner } from '@fluentui/react-components';
+import { Button, Field, Input, Spinner } from '@fluentui/react-components';
 import { useEffect, useState, type ReactNode } from 'react';
-import { configureAccessTokenProvider } from '../lib/api';
-import { AuthContext } from './AuthContext';
+import { clearAntiforgeryToken, getAntiforgeryToken } from '../lib/api';
+import { AuthContext, type AppUser } from './AuthContext';
 import './AuthProvider.css';
 
-interface RuntimeAuthConfig {
-  enabled: boolean;
-  tenantId?: string;
-  clientId?: string;
-  apiScope?: string;
-}
+const baseUrl = import.meta.env.VITE_API_URL ?? '';
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
-  const [client, setClient] = useState<PublicClientApplication | null>(null);
-  const [config, setConfig] = useState<RuntimeAuthConfig | null>(null);
-  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'signedOut' | 'error'>('loading');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function initializeAuthentication() {
+    async function loadSession() {
       try {
-        const baseUrl = import.meta.env.VITE_API_URL ?? '';
-        const response = await fetch(`${baseUrl}/api/auth/config`);
-        if (!response.ok) throw new Error('Authentication configuration is unavailable.');
-
-        const runtimeConfig = await response.json() as RuntimeAuthConfig;
-        if (cancelled) return;
-        setConfig(runtimeConfig);
-
-        if (!runtimeConfig.enabled) {
-          configureAccessTokenProvider(null);
-          setStatus('ready');
-          return;
-        }
-
-        if (!runtimeConfig.tenantId || !runtimeConfig.clientId || !runtimeConfig.apiScope) {
-          throw new Error('Microsoft Entra authentication is enabled but not fully configured.');
-        }
-
-        const msalClient = new PublicClientApplication({
-          auth: {
-            clientId: runtimeConfig.clientId,
-            authority: `https://login.microsoftonline.com/${runtimeConfig.tenantId}`,
-            redirectUri: window.location.origin,
-            postLogoutRedirectUri: window.location.origin,
-          },
-          cache: { cacheLocation: 'sessionStorage' },
+        const response = await fetch(`${baseUrl}/api/auth/session`, {
+          credentials: 'include',
         });
-
-        await msalClient.initialize();
-        const redirectResult = await msalClient.handleRedirectPromise();
-        const activeAccount = redirectResult?.account ?? msalClient.getAllAccounts()[0] ?? null;
         if (cancelled) return;
-
-        if (!activeAccount) {
-          setClient(msalClient);
+        if (response.status === 401) {
           setStatus('signedOut');
           return;
         }
-
-        msalClient.setActiveAccount(activeAccount);
-        configureAccessTokenProvider(async () => {
-          try {
-            const result = await msalClient.acquireTokenSilent({
-              account: activeAccount,
-              scopes: [runtimeConfig.apiScope!],
-            });
-            return result.accessToken;
-          } catch (tokenError) {
-            if (tokenError instanceof InteractionRequiredAuthError) {
-              await msalClient.acquireTokenRedirect({ scopes: [runtimeConfig.apiScope!] });
-              return null;
-            }
-            throw tokenError;
-          }
-        });
-        setClient(msalClient);
-        setAccount(activeAccount);
+        if (!response.ok) throw new Error('The authentication service is unavailable.');
+        setUser(await response.json() as AppUser);
         setStatus('ready');
       } catch (authenticationError) {
         if (cancelled) return;
@@ -93,12 +35,37 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    void initializeAuthentication();
-    return () => {
-      cancelled = true;
-      configureAccessTokenProvider(null);
-    };
+    void loadSession();
+    return () => { cancelled = true; };
   }, []);
+
+  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    const data = new FormData(event.currentTarget);
+
+    try {
+      const token = await getAntiforgeryToken();
+      const response = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+        body: JSON.stringify({ email: data.get('email'), password: data.get('password') }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { message?: string } | null;
+        throw new Error(body?.message ?? 'Sign in failed.');
+      }
+      clearAntiforgeryToken();
+      setUser(await response.json() as AppUser);
+      setStatus('ready');
+    } catch (authenticationError) {
+      setError(authenticationError instanceof Error ? authenticationError.message : 'Sign in failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (status === 'loading') {
     return <div className="auth-state"><Spinner label="Checking your session" /></div>;
@@ -122,25 +89,39 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         <div className="auth-panel">
           <div className="auth-mark">DB</div>
           <h1>DB Migration Assist</h1>
-          <p>Sign in with your organization account to open the assessment workspace.</p>
-          <Button
-            appearance="primary"
-            onClick={() => void client?.loginRedirect({ scopes: [config!.apiScope!] })}
-          >
-            Sign in with Microsoft
-          </Button>
+          <p>Sign in to open the assessment workspace.</p>
+          <form className="auth-form" onSubmit={event => void signIn(event)}>
+            <Field label="Email" required>
+              <Input name="email" type="email" autoComplete="username" required autoFocus />
+            </Field>
+            <Field label="Password" required>
+              <Input name="password" type="password" autoComplete="current-password" required />
+            </Field>
+            {error && <div className="auth-error" role="alert">{error}</div>}
+            <Button appearance="primary" type="submit" disabled={submitting}>
+              {submitting ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </form>
         </div>
       </div>
     );
   }
 
+  if (!user) return null;
+
   return (
     <AuthContext.Provider value={{
-      account,
-      authenticationEnabled: config?.enabled ?? false,
+      user,
       signOut: async () => {
-        configureAccessTokenProvider(null);
-        if (client) await client.logoutRedirect({ account: account ?? undefined });
+        const token = await getAntiforgeryToken();
+        await fetch(`${baseUrl}/api/auth/logout`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'X-CSRF-TOKEN': token },
+        });
+        clearAntiforgeryToken();
+        setUser(null);
+        setStatus('signedOut');
       },
     }}>
       {children}

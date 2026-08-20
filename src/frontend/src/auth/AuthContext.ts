@@ -1,9 +1,14 @@
 import { createContext, useContext } from 'react';
-import type { AccountInfo } from '@azure/msal-browser';
+
+export interface AppUser {
+  userId: string;
+  email: string;
+  displayName: string;
+  role: string;
+}
 
 export interface AuthContextValue {
-  account: AccountInfo | null;
-  authenticationEnabled: boolean;
+  user: AppUser;
   signOut: () => Promise<void>;
 }
 

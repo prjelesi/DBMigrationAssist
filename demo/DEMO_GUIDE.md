@@ -50,12 +50,14 @@ Total: approximately 25 minutes.
 - The native database client is installed on the offline execution host (`sqlplus`, `psql`, `mysql`, `sqlcmd`, `mongosh`, `cqlsh`, or `isql`, as applicable).
 - Ports `3000`, `5000`, and `5432` are available.
 - The repository is open at `C:\github\DBMigrationReady`.
+- A `.env` file exists with `POSTGRES_PASSWORD`, `APP_ADMIN_EMAIL`, and `APP_ADMIN_PASSWORD` set. Create it from `.env.example` for a new local environment.
+- The presenter has the application administrator credentials. Do not display or include the password in demo materials.
 
 Start the platform:
 
 ```powershell
 cd C:\github\DBMigrationReady
-docker compose up -d postgres api worker frontend
+docker compose up -d
 ```
 
 Verify the API and portal:
@@ -67,9 +69,12 @@ Start-Process http://localhost:3000
 
 The demo URLs are:
 
-- Portal: `http://localhost:3000`
-- API: `http://localhost:5000`
-- Swagger in Development mode: `http://localhost:5000/swagger`
+- Local portal: `http://localhost:3000`
+- Local API: `http://localhost:5000`
+- Local Swagger in Development mode: `http://localhost:5000/swagger`
+- Azure portal: `https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
+
+Use either the local or Azure portal for the demonstration. Sign in with the application administrator account before beginning the pre-demo setup. Portal authentication is managed by the application; Microsoft Entra sign-in is not required.
 
 ## Shared demonstration story
 
@@ -86,6 +91,14 @@ The assessment team must answer the same core questions:
 The deployment mode changes how evidence reaches the portal, not the assessment outcome.
 
 ## Pre-demo setup
+
+### Sign in
+
+1. Open the selected portal URL.
+2. Sign in with the configured application administrator email and password.
+3. Confirm that the dashboard loads before creating or changing demo data.
+
+The local administrator is seeded only when the application user table is empty. Changing `.env` later does not overwrite an existing user.
 
 ### Synchronize questionnaire templates
 
@@ -399,8 +412,9 @@ Use this table to conclude the demo:
 
 Before presenting:
 
-- [ ] All four core containers are running.
-- [ ] `http://localhost:3000` loads successfully.
+- [ ] All five local services are running when demonstrating Standalone mode: PostgreSQL, API, worker, frontend, and local agent.
+- [ ] The selected local or Azure portal URL loads successfully.
+- [ ] The application administrator can sign in successfully.
 - [ ] System Status shows API, database, and worker as healthy or running.
 - [ ] The v3 baseline and Oracle questionnaire templates are active.
 - [ ] Three projects exist with the correct deployment modes.
@@ -421,8 +435,17 @@ Before presenting:
 
 ```powershell
 docker compose ps
-docker compose up -d postgres api worker frontend
+docker compose up -d
 ```
+
+### Sign-in fails
+
+Check:
+
+- `APP_ADMIN_EMAIL` and `APP_ADMIN_PASSWORD` are present in `.env` for a new local database.
+- The API and PostgreSQL services are healthy.
+- The account already stored in the application database is being used. Startup configuration does not overwrite an existing user.
+- Browser cookies are enabled for the portal.
 
 ### API is healthy but the UI is stale
 
@@ -435,10 +458,12 @@ docker compose up -d --build frontend
 
 ### New questionnaire templates are missing
 
-```powershell
-Invoke-RestMethod -Method Post `
-  -Uri http://localhost:5000/api/questionnaires/templates/seed
-```
+1. Sign in to the portal.
+2. Open **Questionnaire**.
+3. Select **Sync JSON templates**.
+4. Confirm that the template list contains the expected active versions.
+
+Do not call the seed endpoint as an anonymous REST request. Template synchronization requires both the authenticated application session and its antiforgery token.
 
 ### Discovery Agent does not connect
 

@@ -164,6 +164,53 @@ namespace AssessmentToolkit.Data.Migrations
                     b.ToTable("answer", "questionnaire");
                 });
 
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.AppUser", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique();
+
+                    b.ToTable("app_user", "core");
+                });
+
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.AssessmentJob", b =>
                 {
                     b.Property<Guid>("JobId")
@@ -256,6 +303,64 @@ namespace AssessmentToolkit.Data.Migrations
                     b.ToTable("assessment_result", "assessment");
                 });
 
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.AuditEvent", b =>
+                {
+                    b.Property<long>("AuditEventId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("AuditEventId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("EnvironmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResourceId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer");
+
+                    b.HasKey("AuditEventId");
+
+                    b.HasIndex("ProjectId", "OccurredAt");
+
+                    b.ToTable("audit_event", "audit");
+                });
+
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.Customer", b =>
                 {
                     b.Property<Guid>("CustomerId")
@@ -334,6 +439,94 @@ namespace AssessmentToolkit.Data.Migrations
                     b.HasIndex("ProjectId", "EnvironmentId");
 
                     b.ToTable("database_instance", "inventory");
+                });
+
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.EvidenceBundle", b =>
+                {
+                    b.Property<Guid>("EvidenceBundleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BundleJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("EvidenceBundleId");
+
+                    b.HasIndex("ContentHash");
+
+                    b.HasIndex("ProjectId", "CreatedAt");
+
+                    b.ToTable("evidence_bundle", "reporting");
+                });
+
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.GeneratedReport", b =>
+                {
+                    b.Property<Guid>("GeneratedReportId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EvidenceBundleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GeneratedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReportJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("GeneratedReportId");
+
+                    b.HasIndex("EvidenceBundleId");
+
+                    b.HasIndex("ProjectId", "GeneratedAt");
+
+                    b.ToTable("generated_report", "reporting");
                 });
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.GraphEdge", b =>
@@ -502,6 +695,45 @@ namespace AssessmentToolkit.Data.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("environment", "core");
+                });
+
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.ProjectMembership", b =>
+                {
+                    b.Property<Guid>("MembershipId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("EnvironmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MembershipId");
+
+                    b.HasIndex("EnvironmentId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProjectId", "EnvironmentId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("project_membership", "core");
                 });
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.Question", b =>
@@ -815,6 +1047,36 @@ namespace AssessmentToolkit.Data.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.EvidenceBundle", b =>
+                {
+                    b.HasOne("AssessmentToolkit.Core.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.GeneratedReport", b =>
+                {
+                    b.HasOne("AssessmentToolkit.Core.Entities.EvidenceBundle", "EvidenceBundle")
+                        .WithMany()
+                        .HasForeignKey("EvidenceBundleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AssessmentToolkit.Core.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EvidenceBundle");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.GraphEdge", b =>
                 {
                     b.HasOne("AssessmentToolkit.Core.Entities.Project", "Project")
@@ -873,6 +1135,32 @@ namespace AssessmentToolkit.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.ProjectMembership", b =>
+                {
+                    b.HasOne("AssessmentToolkit.Core.Entities.ProjectEnvironment", "Environment")
+                        .WithMany()
+                        .HasForeignKey("EnvironmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("AssessmentToolkit.Core.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AssessmentToolkit.Core.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Environment");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.Question", b =>

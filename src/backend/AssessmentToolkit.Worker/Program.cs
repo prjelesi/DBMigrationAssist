@@ -17,10 +17,14 @@ builder.Services.AddDbContextFactory<AssessmentDbContext>(opts =>
     opts.UseNpgsql(postgresDataSource));
 
 var apiBaseUrl = builder.Configuration["Worker:ApiBaseUrl"] ?? "http://api:8080";
+var serviceToken = builder.Configuration["Worker:ServiceToken"]
+    ?? throw new InvalidOperationException(
+        "Worker:ServiceToken is not configured. Set the environment variable Worker__ServiceToken.");
 builder.Services.AddHttpClient("api", c =>
 {
     c.BaseAddress = new Uri(apiBaseUrl);
     c.Timeout = TimeSpan.FromSeconds(30);
+    c.DefaultRequestHeaders.Add("X-Worker-Token", serviceToken);
 });
 
 builder.Services.AddHostedService<WorkerStatusReporter>();

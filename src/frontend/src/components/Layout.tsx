@@ -74,7 +74,7 @@ const PAGE_META: Record<string, { title: string; sub: string; badge?: string }> 
 };
 
 export default function Layout() {
-  const { account, authenticationEnabled, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const location = useLocation();
   const [navigationOpen, setNavigationOpen] = useState(false);
   const meta = PAGE_META[location.pathname] ?? { title: "Assessment Toolkit", sub: "" };
@@ -122,19 +122,17 @@ export default function Layout() {
         <div className="sidebar-footer">
           <div className="workspace-status"><Pulse24Regular /></div>
           <div className="user-info">
-            <span className="user-name">{account?.name ?? "Local development"}</span>
-            <span className="user-role">{account?.username ?? "Authentication disabled"}</span>
+            <span className="user-name">{user.displayName}</span>
+            <span className="user-role">{user.email}</span>
           </div>
-          {authenticationEnabled ? (
-            <Tooltip content="Sign out" relationship="label">
-              <Button
-                className="sign-out"
-                appearance="subtle"
-                icon={<SignOut24Regular />}
-                onClick={() => void signOut()}
-              />
-            </Tooltip>
-          ) : <div className="status-dot" title="Local development" />}
+          <Tooltip content="Sign out" relationship="label">
+            <Button
+              className="sign-out"
+              appearance="subtle"
+              icon={<SignOut24Regular />}
+              onClick={() => void signOut()}
+            />
+          </Tooltip>
         </div>
       </aside>
 

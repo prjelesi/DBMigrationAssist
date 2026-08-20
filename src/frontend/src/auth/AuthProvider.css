@@ -33,3 +33,19 @@
 
 .auth-panel h1 { margin-bottom: 8px; font-size: 24px; }
 .auth-panel p { margin-bottom: 24px; color: var(--text-secondary); line-height: 1.6; }
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+  text-align: left;
+}
+
+.auth-form > button { width: 100%; }
+
+.auth-error {
+  padding: 10px 12px;
+  border-left: 3px solid #c50f1f;
+  background: #fdf3f4;
+  color: #8a111b;
+  font-size: 13px;
+}

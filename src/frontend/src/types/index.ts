@@ -9,6 +9,22 @@ export type ConfidenceLevel = 'High' | 'Medium' | 'Low' | 'Unverified';
 export type PskMode = 'SystemGenerated' | 'UserSupplied';
 export type ReportState = 'Pending' | 'QuestionnaireActive' | 'BundleReady' | 'AiGenerating' | 'DraftReady' | 'InReview' | 'Approved' | 'Exported';
 
+export interface GeneratedReport {
+  generatedReportId: string;
+  projectId: string;
+  evidenceBundleId: string;
+  reportJson: string;
+  state: ReportState;
+  version: number;
+  generatedBy: string;
+  generatedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  updatedAt: string;
+}
+
 export interface Customer {
   customerId: string;
   name: string;

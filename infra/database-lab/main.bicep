@@ -27,6 +27,7 @@ param databaseAdminPassword string
 
 @description('Oracle SYS, SYSTEM, and PDBADMIN bootstrap password.')
 @minLength(12)
+@maxLength(30)
 @secure()
 param oracleSysPassword string
 

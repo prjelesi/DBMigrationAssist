@@ -1,195 +1,233 @@
-@description('Assessment Toolkit — Azure Container Apps deployment')
-param location string = resourceGroup().location
-param environmentName string = 'assessment-toolkit'
+targetScope = 'subscription'
+
+@minLength(1)
+@maxLength(64)
+param environmentName string
+
+@minLength(1)
+param location string
+
+param sessionId string
+param deployedBy string
+param createdAt string
+param deployerObjectId string
 
 @secure()
 param postgresAdminPassword string
 
+param appAdminEmail string
 @secure()
-param acrPassword string
-param acrServer string
-param acrUsername string
+param appAdminPassword string
+@secure()
+param workerServiceToken string
+param appAdminDisplayName string = 'Administrator'
+param configureSecrets bool = false
 
-@description('Enable Microsoft Entra authentication for the portal API.')
-param authenticationEnabled bool = false
+param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+param apiContainerImage string = containerImage
+param workerContainerImage string = containerImage
+param frontendContainerImage string = containerImage
 
-@description('Microsoft Entra tenant ID. Required when authentication is enabled.')
-param entraTenantId string = ''
+var resourceGroupName = 'rg-dbmigratio-dev-1fa1'
+var virtualNetworkName = 'vnet-dbmigratio-dev-1fa1'
+var containerAppsEnvironmentName = 'cae-dbmigratio-dev-1fa1'
+var apiContainerAppName = 'ca-api-dbmigratio-dev-1fa1'
+var workerContainerAppName = 'ca-worker-dbmigratio-dev-1fa1'
+var frontendContainerAppName = 'ca-web-dbmigratio-dev-1fa1'
+var containerRegistryName = 'crdbmigratiodev1fa1'
+var postgresServerName = 'psql-dbmigratio-dev-1fa1'
+var storageAccountName = 'stdbmigratiodev1fa1'
+var keyVaultName = 'kv-dbmigratio-dev-1fa1'
+var managedIdentityName = 'id-dbmigratio-dev-1fa1'
+var postgresAdministratorLogin = 'assessmentadmin'
+var applicationDatabaseName = 'assessmentdb'
 
-@description('Client ID of the Microsoft Entra API app registration. Required when authentication is enabled.')
-param entraApiClientId string = ''
+var tags = {
+  'app-onboard-skill': 'true'
+  'app-onboard-session-id': sessionId
+  'created-at': createdAt
+  environment: environmentName
+  'deployed-by': deployedBy
+}
 
-@description('Client ID of the Microsoft Entra SPA app registration. Required when authentication is enabled.')
-param entraSpaClientId string = ''
-
-@description('Delegated API scope exposed by the API app registration. Required when authentication is enabled.')
-param entraApiScope string = ''
-
-var resourceToken = uniqueString(subscription().id, resourceGroup().id, location, environmentName)
-
-// ── Container Apps Environment ─────────────────────────────────────────────
-resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: '${environmentName}-logs'
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+  name: resourceGroupName
   location: location
-  properties: {
-    sku: { name: 'PerGB2018' }
-    retentionInDays: 30
+  tags: tags
+}
+
+module network './modules/network.bicep' = {
+  name: 'network'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    virtualNetworkName: virtualNetworkName
   }
 }
 
-resource acaEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
-  name: '${environmentName}-env'
-  location: location
-  properties: {
-    appLogsConfiguration: {
-      destination: 'log-analytics'
-      logAnalyticsConfiguration: {
-        customerId: logWorkspace.properties.customerId
-        sharedKey: logWorkspace.listKeys().primarySharedKey
-      }
-    }
+module identity './modules/identity.bicep' = {
+  name: 'identity'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    managedIdentityName: managedIdentityName
   }
 }
 
-// ── PostgreSQL Flexible Server ──────────────────────────────────────────────
-resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
-  name: '${environmentName}-pg-${resourceToken}'
-  location: location
-  sku: { name: 'Standard_B1ms', tier: 'Burstable' }
-  properties: {
-    administratorLogin: 'assessment'
+module registry './modules/container-registry.bicep' = {
+  name: 'container-registry'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    containerRegistryName: containerRegistryName
+  }
+}
+
+module storage './modules/storage.bicep' = {
+  name: 'storage'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    storageAccountName: storageAccountName
+    containerAppsSubnetId: network.outputs.containerAppsSubnetId
+  }
+}
+
+module keyVault './modules/key-vault.bicep' = {
+  name: 'key-vault'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    keyVaultName: keyVaultName
+  }
+}
+
+module containerAppsEnvironment './modules/container-apps-environment.bicep' = {
+  name: 'container-apps-environment'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    containerAppsEnvironmentName: containerAppsEnvironmentName
+    infrastructureSubnetId: network.outputs.containerAppsSubnetId
+    storageAccountName: storageAccountName
+    evidenceShareName: storage.outputs.evidenceShareName
+    dataProtectionShareName: storage.outputs.dataProtectionShareName
+    localAgentShareName: storage.outputs.localAgentShareName
+  }
+}
+
+module postgres './modules/postgresql.bicep' = {
+  name: 'postgresql'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    postgresServerName: postgresServerName
+    administratorLogin: postgresAdministratorLogin
     administratorLoginPassword: postgresAdminPassword
-    version: '16'
-    storage: { storageSizeGB: 32 }
-    backup: { backupRetentionDays: 7, geoRedundantBackup: 'Disabled' }
-    highAvailability: { mode: 'Disabled' }
+    applicationDatabaseName: applicationDatabaseName
+    delegatedSubnetResourceId: network.outputs.postgresSubnetId
+    privateDnsZoneResourceId: network.outputs.postgresPrivateDnsZoneId
   }
 }
 
-resource postgresDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
-  parent: postgres
-  name: 'assessmentdb'
+module roleAssignments './modules/role-assignments.bicep' = {
+  name: 'role-assignments'
+  scope: resourceGroup
+  params: {
+    containerRegistryName: containerRegistryName
+    keyVaultName: keyVaultName
+    managedIdentityPrincipalId: identity.outputs.principalId
+    deployerObjectId: deployerObjectId
+  }
+  dependsOn: [
+    registry
+    keyVault
+  ]
 }
 
-resource postgresAzureServicesFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
-  parent: postgres
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
+module secrets './modules/secrets.bicep' = if (configureSecrets) {
+  name: 'secrets'
+  scope: resourceGroup
+  params: {
+    keyVaultName: keyVaultName
+    postgresHost: postgres.outputs.fullyQualifiedDomainName
+    postgresDatabaseName: applicationDatabaseName
+    postgresAdministratorLogin: postgresAdministratorLogin
+    postgresAdministratorPassword: postgresAdminPassword
+    appAdminPassword: appAdminPassword
+    workerServiceToken: workerServiceToken
+  }
+  dependsOn: [
+    roleAssignments
+  ]
+}
+
+module api './modules/api-container-app.bicep' = {
+  name: 'api-container-app'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    containerAppName: apiContainerAppName
+    containerAppsEnvironmentId: containerAppsEnvironment.outputs.id
+    containerAppsEnvironmentDefaultDomain: containerAppsEnvironment.outputs.defaultDomain
+    containerRegistryLoginServer: registry.outputs.loginServer
+    managedIdentityId: identity.outputs.id
+    keyVaultName: keyVaultName
+    containerImage: apiContainerImage
+    appAdminEmail: appAdminEmail
+    appAdminDisplayName: appAdminDisplayName
+  }
+  dependsOn: [
+    secrets
+  ]
+}
+
+module worker './modules/worker-container-app.bicep' = {
+  name: 'worker-container-app'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    containerAppName: workerContainerAppName
+    containerAppsEnvironmentId: containerAppsEnvironment.outputs.id
+    containerRegistryLoginServer: registry.outputs.loginServer
+    managedIdentityId: identity.outputs.id
+    keyVaultName: keyVaultName
+    apiBaseUrl: api.outputs.url
+    containerImage: workerContainerImage
+  }
+  dependsOn: [
+    secrets
+  ]
+}
+
+module frontend './modules/frontend-container-app.bicep' = {
+  name: 'frontend-container-app'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    containerAppName: frontendContainerAppName
+    containerAppsEnvironmentId: containerAppsEnvironment.outputs.id
+    containerRegistryLoginServer: registry.outputs.loginServer
+    managedIdentityId: identity.outputs.id
+    apiBaseUrl: api.outputs.url
+    containerImage: frontendContainerImage
   }
 }
 
-var postgresConnString = 'Host=${postgres.properties.fullyQualifiedDomainName};Port=5432;Database=assessmentdb;Username=assessment;Password=${postgresAdminPassword};SslMode=Require'
-
-// ── API Container App ───────────────────────────────────────────────────────
-resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: '${environmentName}-api'
-  location: location
-  properties: {
-    managedEnvironmentId: acaEnv.id
-    configuration: {
-      ingress: {
-        external: true
-        targetPort: 8080
-        transport: 'http'
-      }
-      registries: [{
-        server: acrServer
-        username: acrUsername
-        passwordSecretRef: 'acr-password'
-      }]
-      secrets: [
-        { name: 'acr-password', value: acrPassword }
-        { name: 'postgres-conn', value: postgresConnString }
-      ]
-    }
-    template: {
-      containers: [{
-        name: 'api'
-        image: '${acrServer}/dbmr-api:latest'
-        resources: { cpu: json('0.5'), memory: '1Gi' }
-        env: [
-          { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
-          { name: 'ConnectionStrings__Postgres', secretRef: 'postgres-conn' }
-          { name: 'Api__PublicUrl', value: 'https://${environmentName}-api.${acaEnv.properties.defaultDomain}' }
-          { name: 'Authentication__Enabled', value: string(authenticationEnabled) }
-          { name: 'AzureAd__TenantId', value: entraTenantId }
-          { name: 'AzureAd__ClientId', value: entraApiClientId }
-          { name: 'Authentication__SpaClientId', value: entraSpaClientId }
-          { name: 'Authentication__ApiScope', value: entraApiScope }
-        ]
-      }]
-      scale: { minReplicas: 1, maxReplicas: 3 }
-    }
-  }
-}
-
-// ── Worker Container App ────────────────────────────────────────────────────
-resource workerApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: '${environmentName}-worker'
-  location: location
-  properties: {
-    managedEnvironmentId: acaEnv.id
-    configuration: {
-      registries: [{
-        server: acrServer
-        username: acrUsername
-        passwordSecretRef: 'acr-password'
-      }]
-      secrets: [
-        { name: 'acr-password', value: acrPassword }
-        { name: 'postgres-conn', value: postgresConnString }
-      ]
-    }
-    template: {
-      containers: [{
-        name: 'worker'
-        image: '${acrServer}/dbmr-worker:latest'
-        resources: { cpu: json('0.5'), memory: '1Gi' }
-        env: [
-          { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
-          { name: 'ConnectionStrings__Postgres', secretRef: 'postgres-conn' }
-          { name: 'Worker__ApiBaseUrl', value: 'https://${environmentName}-api.${acaEnv.properties.defaultDomain}' }
-        ]
-      }]
-      scale: { minReplicas: 1, maxReplicas: 5 }
-    }
-  }
-}
-
-// ── Frontend Container App ──────────────────────────────────────────────────
-resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: '${environmentName}-frontend'
-  location: location
-  properties: {
-    managedEnvironmentId: acaEnv.id
-    configuration: {
-      ingress: {
-        external: true
-        targetPort: 80
-        transport: 'http'
-      }
-      registries: [{
-        server: acrServer
-        username: acrUsername
-        passwordSecretRef: 'acr-password'
-      }]
-      secrets: [{ name: 'acr-password', value: acrPassword }]
-    }
-    template: {
-      containers: [{
-        name: 'frontend'
-        image: '${acrServer}/dbmr-frontend:latest'
-        resources: { cpu: json('0.25'), memory: '0.5Gi' }
-        env: [{ name: 'API_UPSTREAM', value: 'https://${environmentName}-api.${acaEnv.properties.defaultDomain}' }]
-      }]
-      scale: { minReplicas: 1, maxReplicas: 2 }
-    }
-  }
-}
-
-// ── Outputs ─────────────────────────────────────────────────────────────────
-output apiUrl string = 'https://${apiApp.properties.configuration.ingress.fqdn}'
-output frontendUrl string = 'https://${frontendApp.properties.configuration.ingress.fqdn}'
-output postgresHost string = postgres.properties.fullyQualifiedDomainName
+output resourceGroupName string = resourceGroup.name
+output containerRegistryName string = containerRegistryName
+output containerRegistryLoginServer string = registry.outputs.loginServer
+output keyVaultName string = keyVaultName
+output postgresHost string = postgres.outputs.fullyQualifiedDomainName
+output apiUrl string = api.outputs.url
+output frontendUrl string = frontend.outputs.url

@@ -25,12 +25,25 @@ write_files:
       fi
 
       mkdir -p "$lab_root" /opt/oracle
-      data_device=/dev/disk/azure/scsi1/lun0
+      data_device=''
       for attempt in {1..60}; do
-        [[ -b "$data_device" ]] && break
+        for candidate in /dev/disk/azure/data/by-lun/0 /dev/disk/azure/scsi1/lun0; do
+          if [[ -b "$candidate" ]]; then
+            data_device="$candidate"
+            break 2
+          fi
+        done
+        for candidate in /dev/nvme*n*; do
+          [[ -b "$candidate" ]] || continue
+          [[ $(lsblk -dn -o TYPE "$candidate") == disk ]] || continue
+          [[ $(lsblk -nr -o NAME "$candidate" | wc -l) -eq 1 ]] || continue
+          [[ $(udevadm info --query=property --name "$candidate" 2>/dev/null) == *'ID_MODEL=MSFT NVMe Accelerator'* ]] || continue
+          data_device="$candidate"
+          break 2
+        done
         sleep 2
       done
-      [[ -b "$data_device" ]]
+      [[ -n "$data_device" && -b "$data_device" ]]
       if ! blkid "$data_device" >/dev/null 2>&1; then
         mkfs.xfs -f "$data_device"
       fi
@@ -57,6 +70,7 @@ write_files:
       [[ -n "$oracle_password" && "$oracle_password" != null ]]
 
       dnf install -y oracle-database-preinstall-21c
+      chown oracle:oinstall /opt/oracle
       if ! rpm -q oracle-database-xe-21c >/dev/null 2>&1; then
         curl --fail --location --output /tmp/oracle-database-xe-21c.rpm \
           https://download.oracle.com/otn-pub/otn_software/db-express/oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm
@@ -65,9 +79,10 @@ write_files:
       fi
 
       if [[ ! -d /opt/oracle/oradata/XE ]]; then
-        printf '%s\n%s\n' "$oracle_password" "$oracle_password" | /etc/init.d/oracle-xe-21c configure
+        ORACLE_PASSWORD="$oracle_password" /etc/init.d/oracle-xe-21c configure
       fi
-      systemctl enable --now oracle-xe-21c
+      systemctl enable oracle-xe-21c
+      systemctl restart oracle-xe-21c
 
       export ORACLE_SID=XE
       export ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE

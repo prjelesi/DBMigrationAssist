@@ -116,7 +116,7 @@ The API is available at `http://localhost:5000` (Swagger UI at `/swagger`).
 
 On first start, EF Core migrations run automatically and all database schemas are created.
 
-Authentication is disabled by default in the local Compose environment. Discovery Agent endpoints remain protected by their existing PSK/HMAC signatures independently of portal authentication.
+Portal authentication is required in the local Compose environment. The first application administrator is provisioned from `APP_ADMIN_EMAIL` and `APP_ADMIN_PASSWORD`; background worker calls use the separate `WORKER_SERVICE_TOKEN`. Discovery Agent endpoints remain protected by their PSK/HMAC signatures.
 
 ---
 
@@ -660,26 +660,19 @@ Once configured, the worker automatically enriches completed assessment results 
 
 ---
 
-## Microsoft Entra authentication
+## Application authentication
 
-The portal uses application-managed Microsoft Entra authentication. The React SPA signs users in with MSAL and sends a delegated access token to the API. All portal API controllers require that token and the configured delegated scope. Routes under `/api/agent/*` continue to use PSK/HMAC authentication, and `/health` plus `/api/auth/config` remain anonymous.
+The portal uses application-managed users stored in PostgreSQL. Successful sign-in creates an HTTP-only, same-site authentication cookie, and mutating API requests require an antiforgery token. Routes under `/api/agent/*` continue to use PSK/HMAC authentication, while `/health` and the sign-in endpoints remain anonymous.
 
-Create two single-tenant app registrations in the same tenant:
-
-1. **API registration**: expose an API scope named `access_as_user`, using an Application ID URI such as `api://<api-client-id>`.
-2. **SPA registration**: add a Single-page application redirect URI for the portal origin, such as `http://localhost:3000` or the Azure HTTPS portal URL. Grant delegated permission to the API's `access_as_user` scope and provide admin consent when tenant policy requires it.
-
-Set these values in `.env` for Docker Compose:
+Set the initial administrator values in `.env` for Docker Compose:
 
 ```dotenv
-AUTHENTICATION_ENABLED=true
-ENTRA_TENANT_ID=<tenant-id>
-ENTRA_API_CLIENT_ID=<api-registration-client-id>
-ENTRA_SPA_CLIENT_ID=<spa-registration-client-id>
-ENTRA_API_SCOPE=api://<api-registration-client-id>/access_as_user
+APP_ADMIN_EMAIL=admin@example.com
+APP_ADMIN_PASSWORD=<at-least-12-characters>
+APP_ADMIN_DISPLAY_NAME=Administrator
 ```
 
-Rebuild the precompiled artifacts and containers after changing authentication dependencies. Tenant and client identifiers are public configuration; do not place client secrets in the SPA. This flow uses delegated user tokens and does not require a SPA client secret.
+The API provisions this account only when the application-user table is empty. Passwords are hashed with ASP.NET Core Identity and are never sent to the frontend after sign-in. Data Protection keys persist in a Docker volume locally and an Azure Files share in Azure so authentication cookies survive container restarts.
 
 ## Azure deployment
 
@@ -704,49 +697,20 @@ Production deployment uses Azure Container Apps via the Bicep template in `infra
 ### Deploy steps
 
 ```powershell
-# 1. Create a resource group
-az group create --name rg-dbmr --location uksouth
+# 1. Build and validate the local application
+.\build.ps1
+docker compose build api worker frontend local-agent
+docker compose up -d api worker frontend local-agent
 
-# 2. Build and push images to your ACR
-az acr build --registry myregistry --image dbmr-api:latest     ./src/backend/AssessmentToolkit.Api
-az acr build --registry myregistry --image dbmr-worker:latest  ./src/backend/AssessmentToolkit.Worker
-az acr build --registry myregistry --image dbmr-frontend:latest ./src/frontend
-az acr build --registry myregistry --image dbmr-agent:latest   ./src/agent/AssessmentToolkit.Agent
+# 2. Validate and preview Azure changes
+.\infra\deploy.ps1 -Mode Validate
+.\infra\deploy.ps1 -Mode WhatIf
 
-# 3. Preview infrastructure changes
-az deployment group what-if `
-  --resource-group rg-dbmr `
-  --template-file infra/main.bicep `
-  --parameters `
-      environmentName=assessment-toolkit `
-      postgresAdminPassword='<secure-password>' `
-      acrServer=myregistry.azurecr.io `
-      acrUsername=myregistry `
-      acrPassword='<acr-password>'
-
-# 4. Deploy after reviewing the preview
-az deployment group create `
-  --resource-group rg-dbmr `
-  --template-file infra/main.bicep `
-  --parameters `
-      environmentName=assessment-toolkit `
-      postgresAdminPassword='<secure-password>' `
-      acrServer=myregistry.azurecr.io `
-      acrUsername=myregistry `
-      acrPassword='<acr-password>'
+# 3. Deploy only after reviewing the preview
+.\infra\deploy.ps1 -Mode Deploy
 ```
 
-After deployment, retrieve the API URL:
-
-```powershell
-az containerapp show \
-  --resource-group rg-dbmr \
-  --name assessment-toolkit-api \
-  --query properties.configuration.ingress.fqdn \
-  --output tsv
-```
-
-Use that URL as `AGENT_BACKEND_URL` when configuring agents against the cloud deployment.
+Deployment does not rebuild application images. It resolves the immutable image ID used by each running Compose service, applies a timestamped ACR tag to that exact image, pushes it, and configures Azure Container Apps with those tags. Deployment stops if any required local service is not running.
 
 ---
 

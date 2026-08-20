@@ -2,6 +2,7 @@ using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace AssessmentToolkit.Api.Controllers;
 
@@ -10,8 +11,17 @@ namespace AssessmentToolkit.Api.Controllers;
 public class ProjectsController(AssessmentDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List() =>
-        Ok(await db.Projects
+    public async Task<IActionResult> List()
+    {
+        var projects = db.Projects.AsNoTracking();
+        if (!User.IsInRole("Administrator"))
+        {
+            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                return Unauthorized();
+            projects = projects.Where(p => db.ProjectMemberships.Any(m => m.ProjectId == p.ProjectId && m.UserId == userId));
+        }
+
+        return Ok(await projects
             .AsNoTracking()
             .Select(p => new
             {
@@ -34,7 +44,8 @@ public class ProjectsController(AssessmentDbContext db) : ControllerBase
                     p.Customer.UpdatedAt
                 }
             })
-            .ToListAsync());
+                .ToListAsync());
+            }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
@@ -94,6 +105,16 @@ public class ProjectsController(AssessmentDbContext db) : ControllerBase
         };
 
         db.Projects.Add(project);
+        if (Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            db.ProjectMemberships.Add(new ProjectMembership
+            {
+                ProjectId = project.ProjectId,
+                UserId = userId,
+                Role = "Owner",
+                CreatedBy = User.Identity?.Name ?? req.CreatedBy
+            });
+        }
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { id = project.ProjectId }, new
         {

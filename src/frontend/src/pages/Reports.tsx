@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { generateReport, getAiStatus, getProjects } from '../lib/api';
-import type { ReportState } from '../types';
+import { useState } from 'react';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { generateReport, getAiStatus, getGeneratedReports, getProjects, transitionGeneratedReport } from '../lib/api';
+import type { GeneratedReport, ReportState } from '../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,27 +21,9 @@ interface ReportContent {
   estimatedEffort: string;
 }
 
-interface StoredReport {
-  id: string;
-  projectId: string;
+interface ViewReport extends GeneratedReport {
   projectName: string;
-  reportJson: string;
   parsedContent: ReportContent | null;
-  generatedAt: string;
-  state: ReportState;
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-const LS_KEY = 'dbmr_reports';
-
-function loadReports(): StoredReport[] {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]'); }
-  catch { return []; }
-}
-
-function saveReports(reports: StoredReport[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(reports));
 }
 
 /** Extract JSON from an AI response that may wrap it in markdown fences. */
@@ -86,23 +68,28 @@ const RISK_BADGE: Record<string, string> = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function Reports() {
-  const [reports, setReports] = useState<StoredReport[]>(loadReports);
   const [showGenModal, setShowGenModal] = useState(false);
   const [genProjectId, setGenProjectId] = useState('');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [viewReport, setViewReport] = useState<StoredReport | null>(null);
+  const [viewReport, setViewReport] = useState<ViewReport | null>(null);
+  const queryClient = useQueryClient();
 
   const projects = useQuery({ queryKey: ['projects'], queryFn: getProjects });
   const aiStatus = useQuery({ queryKey: ['aiStatus'], queryFn: getAiStatus });
-
-  const mutateReports = useCallback((updater: (prev: StoredReport[]) => StoredReport[]) => {
-    setReports(prev => {
-      const next = updater(prev);
-      saveReports(next);
-      return next;
-    });
-  }, []);
+  const reportQueries = useQueries({
+    queries: (projects.data ?? []).map(project => ({
+      queryKey: ['reports', project.projectId],
+      queryFn: () => getGeneratedReports(project.projectId),
+    })),
+  });
+  const reports: ViewReport[] = reportQueries.flatMap((query, index) =>
+    (query.data ?? []).map(report => ({
+      ...report,
+      projectName: projects.data?.[index]?.name ?? 'Unknown project',
+      parsedContent: extractJson(report.reportJson),
+    }))
+  ).sort((left, right) => right.generatedAt.localeCompare(left.generatedAt));
 
   // ── Generate ──────────────────────────────────────────────────────────────
 
@@ -114,28 +101,12 @@ export default function Reports() {
     setGenError(null);
     setGenerating(true);
 
-    // Optimistically add a "generating" row
-    const tempId = crypto.randomUUID();
-    const tempReport: StoredReport = {
-      id: tempId, projectId: genProjectId, projectName: project.name,
-      reportJson: '', parsedContent: null,
-      generatedAt: new Date().toISOString(), state: 'AiGenerating',
-    };
-    mutateReports(prev => [tempReport, ...prev]);
-
     try {
-      const result = await generateReport(genProjectId);
-      const parsed = extractJson(result.reportJson);
-
-      mutateReports(prev => prev.map(r =>
-        r.id === tempId
-          ? { ...r, reportJson: result.reportJson, parsedContent: parsed, generatedAt: result.generatedAt, state: 'DraftReady' }
-          : r
-      ));
+      await generateReport(genProjectId);
+      await queryClient.invalidateQueries({ queryKey: ['reports', genProjectId] });
       setShowGenModal(false);
       setGenProjectId('');
     } catch (err: unknown) {
-      mutateReports(prev => prev.filter(r => r.id !== tempId));
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
         ?.response?.data?.error
         ?? (err as { message?: string })?.message
@@ -148,23 +119,21 @@ export default function Reports() {
 
   // ── State transitions ─────────────────────────────────────────────────────
 
-  const advanceState = (id: string, next: ReportState) => {
-    mutateReports(prev => prev.map(r => r.id === id ? { ...r, state: next } : r));
-    setViewReport(prev => prev?.id === id ? { ...prev, state: next } : prev);
+  const advanceState = async (report: ViewReport, next: ReportState) => {
+    const updated = await transitionGeneratedReport(report.generatedReportId, next);
+    await queryClient.invalidateQueries({ queryKey: ['reports', report.projectId] });
+    setViewReport(prev => prev?.generatedReportId === report.generatedReportId
+      ? { ...prev, ...updated }
+      : prev);
   };
 
-  const deleteReport = (id: string) => {
-    mutateReports(prev => prev.filter(r => r.id !== id));
-    if (viewReport?.id === id) setViewReport(null);
-  };
-
-  const exportReport = (report: StoredReport) => {
+  const exportReport = async (report: ViewReport) => {
     const blob = new Blob([JSON.stringify({ ...report, parsedContent: report.parsedContent }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
     a.download = `report-${report.projectName.replace(/\s+/g, '-')}-${report.generatedAt.slice(0, 10)}.json`;
     a.click(); URL.revokeObjectURL(url);
-    advanceState(report.id, 'Exported');
+    await advanceState(report, 'Exported');
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -233,7 +202,7 @@ export default function Reports() {
             </thead>
             <tbody>
               {reports.map(r => (
-                <tr key={r.id}>
+                <tr key={r.generatedReportId}>
                   <td><strong>{r.projectName}</strong></td>
                   <td><span className={`badge ${STATE_BADGE[r.state]}`}>{r.state}</span></td>
                   <td>
@@ -259,21 +228,20 @@ export default function Reports() {
                         <button className="btn btn-secondary btn-sm" onClick={() => setViewReport(r)}>View</button>
                       )}
                       {r.state === 'DraftReady' && (
-                        <button className="btn btn-secondary btn-sm" onClick={() => advanceState(r.id, 'InReview')}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => void advanceState(r, 'InReview')}>
                           Send for Review
                         </button>
                       )}
                       {r.state === 'InReview' && (
-                        <button className="btn btn-primary btn-sm" onClick={() => advanceState(r.id, 'Approved')}>
+                        <button className="btn btn-primary btn-sm" onClick={() => void advanceState(r, 'Approved')}>
                           Approve
                         </button>
                       )}
                       {r.state === 'Approved' && (
-                        <button className="btn btn-secondary btn-sm" onClick={() => exportReport(r)}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => void exportReport(r)}>
                           Export JSON
                         </button>
                       )}
-                      <button className="btn btn-danger btn-sm" onClick={() => deleteReport(r.id)}>✕</button>
                     </div>
                   </td>
                 </tr>
@@ -345,7 +313,7 @@ export default function Reports() {
 
 // ── Report Viewer ─────────────────────────────────────────────────────────────
 
-function ReportViewer({ report, onClose }: { report: StoredReport; onClose: () => void }) {
+function ReportViewer({ report, onClose }: { report: ViewReport; onClose: () => void }) {
   const c = report.parsedContent;
   if (!c) return <p>No parsed content available.</p>;
 

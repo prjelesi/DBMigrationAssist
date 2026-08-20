@@ -7,6 +7,7 @@ using AssessmentToolkit.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using System.Security.Claims;
 using System.Text;
 
 namespace AssessmentToolkit.Api.Controllers;
@@ -16,10 +17,23 @@ namespace AssessmentToolkit.Api.Controllers;
 public class AgentsController(AssessmentDbContext db, IConfiguration config) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] Guid? projectId) =>
-        Ok(await db.Agents
-            .Where(a => !projectId.HasValue || a.ProjectId == projectId || a.CreatedBy == LocalAgentProvisioner.CreatedBy)
-            .ToListAsync());
+    public async Task<IActionResult> List([FromQuery] Guid? projectId)
+    {
+        var agents = db.Agents.AsNoTracking();
+        if (projectId.HasValue)
+            agents = agents.Where(a => a.ProjectId == projectId || a.CreatedBy == LocalAgentProvisioner.CreatedBy);
+
+        if (!User.IsInRole("Administrator"))
+        {
+            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                return Unauthorized();
+            agents = agents.Where(a => db.ProjectMemberships.Any(
+                m => m.ProjectId == a.ProjectId && m.UserId == userId &&
+                    (m.EnvironmentId == null || m.EnvironmentId == a.EnvironmentId)));
+        }
+
+        return Ok(await agents.ToListAsync());
+    }
 
     [HttpPost]
     public async Task<IActionResult> Register([FromBody] RegisterAgentRequest req)

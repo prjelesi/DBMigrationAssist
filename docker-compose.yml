@@ -27,11 +27,10 @@ services:
       DataProtection__KeysPath: "/app/data-protection"
       LocalAgent__BootstrapPath: "/app/local-agent/bootstrap.json"
       LocalAgent__BackendUrl: "http://api:8080"
-      Authentication__Enabled: "${AUTHENTICATION_ENABLED:-false}"
-      AzureAd__TenantId: "${ENTRA_TENANT_ID:-}"
-      AzureAd__ClientId: "${ENTRA_API_CLIENT_ID:-}"
-      Authentication__SpaClientId: "${ENTRA_SPA_CLIENT_ID:-}"
-      Authentication__ApiScope: "${ENTRA_API_SCOPE:-}"
+      AppAdmin__Email: "${APP_ADMIN_EMAIL:?Set APP_ADMIN_EMAIL in .env}"
+      AppAdmin__Password: "${APP_ADMIN_PASSWORD:?Set APP_ADMIN_PASSWORD in .env}"
+      AppAdmin__DisplayName: "${APP_ADMIN_DISPLAY_NAME:-Administrator}"
+      Worker__ServiceToken: "${WORKER_SERVICE_TOKEN:?Set WORKER_SERVICE_TOKEN in .env}"
       # ── AI Foundry ── uncomment and fill in to enable AI features ──────
       # AiFoundry__Endpoint: "https://<your-resource>.openai.azure.com/"
       # AiFoundry__ApiKey: "<your-api-key>"
@@ -54,6 +53,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=assessmentdb;Username=assessment;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       Worker__ApiBaseUrl: "http://api:8080"
+      Worker__ServiceToken: "${WORKER_SERVICE_TOKEN:?Set WORKER_SERVICE_TOKEN in .env}"
     depends_on:
       postgres:
         condition: service_healthy

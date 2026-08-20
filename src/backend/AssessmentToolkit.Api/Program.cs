@@ -1,11 +1,14 @@
 using AssessmentToolkit.Api.Middleware;
 using AssessmentToolkit.Api.Services;
+using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Data;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Web;
 using Npgsql;
 using Serilog;
 
@@ -14,7 +17,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
-var authenticationEnabled = builder.Configuration.GetValue("Authentication:Enabled", true);
 
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
@@ -37,25 +39,52 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 var controllers = builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
-if (authenticationEnabled)
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = "PortalOrService";
+        options.DefaultChallengeScheme = "PortalOrService";
+    })
+    .AddPolicyScheme("PortalOrService", null, options =>
+        options.ForwardDefaultSelector = context =>
+            context.Request.Headers.ContainsKey(ServiceTokenAuthenticationHandler.HeaderName)
+                ? ServiceTokenAuthenticationHandler.SchemeName
+                : CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+    {
+        options.Cookie.Name = "AssessmentToolkit.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    })
+    .AddScheme<AuthenticationSchemeOptions, ServiceTokenAuthenticationHandler>(
+        ServiceTokenAuthenticationHandler.SchemeName,
+        _ => { });
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
+builder.Services.AddAntiforgery(options =>
 {
-    var requiredScope = builder.Configuration["Authentication:ApiScope"]?.Split('/').LastOrDefault();
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
-    builder.Services.AddAuthorization(options =>
-        options.FallbackPolicy = new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .RequireAssertion(context =>
-                !string.IsNullOrWhiteSpace(requiredScope) &&
-                context.User.FindAll("scp")
-                    .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                    .Contains(requiredScope, StringComparer.Ordinal))
-            .Build());
-}
-else
-{
-    builder.Services.AddAuthorization();
-}
+    options.Cookie.Name = "AssessmentToolkit.Antiforgery";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.HeaderName = "X-CSRF-TOKEN";
+});
+builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
+builder.Services.AddScoped<ProjectAccessService>();
 
 // AI Foundry adapter — singleton, used by evidence parser, finding enricher and report generator
 builder.Services.AddSingleton<IAiAdapterService, AiAdapterService>();
@@ -78,9 +107,35 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-if (authenticationEnabled)
-    app.UseAuthentication();
+app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<GovernanceMiddleware>();
+
+app.UseWhen(
+    context => context.Request.Path.StartsWithSegments("/api") &&
+        !context.Request.Path.StartsWithSegments("/api/agent") &&
+        !HttpMethods.IsGet(context.Request.Method) &&
+        !HttpMethods.IsHead(context.Request.Method) &&
+        !HttpMethods.IsOptions(context.Request.Method),
+    branch => branch.Use(async (context, next) =>
+    {
+        if (context.User.IsInRole("Service"))
+        {
+            await next(context);
+            return;
+        }
+
+        try
+        {
+            await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context);
+            await next(context);
+        }
+        catch (AntiforgeryValidationException)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsJsonAsync(new { message = "Invalid antiforgery token." });
+        }
+    }));
 
 // Agent endpoints use PSK/HMAC auth - applied only to /api/agent/* routes
 app.UseWhen(
@@ -96,6 +151,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
+await AppUserProvisioner.ProvisionAsync(app.Services, app.Configuration);
 await LocalAgentProvisioner.ProvisionAsync(app.Services, app.Configuration);
 await app.Services.GetRequiredService<IAiAdapterService>().ReloadConfigAsync(app.Services);
 
