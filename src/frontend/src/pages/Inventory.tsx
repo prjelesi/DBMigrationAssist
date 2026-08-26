@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
-import { ArrowDownload20Regular, ArrowUpload20Regular } from '@fluentui/react-icons';
+import { ArrowDownload20Regular, ArrowUpload20Regular, Delete20Regular } from '@fluentui/react-icons';
 import {
-  createDatabase, downloadDatabaseImportTemplate, downloadOfflineAssessmentScript,
+  createDatabase, deleteDatabase, downloadDatabaseImportTemplate, downloadOfflineAssessmentScript,
   getDatabases, getEnvironments, getProjects, importDatabases, uploadOfflineAssessmentResult,
 } from '../lib/api';
 import type { DatabaseImportErrorResponse } from '../lib/api';
@@ -46,6 +46,7 @@ export default function Inventory() {
   const [uploadTarget, setUploadTarget] = useState<DatabaseInstance | null>(null);
   const [resultFile, setResultFile] = useState<File | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -88,6 +89,13 @@ export default function Inventory() {
   const uploadResultMutation = useMutation({
     mutationFn: ({ databaseId, file }: { databaseId: string; file: File }) =>
       uploadOfflineAssessmentResult(databaseId, file),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteDatabase,
+    onMutate: () => setDeleteError(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['databases', selectedProject] }),
+    onError: () => setDeleteError('Could not delete the database. Refresh the page and try again.'),
   });
 
   const openImport = () => {
@@ -203,6 +211,7 @@ export default function Inventory() {
 
       <div className="card">
         {downloadError && <div className="error-msg">{downloadError}</div>}
+        {deleteError && <div className="error-msg">{deleteError}</div>}
         {databases.isLoading && <div className="loading">Loading…</div>}
         {!selectedProject && <div className="empty-state"><p>Select a project to view its inventory.</p></div>}
         {selectedProject && !databases.isLoading && filtered.length === 0 && (
@@ -214,7 +223,7 @@ export default function Inventory() {
         {filtered.length > 0 && (
           <table className="data-table">
             <thead>
-              <tr><th>Name</th><th>Engine</th><th>Host</th><th>Port</th><th>Criticality</th><th>Owner</th><th>Assessment</th></tr>
+              <tr><th>Name</th><th>Engine</th><th>Host</th><th>Port</th><th>Criticality</th><th>Owner</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {filtered.map(db => (
@@ -234,6 +243,14 @@ export default function Inventory() {
                       <button type="button" className="btn btn-ghost btn-sm" title="Upload offline assessment result"
                         aria-label={`Upload assessment result for ${db.name}`} onClick={() => openResultUpload(db)}>
                         <ArrowUpload20Regular />
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" title="Delete database from inventory"
+                        aria-label={`Delete ${db.name} from inventory`} disabled={deleteMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm(`Delete ${db.name} from this project's inventory? Assessment history will be preserved.`))
+                            deleteMutation.mutate(db.databaseId);
+                        }}>
+                        <Delete20Regular />
                       </button>
                     </div>
                   </td>

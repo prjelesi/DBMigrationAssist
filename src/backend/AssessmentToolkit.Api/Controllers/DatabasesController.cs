@@ -65,6 +65,33 @@ public class DatabasesController(AssessmentDbContext db) : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = instance.DatabaseId }, instance);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var database = await db.Databases.FindAsync([id], cancellationToken);
+        if (database is null) return NotFound();
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        await db.Jobs
+            .Where(job => job.DatabaseId == id)
+            .ExecuteUpdateAsync(update => update.SetProperty(job => job.DatabaseId, (Guid?)null), cancellationToken);
+        await db.Results
+            .Where(result => result.DatabaseId == id)
+            .ExecuteUpdateAsync(update => update.SetProperty(result => result.DatabaseId, (Guid?)null), cancellationToken);
+
+        var portfolios = await db.Portfolios
+            .Where(portfolio => portfolio.ProjectId == database.ProjectId)
+            .ToListAsync(cancellationToken);
+        foreach (var portfolio in portfolios.Where(portfolio => portfolio.DatabaseIds.Remove(id)))
+            db.Entry(portfolio).Property(item => item.DatabaseIds).IsModified = true;
+
+        db.Databases.Remove(database);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}/assessment-script")]
     public async Task<IActionResult> DownloadAssessmentScript(Guid id)
     {

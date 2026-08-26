@@ -80,7 +80,8 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
     [HttpPost("results")]
     public async Task<IActionResult> SubmitResult(Guid agentId, [FromBody] AgentResultSubmission submission)
     {
-        var job = await db.Jobs.FindAsync(submission.JobId);
+        var job = await db.Jobs
+            .FirstOrDefaultAsync(candidate => candidate.JobId == submission.JobId);
         if (job is null || job.AgentId != agentId) return BadRequest("Job not found for this agent.");
 
         var result = new AssessmentResult
@@ -121,6 +122,7 @@ public record JobCredentials(string Host, int Port, string Database, string User
 
 public record CreateJobRequest(
     Guid? DatabaseId,
+    Guid ProjectId,
     string PluginId,
     /// <summary>JSON object with at minimum: host, port, database, username, password</summary>
     string? ParametersJson);

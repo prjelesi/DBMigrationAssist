@@ -5,28 +5,35 @@ import type {
   QuestionnaireAttachment, QuestionnaireTemplate, QuestionnaireResponse,
 } from '../types';
 
-const baseURL = import.meta.env.VITE_API_URL ?? '';
-let antiforgeryToken: string | null = null;
+type AccessTokenProvider = () => Promise<string | null>;
+let accessTokenProvider: AccessTokenProvider | null = null;
 
 const api = axios.create({
-  baseURL,
+  baseURL: import.meta.env.VITE_API_URL ?? '',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
-export async function getAntiforgeryToken() {
-  if (antiforgeryToken) return antiforgeryToken;
-  const response = await fetch(`${baseURL}/api/auth/antiforgery`, { credentials: 'include' });
-  if (!response.ok) throw new Error('Unable to secure this request.');
-  antiforgeryToken = (await response.json() as { token: string }).token;
-  return antiforgeryToken;
-}
+export const configureAccessTokenProvider = (provider: AccessTokenProvider | null) => {
+  accessTokenProvider = provider;
+};
 
-export function clearAntiforgeryToken() {
+let antiforgeryToken: string | null = null;
+
+export const getAntiforgeryToken = async () => {
+  if (antiforgeryToken) return antiforgeryToken;
+  const response = await api.get<{ token: string }>('/api/auth/antiforgery');
+  antiforgeryToken = response.data.token;
+  return antiforgeryToken;
+};
+
+export const clearAntiforgeryToken = () => {
   antiforgeryToken = null;
-}
+};
 
 api.interceptors.request.use(async config => {
+  const accessToken = await accessTokenProvider?.();
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   const method = config.method?.toUpperCase() ?? 'GET';
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method))
     config.headers['X-CSRF-TOKEN'] = await getAntiforgeryToken();
@@ -59,9 +66,13 @@ export const getJobResults = (agentId: string, jobId: string) =>
 
 export const dispatchJob = (agentId: string, data: {
   databaseId?: string;
+  projectId: string;
   pluginId: string;
   parametersJson: string; // JSON-encoded JobCredentials
 }) => api.post(`/api/agents/${agentId}/jobs`, data).then(r => r.data);
+
+export const linkJobToInventory = (agentId: string, jobId: string, projectId: string) =>
+  api.post(`/api/agents/${agentId}/jobs/${jobId}/inventory`, { projectId }).then(r => r.data);
 
 // Databases
 export const getDatabases = (projectId: string) =>
@@ -72,6 +83,9 @@ export const createDatabase = (data: {
   version?: string; hostName?: string; port?: number;
   criticality: string; ownerName?: string;
 }) => api.post<DatabaseInstance>('/api/databases', data).then(r => r.data);
+
+export const deleteDatabase = (databaseId: string) =>
+  api.delete(`/api/databases/${databaseId}`).then(r => r.data);
 
 export interface DatabaseImportResult {
   imported: number;
@@ -249,7 +263,7 @@ export const deleteGraphEdge = (edgeId: string) =>
 
 // AI / Reports
 export const generateReport = (projectId: string) =>
-  api.post<GeneratedReport>(
+  api.post<{ projectId: string; reportJson: string; generatedAt: string }>(
     '/api/ai/generate-report', { projectId }
   ).then(r => r.data);
 

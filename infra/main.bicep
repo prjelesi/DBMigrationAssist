@@ -27,6 +27,7 @@ param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-hellowo
 param apiContainerImage string = containerImage
 param workerContainerImage string = containerImage
 param frontendContainerImage string = containerImage
+param discoveryAgentContainerImage string = containerImage
 
 var resourceGroupName = 'rg-dbmigratio-dev-1fa1'
 var virtualNetworkName = 'vnet-dbmigratio-dev-1fa1'
@@ -34,6 +35,7 @@ var containerAppsEnvironmentName = 'cae-dbmigratio-dev-1fa1'
 var apiContainerAppName = 'ca-api-dbmigratio-dev-1fa1'
 var workerContainerAppName = 'ca-worker-dbmigratio-dev-1fa1'
 var frontendContainerAppName = 'ca-web-dbmigratio-dev-1fa1'
+var discoveryAgentContainerAppName = 'ca-agent-dbmigratio-dev-1fa1'
 var containerRegistryName = 'crdbmigratiodev1fa1'
 var postgresServerName = 'psql-dbmigratio-dev-1fa1'
 var storageAccountName = 'stdbmigratiodev1fa1'
@@ -209,6 +211,23 @@ module worker './modules/worker-container-app.bicep' = {
   ]
 }
 
+module discoveryAgent './modules/agent-container-app.bicep' = {
+  name: 'discovery-agent-container-app'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    containerAppName: discoveryAgentContainerAppName
+    containerAppsEnvironmentId: containerAppsEnvironment.outputs.id
+    containerRegistryLoginServer: registry.outputs.loginServer
+    managedIdentityId: identity.outputs.id
+    containerImage: discoveryAgentContainerImage
+  }
+  dependsOn: [
+    api
+  ]
+}
+
 module frontend './modules/frontend-container-app.bicep' = {
   name: 'frontend-container-app'
   scope: resourceGroup
@@ -231,3 +250,4 @@ output keyVaultName string = keyVaultName
 output postgresHost string = postgres.outputs.fullyQualifiedDomainName
 output apiUrl string = api.outputs.url
 output frontendUrl string = frontend.outputs.url
+output discoveryAgentId string = discoveryAgent.outputs.id

@@ -258,7 +258,9 @@ public class AiController(
 
         var databases    = await db.Databases.Where(d => d.ProjectId == req.ProjectId).ToListAsync(ct);
         var agentResults = await db.Results
-            .Where(r => r.Database != null && r.Database.ProjectId == req.ProjectId)
+            .Where(r =>
+                (r.Database != null && r.Database.ProjectId == req.ProjectId) ||
+                (r.DatabaseId == null && r.Job.Agent != null && r.Job.Agent.ProjectId == req.ProjectId))
             .OrderByDescending(r => r.AssessedAt)
             .Take(20)
             .ToListAsync(ct);

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { dispatchJob, getAgentJobs, getAllAgents, getDatabases, getJobResults, getProjects, registerAgent } from "../lib/api";
+import { dispatchJob, getAgentJobs, getAllAgents, getDatabases, getJobResults, getProjects, linkJobToInventory, registerAgent } from "../lib/api";
 import type { Agent, AgentJobSummary, AssessmentResult, DatabaseInstance, Project, PskMode, RegisterAgentResponse } from "../types";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -179,6 +179,7 @@ export default function Agents() {
   const [bootstrapResult, setBootstrapResult] = useState<RegisterAgentResponse | null>(null);
   const [dispatchTarget, setDispatchTarget] = useState<Agent | null>(null);
   const [jobHistoryAgent, setJobHistoryAgent] = useState<Agent | null>(null);
+  const [jobHistoryProjectId, setJobHistoryProjectId] = useState("");
   const [viewFindingsJob, setViewFindingsJob] = useState<AgentJobSummary | null>(null);
 
   const [regForm, setRegForm] = useState({
@@ -229,9 +230,10 @@ export default function Agents() {
   });
 
   const dispatchMutation = useMutation({
-    mutationFn: ({ agent, form }: { agent: Agent; form: typeof jobForm }) =>
+    mutationFn: ({ agent, projectId, form }: { agent: Agent; projectId: string; form: typeof jobForm }) =>
       dispatchJob(agent.agentId, {
         databaseId: form.selectedDatabaseId || undefined,
+        projectId,
         pluginId: form.pluginId,
         parametersJson: JSON.stringify({
           host: form.host, port: form.port,
@@ -242,9 +244,20 @@ export default function Agents() {
       }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["agentJobs", vars.agent.agentId] });
+      qc.invalidateQueries({ queryKey: ["databases", vars.projectId] });
       setJobHistoryAgent(vars.agent);
+      setJobHistoryProjectId(vars.projectId);
       setDispatchTarget(null);
       setJobForm({ selectedDatabaseId: "", pluginId: "postgresql", host: "", port: 5432, database: "", username: "", password: "" });
+    },
+  });
+
+  const linkInventoryMutation = useMutation({
+    mutationFn: ({ agentId, jobId, projectId }: { agentId: string; jobId: string; projectId: string }) =>
+      linkJobToInventory(agentId, jobId, projectId),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["agentJobs", vars.agentId] });
+      qc.invalidateQueries({ queryKey: ["databases", vars.projectId] });
     },
   });
 
@@ -383,9 +396,14 @@ export default function Agents() {
                         </button>
                         <button
                           className="btn btn-secondary btn-sm"
-                          onClick={() => { setJobHistoryAgent(jobHistoryAgent?.agentId === a.agentId ? null : a); setViewFindingsJob(null); }}
+                          onClick={() => {
+                            const isOpen = jobHistoryAgent?.agentId === a.agentId && jobHistoryProjectId === project.projectId;
+                            setJobHistoryAgent(isOpen ? null : a);
+                            setJobHistoryProjectId(isOpen ? "" : project.projectId);
+                            setViewFindingsJob(null);
+                          }}
                         >
-                          {jobHistoryAgent?.agentId === a.agentId ? "Hide Jobs" : "Job History"}
+                          {jobHistoryAgent?.agentId === a.agentId && jobHistoryProjectId === project.projectId ? "Hide Jobs" : "Job History"}
                         </button>
                       </div>
                     </td>
@@ -446,19 +464,34 @@ export default function Agents() {
                     </td>
                     <td style={{ fontSize: 12.5 }}>
                       {j.resultCount > 0 ? (
-                        <button
-                          className={`badge badge-green`}
-                          style={{
-                            cursor: "pointer", border: "none",
-                            background: viewFindingsJob?.jobId === j.jobId ? "var(--green-text)" : undefined,
-                            color: viewFindingsJob?.jobId === j.jobId ? "#fff" : undefined,
-                          }}
-                          onClick={() => setViewFindingsJob(viewFindingsJob?.jobId === j.jobId ? null : j)}
-                          title="Click to view findings"
-                        >
-                          {j.resultCount} finding{j.resultCount !== 1 ? 's' : ''}{' '}
-                          {viewFindingsJob?.jobId === j.jobId ? '▲' : '▼'}
-                        </button>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                          <button
+                            className={`badge badge-green`}
+                            style={{
+                              cursor: "pointer", border: "none",
+                              background: viewFindingsJob?.jobId === j.jobId ? "var(--green-text)" : undefined,
+                              color: viewFindingsJob?.jobId === j.jobId ? "#fff" : undefined,
+                            }}
+                            onClick={() => setViewFindingsJob(viewFindingsJob?.jobId === j.jobId ? null : j)}
+                            title="View stored assessment findings"
+                          >
+                            View assessment ({j.resultCount}){' '}
+                            {viewFindingsJob?.jobId === j.jobId ? '▲' : '▼'}
+                          </button>
+                          {j.status === "Completed" && j.databaseProjectId !== jobHistoryProjectId && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              disabled={linkInventoryMutation.isPending}
+                              onClick={() => linkInventoryMutation.mutate({
+                                agentId: jobHistoryAgent.agentId,
+                                jobId: j.jobId,
+                                projectId: jobHistoryProjectId,
+                              })}
+                            >
+                              Add to this inventory
+                            </button>
+                          )}
+                        </div>
                       ) : (
                         <span style={{ color: "var(--text-muted)" }}>—</span>
                       )}
@@ -633,7 +666,7 @@ export default function Agents() {
                   // credentials required only when NOT linked to inventory (no local store possible)
                   (!jobForm.selectedDatabaseId && !jobForm.username)
                 }
-                onClick={() => dispatchMutation.mutate({ agent: dispatchTarget, form: jobForm })}
+                onClick={() => dispatchMutation.mutate({ agent: dispatchTarget, projectId: selectedProject, form: jobForm })}
               >
                 {dispatchMutation.isPending ? "Dispatching…" : "▶ Dispatch"}
               </button>

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Validate', 'WhatIf', 'Deploy')]
+    [ValidateSet('Validate', 'WhatIf', 'Deploy', 'DeployPhase2')]
     [string]$Mode = 'Validate',
     [string]$SubscriptionId = '7ee7fa4f-8359-4fb9-ac34-361728102038',
     [string]$TenantId = '53fa074c-6e61-4c96-b167-fd879039b24e',
@@ -136,6 +136,7 @@ function Invoke-SubscriptionDeployment {
         [string]$ApiImage = $placeholderImage,
         [string]$WorkerImage = $placeholderImage,
         [string]$FrontendImage = $placeholderImage,
+        [string]$DiscoveryAgentImage = $placeholderImage,
         [switch]$WhatIf
     )
 
@@ -159,7 +160,8 @@ function Invoke-SubscriptionDeployment {
         "configureSecrets=$($ConfigureSecrets.ToString().ToLowerInvariant())",
         "apiContainerImage=$ApiImage",
         "workerContainerImage=$WorkerImage",
-        "frontendContainerImage=$FrontendImage"
+        "frontendContainerImage=$FrontendImage",
+        "discoveryAgentContainerImage=$DiscoveryAgentImage"
     )
 
     if ($WhatIf) {
@@ -273,6 +275,37 @@ if ($Mode -eq 'WhatIf') {
     return
 }
 
+if ($Mode -eq 'DeployPhase2') {
+    $loginServer = Invoke-AzText -Arguments @('acr', 'show', '--name', $containerRegistryName, '--query', 'loginServer')
+    $images = @{
+        'dbmigrationready-api' = "$loginServer/dbmigrationready-api:$ImageTag"
+        'dbmigrationready-worker' = "$loginServer/dbmigrationready-worker:$ImageTag"
+        'dbmigrationready-frontend' = "$loginServer/dbmigrationready-frontend:$ImageTag"
+        'dbmigrationready-discovery-agent' = "$loginServer/dbmigrationready-discovery-agent:$ImageTag"
+    }
+
+    $phaseTwo = Invoke-SubscriptionDeployment `
+        -Name "dbmigrationready-$sessionTag-phase2" `
+        -PostgresPassword $postgresPassword `
+        -AdminPassword $appAdminPassword `
+        -WorkerToken $workerServiceToken `
+        -DeployerObjectId $deployerObjectId `
+        -ConfigureSecrets $true `
+        -ApiImage $images['dbmigrationready-api'] `
+        -WorkerImage $images['dbmigrationready-worker'] `
+        -FrontendImage $images['dbmigrationready-frontend'] `
+        -DiscoveryAgentImage $images['dbmigrationready-discovery-agent']
+
+    [pscustomobject]@{
+        ResourceGroup = $phaseTwo.properties.outputs.resourceGroupName.value
+        ApiUrl = $phaseTwo.properties.outputs.apiUrl.value
+        FrontendUrl = $phaseTwo.properties.outputs.frontendUrl.value
+        ContainerRegistry = $phaseTwo.properties.outputs.containerRegistryLoginServer.value
+        DiscoveryAgentImage = $images['dbmigrationready-discovery-agent']
+    } | Format-List
+    return
+}
+
 $null = & docker info --format '{{.ServerVersion}}'
 if ($LASTEXITCODE -ne 0) {
     throw 'Docker engine is not available for image build and push.'
@@ -298,7 +331,8 @@ $phaseTwo = Invoke-SubscriptionDeployment `
     -ConfigureSecrets $true `
     -ApiImage $images['dbmigrationready-api'] `
     -WorkerImage $images['dbmigrationready-worker'] `
-    -FrontendImage $images['dbmigrationready-frontend']
+    -FrontendImage $images['dbmigrationready-frontend'] `
+    -DiscoveryAgentImage $images['dbmigrationready-discovery-agent']
 
 $frontendUrl = $phaseTwo.properties.outputs.frontendUrl.value
 

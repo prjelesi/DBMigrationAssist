@@ -103,6 +103,8 @@ export interface RegisterAgentResponse {
 
 export interface AgentJobSummary {
   jobId: string;
+  databaseId?: string;
+  databaseProjectId?: string;
   pluginId: string;
   status: JobStatus;
   startedAt?: string;
