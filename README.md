@@ -2,6 +2,8 @@
 
 A self-hosted portal for assessing database estates before migration to the cloud. Lightweight Docker Discovery Agents are deployed inside customer networks, collect findings from source databases, and upload signed result bundles to the portal for AI-assisted analysis and report generation.
 
+**Project site:** https://prjelesi.github.io/DBMigrationAssist/
+
 ---
 
 ## Table of contents
