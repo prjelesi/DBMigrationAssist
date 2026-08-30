@@ -120,6 +120,9 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
         mb.Entity<UploadedReport>().Property(e => e.ParseSummaryJson).HasColumnType("jsonb");
         mb.Entity<UploadedReport>().HasOne(e => e.Project).WithMany()
             .HasForeignKey(e => e.ProjectId);
+        mb.Entity<UploadedReport>().HasOne(e => e.Database).WithMany()
+            .HasForeignKey(e => e.DatabaseId)
+            .OnDelete(DeleteBehavior.SetNull);
         mb.Entity<UploadedReport>().HasOne(e => e.QuestionnaireResponse).WithMany()
             .HasForeignKey(e => e.QuestionnaireResponseId)
             .OnDelete(DeleteBehavior.SetNull);
@@ -127,6 +130,7 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
             .HasForeignKey(e => e.QuestionId)
             .OnDelete(DeleteBehavior.SetNull);
         mb.Entity<UploadedReport>().HasIndex(e => e.ProjectId);
+        mb.Entity<UploadedReport>().HasIndex(e => e.DatabaseId);
         mb.Entity<UploadedReport>().HasIndex(e => new { e.QuestionnaireResponseId, e.QuestionId });
         mb.Entity<UploadedReport>().HasIndex(e => e.FileHash);
 

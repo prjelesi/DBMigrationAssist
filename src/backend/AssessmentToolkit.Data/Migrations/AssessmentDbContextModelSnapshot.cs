@@ -900,6 +900,9 @@ namespace AssessmentToolkit.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("DatabaseId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("FileHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -950,6 +953,8 @@ namespace AssessmentToolkit.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("ReportId");
+
+                    b.HasIndex("DatabaseId");
 
                     b.HasIndex("FileHash");
 
@@ -1206,6 +1211,11 @@ namespace AssessmentToolkit.Data.Migrations
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.UploadedReport", b =>
                 {
+                    b.HasOne("AssessmentToolkit.Core.Entities.DatabaseInstance", "Database")
+                        .WithMany()
+                        .HasForeignKey("DatabaseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("AssessmentToolkit.Core.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -1221,6 +1231,8 @@ namespace AssessmentToolkit.Data.Migrations
                         .WithMany()
                         .HasForeignKey("QuestionnaireResponseId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Database");
 
                     b.Navigation("Project");
 

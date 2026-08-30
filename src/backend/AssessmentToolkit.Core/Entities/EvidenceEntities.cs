@@ -10,6 +10,7 @@ public class UploadedReport
 {
     public Guid ReportId { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; }
+    public Guid? DatabaseId { get; set; }
     public Guid? QuestionnaireResponseId { get; set; }
     public Guid? QuestionId { get; set; }
     public string FileName { get; set; } = string.Empty;
@@ -29,6 +30,7 @@ public class UploadedReport
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public Project Project { get; set; } = null!;
+    public DatabaseInstance? Database { get; set; }
     public QuestionnaireResponse? QuestionnaireResponse { get; set; }
     public Question? Question { get; set; }
 }

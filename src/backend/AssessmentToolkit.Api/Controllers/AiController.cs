@@ -293,7 +293,9 @@ public class AiController(
             }),
             evidence = evidence.Select(item => new
             {
-                item.ReportId, item.FileName, item.SourceType, item.FileHash,
+                item.ReportId, item.DatabaseId,
+                databaseName = databases.FirstOrDefault(database => database.DatabaseId == item.DatabaseId)?.Name,
+                item.FileName, item.SourceType, item.FileHash,
                 item.ParseConfidence, item.ParseSummaryJson
             }),
             results = agentResults.Select(result => new
@@ -339,10 +341,12 @@ public class AiController(
         {
             databases = databases.Select(database => new
             {
-                database.Name, database.Engine, database.Version, database.Criticality, database.HostName
+                database.DatabaseId, database.Name, database.Engine, database.Version, database.Criticality, database.HostName
             }),
             evidence = evidence.Select(item => new
             {
+                item.DatabaseId,
+                databaseName = databases.FirstOrDefault(database => database.DatabaseId == item.DatabaseId)?.Name,
                 item.FileName,
                 item.SourceType,
                 item.ParseConfidence,

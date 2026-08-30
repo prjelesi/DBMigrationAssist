@@ -10,7 +10,11 @@ namespace AssessmentToolkit.Api.Controllers;
 
 [ApiController]
 [Route("api/evidence")]
-public class EvidenceController(AssessmentDbContext db, IConfiguration config, IAiAdapterService ai) : ControllerBase
+public class EvidenceController(
+    AssessmentDbContext db,
+    IConfiguration config,
+    IAiAdapterService ai,
+    ProjectAccessService projectAccess) : ControllerBase
 {
     private string StorageRoot =>
         config["Evidence:StorageRoot"] ?? Path.Combine(Directory.GetCurrentDirectory(), "evidence");
@@ -23,6 +27,7 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
             .Select(r => new
             {
                 r.ReportId, r.FileName, r.SourceType,
+                r.DatabaseId, DatabaseName = r.Database != null ? r.Database.Name : null,
                 r.FileSizeBytes, r.ParseStatus, r.ParseConfidence,
                 r.UploadedBy, r.UploadedAt, r.ParseErrorMessage,
                 r.QuestionnaireResponseId, r.QuestionId,
@@ -33,7 +38,18 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var report = await db.UploadedReports.FirstOrDefaultAsync(r => r.ReportId == id);
+        var report = await db.UploadedReports
+            .Where(r => r.ReportId == id)
+            .Select(r => new
+            {
+                r.ReportId, r.ProjectId,
+                r.DatabaseId, DatabaseName = r.Database != null ? r.Database.Name : null,
+                r.QuestionnaireResponseId, r.QuestionId,
+                r.FileName, r.SourceType, r.FileSizeBytes, r.FileHash,
+                r.ParseStatus, r.ParseConfidence, r.ParseSummaryJson, r.ParseErrorMessage,
+                r.UploadedBy, r.UploadedAt, r.UpdatedAt
+            })
+            .FirstOrDefaultAsync();
         return report is null ? NotFound() : Ok(report);
     }
 
@@ -51,6 +67,7 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
     [RequestSizeLimit(52_428_800)] // 50 MB
     public async Task<IActionResult> Upload(
         [FromForm] Guid projectId,
+        [FromForm] Guid? databaseId,
         [FromForm] string uploadedBy,
         [FromForm] string? sourceType,
         [FromForm] Guid? questionnaireResponseId,
@@ -61,6 +78,17 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
 
         var project = await db.Projects.FindAsync(projectId);
         if (project is null) return BadRequest("Project not found.");
+        if (!await projectAccess.CanAccessAsync(
+                User,
+                projectId,
+                environmentId: null,
+                write: true,
+                HttpContext.RequestAborted))
+            return Forbid();
+
+        if (databaseId.HasValue && !await db.Databases.AnyAsync(database =>
+                database.DatabaseId == databaseId.Value && database.ProjectId == projectId))
+            return BadRequest("Database does not belong to this project.");
 
         if (questionnaireResponseId.HasValue != questionId.HasValue)
             return BadRequest("Questionnaire response and question must be provided together.");
@@ -103,6 +131,7 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
         var report = new UploadedReport
         {
             ProjectId = projectId,
+            DatabaseId = databaseId,
             QuestionnaireResponseId = questionnaireResponseId,
             QuestionId = questionId,
             FileName = file.FileName,
@@ -124,6 +153,7 @@ public class EvidenceController(AssessmentDbContext db, IConfiguration config, I
         return CreatedAtAction(nameof(Get), new { id = report.ReportId }, new
         {
             report.ReportId, report.FileName, report.SourceType,
+            report.DatabaseId,
             report.FileSizeBytes, report.ParseStatus, report.ParseConfidence,
             report.ParseErrorMessage
         });

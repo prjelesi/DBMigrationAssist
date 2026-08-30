@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteEvidence, getEvidence, getEvidenceDetail, getProjects, reparseEvidence, uploadEvidence } from '../lib/api';
+import { deleteEvidence, getDatabases, getEvidence, getEvidenceDetail, getProjects, reparseEvidence, uploadEvidence } from '../lib/api';
 import type { EvidenceReport, ParseStatus, ReportSourceType } from '../types';
 
 const PARSE_BADGE: Record<ParseStatus, string> = {
@@ -26,11 +26,17 @@ export default function Evidence() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedProject, setSelectedProject] = useState('');
+  const [selectedDatabase, setSelectedDatabase] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [uploadForm, setUploadForm] = useState({ uploadedBy: 'admin', sourceType: 'Other' as ReportSourceType });
 
   const projects = useQuery({ queryKey: ['projects'], queryFn: getProjects });
+  const databases = useQuery({
+    queryKey: ['databases', selectedProject],
+    queryFn: () => getDatabases(selectedProject),
+    enabled: !!selectedProject,
+  });
   const reports = useQuery({
     queryKey: ['evidence', selectedProject],
     queryFn: () => getEvidence(selectedProject),
@@ -43,7 +49,13 @@ export default function Evidence() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => uploadEvidence(selectedProject, uploadForm.uploadedBy, uploadForm.sourceType, file),
+    mutationFn: (file: File) => uploadEvidence(
+      selectedProject,
+      selectedDatabase || undefined,
+      uploadForm.uploadedBy,
+      uploadForm.sourceType,
+      file,
+    ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['evidence', selectedProject] }),
   });
 
@@ -77,9 +89,25 @@ export default function Evidence() {
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           <div className="form-row" style={{ marginBottom: 0, minWidth: 260 }}>
             <label>Project</label>
-            <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setDetailId(null); }}>
+            <select value={selectedProject} onChange={e => {
+              setSelectedProject(e.target.value);
+              setSelectedDatabase('');
+              setDetailId(null);
+            }}>
               <option value="">Choose a project…</option>
               {projects.data?.map(p => <option key={p.projectId} value={p.projectId}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="form-row" style={{ marginBottom: 0, minWidth: 240 }}>
+            <label>Database tag</label>
+            <select value={selectedDatabase} disabled={!selectedProject || databases.isLoading}
+              onChange={e => setSelectedDatabase(e.target.value)}>
+              <option value="">Project-wide evidence</option>
+              {databases.data?.map(database => (
+                <option key={database.databaseId} value={database.databaseId}>
+                  {database.name} ({database.engine})
+                </option>
+              ))}
             </select>
           </div>
           <div className="form-row" style={{ marginBottom: 0, minWidth: 180 }}>
@@ -150,7 +178,7 @@ export default function Evidence() {
           {(reports.data?.length ?? 0) > 0 && (
             <table className="data-table">
               <thead>
-                <tr><th>File</th><th>Source</th><th>Size</th><th>Parse</th><th>Confidence</th><th>Uploaded</th><th></th></tr>
+                <tr><th>File</th><th>Database</th><th>Source</th><th>Size</th><th>Parse</th><th>Confidence</th><th>Uploaded</th><th></th></tr>
               </thead>
               <tbody>
                 {reports.data?.map((r: EvidenceReport) => (
@@ -161,6 +189,7 @@ export default function Evidence() {
                         {r.fileName}
                       </button>
                     </td>
+                    <td style={{ fontSize: 12.5 }}>{r.databaseName ?? 'Project-wide'}</td>
                     <td><span className="badge badge-indigo">{SOURCE_LABELS[r.sourceType] ?? r.sourceType}</span></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>{formatBytes(r.fileSizeBytes)}</td>
                     <td><span className={`badge ${PARSE_BADGE[r.parseStatus]}`}>{r.parseStatus}</span></td>
@@ -207,6 +236,9 @@ export default function Evidence() {
               return (
                 <>
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, wordBreak: 'break-all' }}>{r.fileName}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12 }}>
+                    Database: <strong>{r.databaseName ?? 'Project-wide evidence'}</strong>
+                  </div>
 
                   {r.parseErrorMessage && (
                     <div className="error-msg" style={{ marginBottom: 12 }}>{r.parseErrorMessage}</div>

@@ -185,9 +185,16 @@ export const downloadEvidence = (id: string) =>
   api.get<Blob>(`/api/evidence/${id}/download`, { responseType: 'blob' }).then(r => r.data);
 export const reparseEvidence = (id: string) =>
   api.post(`/api/evidence/${id}/reparse`).then(r => r.data);
-export const uploadEvidence = (projectId: string, uploadedBy: string, sourceType: string, file: File) => {
+export const uploadEvidence = (
+  projectId: string,
+  databaseId: string | undefined,
+  uploadedBy: string,
+  sourceType: string,
+  file: File,
+) => {
   const form = new FormData();
   form.append('projectId', projectId);
+  if (databaseId) form.append('databaseId', databaseId);
   form.append('uploadedBy', uploadedBy);
   form.append('sourceType', sourceType);
   form.append('file', file);

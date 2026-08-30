@@ -202,6 +202,8 @@ export type ReportSourceType = 'DmaJson' | 'Awr' | 'Statspack' | 'AzureMigrate' 
 export interface EvidenceReport {
   reportId: string;
   projectId: string;
+  databaseId?: string;
+  databaseName?: string;
   questionnaireResponseId?: string;
   questionId?: string;
   fileName: string;

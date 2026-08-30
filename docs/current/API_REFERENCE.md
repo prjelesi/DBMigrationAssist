@@ -106,7 +106,7 @@ These routes are anonymous to the portal cookie scheme but are protected by `Age
 | `GET` | `/api/evidence` | List accessible uploaded evidence. |
 | `GET` | `/api/evidence/{id}` | Get evidence metadata. |
 | `GET` | `/api/evidence/{id}/download` | Download stored evidence content. |
-| `POST` | `/api/evidence/upload` | Upload project, response or question evidence. |
+| `POST` | `/api/evidence/upload` | Upload project, database-tagged, response or question evidence. `databaseId` is optional and must belong to `projectId`. |
 | `POST` | `/api/evidence/{id}/reparse` | Retry evidence parsing. |
 | `DELETE` | `/api/evidence/{id}` | Delete evidence metadata and stored file. |
 
