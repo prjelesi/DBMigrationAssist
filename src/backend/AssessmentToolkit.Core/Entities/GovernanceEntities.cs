@@ -35,6 +35,7 @@ public class GeneratedReport
 {
     public Guid GeneratedReportId { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; }
+    public Guid? DatabaseId { get; set; }
     public Guid EvidenceBundleId { get; set; }
     public string ReportJson { get; set; } = "{}";
     public string State { get; set; } = "DraftReady";
@@ -48,6 +49,7 @@ public class GeneratedReport
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public Project Project { get; set; } = null!;
+    public DatabaseInstance? Database { get; set; }
     public EvidenceBundle EvidenceBundle { get; set; } = null!;
 }
 

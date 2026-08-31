@@ -132,7 +132,7 @@ Graph edges connect database inventory records. Portfolios persist a JSON list o
 | `DELETE` | `/api/ai/configuration/credential` | Remove the saved model credential. |
 | `POST` | `/api/ai/test` | Perform a real model completion test. |
 | `POST` | `/api/ai/enrich/{resultId}` | Enrich one result; used by the worker service identity. |
-| `POST` | `/api/ai/generate-report` | Snapshot evidence, call the model and persist a report. |
+| `POST` | `/api/ai/generate-report` | Snapshot evidence, call the model and persist a report. Accepts `projectId` and an optional `databaseId`; database scope includes matching database evidence plus project-wide evidence. |
 | `GET` | `/api/ai/reports` | List accessible persisted reports. |
 | `GET` | `/api/ai/reports/{id}` | Get one persisted report. |
 | `POST` | `/api/ai/reports/{id}/transition` | Apply a permitted review, approval or export transition. |

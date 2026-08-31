@@ -12,6 +12,8 @@ export type ReportState = 'Pending' | 'QuestionnaireActive' | 'BundleReady' | 'A
 export interface GeneratedReport {
   generatedReportId: string;
   projectId: string;
+  databaseId?: string;
+  databaseName?: string;
   evidenceBundleId: string;
   reportJson: string;
   state: ReportState;

@@ -256,16 +256,45 @@ public class AiController(
         var project = await db.Projects.Include(p => p.Customer).FirstOrDefaultAsync(p => p.ProjectId == req.ProjectId, ct);
         if (project is null) return BadRequest("Project not found.");
 
-        var databases    = await db.Databases.Where(d => d.ProjectId == req.ProjectId).ToListAsync(ct);
-        var agentResults = await db.Results
-            .Where(r =>
-                (r.Database != null && r.Database.ProjectId == req.ProjectId) ||
-                (r.DatabaseId == null && r.Job.Agent != null && r.Job.Agent.ProjectId == req.ProjectId))
+        DatabaseInstance? targetDatabase = null;
+        if (req.DatabaseId.HasValue)
+        {
+            targetDatabase = await db.Databases.FirstOrDefaultAsync(
+                database => database.DatabaseId == req.DatabaseId && database.ProjectId == req.ProjectId, ct);
+            if (targetDatabase is null)
+                return BadRequest(new { error = "Database not found in the selected project." });
+        }
+
+        var databases = await db.Databases
+            .Where(database => database.ProjectId == req.ProjectId &&
+                (!req.DatabaseId.HasValue || database.DatabaseId == req.DatabaseId))
+            .ToListAsync(ct);
+        var targetEnvironmentId = targetDatabase?.EnvironmentId;
+        var environments = await db.Environments.AsNoTracking()
+            .Where(environment => environment.ProjectId == req.ProjectId &&
+                (!req.DatabaseId.HasValue || environment.EnvironmentId == targetEnvironmentId))
+            .Select(environment => new
+            {
+                environment.EnvironmentId,
+                environment.Name,
+                environment.Type,
+                environment.Location,
+                environment.ConnectivityZone
+            })
+            .ToListAsync(ct);
+        var agentResultsQuery = db.Results.Where(result =>
+            (result.Database != null && result.Database.ProjectId == req.ProjectId) ||
+            (result.DatabaseId == null && result.Job.Agent != null && result.Job.Agent.ProjectId == req.ProjectId));
+        if (req.DatabaseId.HasValue)
+            agentResultsQuery = agentResultsQuery.Where(result => result.DatabaseId == req.DatabaseId);
+        var agentResults = await agentResultsQuery
             .OrderByDescending(r => r.AssessedAt)
             .Take(20)
             .ToListAsync(ct);
-        var evidence     = await db.UploadedReports
-            .Where(e => e.ProjectId == req.ProjectId && e.ParseStatus == Core.Enums.ParseStatus.Parsed)
+        var evidence = await db.UploadedReports
+            .Where(item => item.ProjectId == req.ProjectId &&
+                item.ParseStatus == Core.Enums.ParseStatus.Parsed &&
+                (!req.DatabaseId.HasValue || item.DatabaseId == null || item.DatabaseId == req.DatabaseId))
             .ToListAsync(ct);
         var questionnaireResponses = await db.QuestionnaireResponses.AsNoTracking()
             .AsSplitQuery()
@@ -275,22 +304,35 @@ public class AiController(
             .Where(response => response.ProjectId == req.ProjectId)
             .ToListAsync(ct);
         var graphEdges = await db.GraphEdges.AsNoTracking()
-            .Where(edge => edge.ProjectId == req.ProjectId)
+            .Where(edge => edge.ProjectId == req.ProjectId &&
+                (!req.DatabaseId.HasValue ||
+                    edge.SourceDatabaseId == req.DatabaseId || edge.TargetDatabaseId == req.DatabaseId))
             .Select(edge => new { edge.EdgeId, edge.SourceDatabaseId, edge.TargetDatabaseId, edge.RelationType, edge.Confidence })
             .ToListAsync(ct);
-        var portfolios = await db.Portfolios.AsNoTracking()
+        var projectPortfolios = await db.Portfolios.AsNoTracking()
             .Where(portfolio => portfolio.ProjectId == req.ProjectId)
             .Select(portfolio => new { portfolio.PortfolioId, portfolio.Name, portfolio.DatabaseIds })
             .ToListAsync(ct);
+        var portfolios = req.DatabaseId.HasValue
+            ? projectPortfolios.Where(portfolio => portfolio.DatabaseIds.Contains(req.DatabaseId.Value)).ToList()
+            : projectPortfolios;
 
         var bundleJson = JsonSerializer.Serialize(new
         {
             project = new { project.ProjectId, project.Name, project.DeploymentMode },
+            scope = new
+            {
+                type = targetDatabase is null ? "Project" : "Database",
+                databaseId = targetDatabase?.DatabaseId,
+                databaseName = targetDatabase?.Name
+            },
             databases = databases.Select(database => new
             {
                 database.DatabaseId, database.Name, database.Engine, database.Version,
-                database.Criticality, database.EnvironmentId
+                database.Criticality, database.EnvironmentId, database.HostName,
+                database.Port, database.OwnerName
             }),
+            environments,
             evidence = evidence.Select(item => new
             {
                 item.ReportId, item.DatabaseId,
@@ -324,16 +366,83 @@ public class AiController(
 
         var systemPrompt = """
             You are a senior database migration consultant writing a professional assessment report.
+                        Produce a detailed, decision-ready report. Base every customer-specific statement on the supplied
+                        inventory, assessment results, uploaded evidence, questionnaire answers, dependency graph, or portfolio.
+                        Clearly identify missing information. Never fabricate utilization, performance, cost, region, RTO/RPO,
+                        storage, licensing, downtime, network, security, or compliance facts.
+
             Structure the report as JSON with these sections:
             {
-              "executiveSummary": string (2-3 paragraphs),
+                            "executiveSummary": string (3-5 concise paragraphs covering current state, readiness, preferred direction, major risks, and expected outcome),
               "scopeSummary": { "databaseCount": number, "enginesFound": [string], "criticalCount": number },
               "migrationReadiness": "Ready|NeedsWork|NotReady",
+                            "migrationRequirements": [ {
+                                "category": "Business|Technical|Security|Network|Operations|Data|Compliance",
+                                "requirement": string,
+                                "evidenceStatus": "Confirmed|Assumption|Gap",
+                                "details": string
+                            } ],
+                            "sourceEnvironment": {
+                                "summary": string,
+                                "environments": [ { "name": string, "type": string, "location": string, "connectivity": string, "databaseCount": number } ],
+                                "databaseEstate": [ { "name": string, "engine": string, "version": string, "host": string, "criticality": string, "environment": string } ],
+                                "dependencies": [string],
+                                "informationGaps": [string]
+                            },
+                            "possibleMigrations": [ {
+                                "sourcePlatform": string,
+                                "targetAzureService": string,
+                                "migrationType": "Rehost|Replatform|Refactor|Replace|Retain|Retire",
+                                "recommendation": "Preferred|Candidate|Not Recommended",
+                                "rationale": string,
+                                "considerations": [string]
+                            } ],
+                            "migrationTooling": [ {
+                                "phase": string,
+                                "tools": [string],
+                                "purpose": string,
+                                "prerequisites": [string]
+                            } ],
+                            "azureSkuProposal": [ {
+                                "environment": string,
+                                "targetService": string,
+                                "skuTier": string,
+                                "compute": string,
+                                "storage": string,
+                                "availability": string,
+                                "networking": string,
+                                "rationale": string,
+                                "sizingBasis": string,
+                                "assumptions": [string]
+                            } ],
               "keyRisks": [ { "title": string, "severity": "High|Medium|Low", "description": string } ],
-              "recommendedWave": string (describe the recommended migration order),
+                            "recommendedWave": string (describe dependency-aware non-production and production sequencing),
               "nextSteps": [ string ],
               "estimatedEffort": "Low|Medium|High|Very High"
             }
+
+                        Consider only migration paths applicable to the discovered source engines and requirements. The service
+                        catalog permits on-premises, AWS, GCP, and multi-cloud databases to Azure IaaS or Azure PaaS; SQL Server
+                        to Azure SQL Database, Azure SQL Managed Instance, or SQL Server on Azure VM; PostgreSQL and MySQL to
+                        their Azure managed database services; Oracle to Azure SQL or Azure Database for PostgreSQL; and SAP
+                        Sybase ASE to Azure SQL. Data-platform modernization to Microsoft Fabric or Azure Databricks may be a
+                        candidate only when analytics requirements are present. Include at least two viable options when the
+                        evidence supports alternatives, explain trade-offs, and do not label a route Preferred without evidence.
+
+                        Select tooling by phase and source/target compatibility. Candidate tools include Azure Migrate for
+                        discovery and IaaS assessment, Azure Database Migration Service for supported data movement, SQL Server
+                        Migration Assistant for compatible heterogeneous schema conversion, Azure Data Factory for supported
+                        orchestration or bulk movement, native backup/restore or replication tools, and pgAdmin for PostgreSQL
+                        administration and validation. Do not claim a tool supports a route unless its compatibility is known;
+                        state that support must be validated when uncertain.
+
+                        The Azure SKU proposal is preliminary, not a quote. Provide separate rows only for evidenced or clearly
+                        required environments. If metrics needed for sizing are absent, use "TBD - discovery/benchmark required"
+                        instead of inventing vCores, memory, storage, IOPS, redundancy, or cost. State the sizing basis and every
+                        assumption. Next steps must close evidence gaps and cover target validation, schema conversion assessment,
+                        migration design, non-production rehearsal, reconciliation, cutover/rollback, and five-business-day
+                        hypercare where applicable. A typical service-catalog wave is 4-8 weeks, but do not present that as a
+                        customer estimate unless the supplied evidence supports it.
             Return ONLY valid JSON.
             """;
 
@@ -341,8 +450,10 @@ public class AiController(
         {
             databases = databases.Select(database => new
             {
-                database.DatabaseId, database.Name, database.Engine, database.Version, database.Criticality, database.HostName
+                database.DatabaseId, database.Name, database.Engine, database.Version, database.Criticality,
+                database.HostName, database.Port, database.OwnerName, database.EnvironmentId
             }),
+            environments,
             evidence = evidence.Select(item => new
             {
                 item.DatabaseId,
@@ -378,8 +489,10 @@ public class AiController(
             Project: {project.Name}
             Customer: {project.Customer?.Name}
             Deployment mode: {project.DeploymentMode}
+            Report scope: {(targetDatabase is null ? "Entire project" : $"Database {targetDatabase.Name} ({targetDatabase.Engine} {targetDatabase.Version})")}
 
-            Use the following project evidence. Do not invent facts that are absent from it:
+            Use the following evidence for this report scope. Project-wide evidence and questionnaires provide shared context.
+            Do not invent facts that are absent from the evidence:
             {promptEvidence}
             """;
 
@@ -399,6 +512,8 @@ public class AiController(
         var generatedReport = new GeneratedReport
         {
             ProjectId = req.ProjectId,
+            DatabaseId = targetDatabase?.DatabaseId,
+            Database = targetDatabase,
             EvidenceBundleId = evidenceBundle.EvidenceBundleId,
             ReportJson = reportJson,
             GeneratedBy = actor
@@ -410,17 +525,22 @@ public class AiController(
     }
 
     [HttpGet("reports")]
-    public async Task<IActionResult> ListReports([FromQuery] Guid projectId, CancellationToken ct) =>
-        Ok(await db.GeneratedReports.AsNoTracking()
+    public async Task<IActionResult> ListReports([FromQuery] Guid projectId, CancellationToken ct)
+    {
+        var reports = await db.GeneratedReports.AsNoTracking()
+            .Include(report => report.Database)
             .Where(report => report.ProjectId == projectId)
             .OrderByDescending(report => report.GeneratedAt)
-            .Select(report => ToReportResponse(report))
-            .ToListAsync(ct));
+            .ToListAsync(ct);
+        return Ok(reports.Select(ToReportResponse));
+    }
 
     [HttpGet("reports/{id:guid}")]
     public async Task<IActionResult> GetReport(Guid id, CancellationToken ct)
     {
-        var report = await db.GeneratedReports.AsNoTracking().SingleOrDefaultAsync(
+        var report = await db.GeneratedReports.AsNoTracking()
+            .Include(candidate => candidate.Database)
+            .SingleOrDefaultAsync(
             candidate => candidate.GeneratedReportId == id, ct);
         return report is null ? NotFound() : Ok(ToReportResponse(report));
     }
@@ -431,7 +551,9 @@ public class AiController(
         [FromBody] TransitionReportRequest request,
         CancellationToken ct)
     {
-        var report = await db.GeneratedReports.SingleOrDefaultAsync(
+        var report = await db.GeneratedReports
+            .Include(candidate => candidate.Database)
+            .SingleOrDefaultAsync(
             candidate => candidate.GeneratedReportId == id, ct);
         if (report is null) return NotFound();
         if (request.State == "Approved" && !await projectAccess.IsOwnerAsync(User, report.ProjectId, ct))
@@ -467,6 +589,8 @@ public class AiController(
     {
         report.GeneratedReportId,
         report.ProjectId,
+        report.DatabaseId,
+        DatabaseName = report.Database?.Name,
         report.EvidenceBundleId,
         report.ReportJson,
         report.State,
@@ -530,7 +654,7 @@ public record UpdateProviderRequest(
     string? ApiKeyEnvVar, string? Notes,
     AiProviderStatus? Status, bool? IsDefault);
 
-public record GenerateReportRequest(Guid ProjectId);
+public record GenerateReportRequest(Guid ProjectId, Guid? DatabaseId);
 
 public record TransitionReportRequest(string State);
 

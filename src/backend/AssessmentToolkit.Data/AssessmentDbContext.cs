@@ -182,9 +182,12 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
         mb.Entity<GeneratedReport>().ToTable("generated_report", "reporting").HasKey(e => e.GeneratedReportId);
         mb.Entity<GeneratedReport>().Property(e => e.ReportJson).HasColumnType("jsonb");
         mb.Entity<GeneratedReport>().HasOne(e => e.Project).WithMany().HasForeignKey(e => e.ProjectId);
+        mb.Entity<GeneratedReport>().HasOne(e => e.Database).WithMany().HasForeignKey(e => e.DatabaseId)
+            .OnDelete(DeleteBehavior.SetNull);
         mb.Entity<GeneratedReport>().HasOne(e => e.EvidenceBundle).WithMany().HasForeignKey(e => e.EvidenceBundleId)
             .OnDelete(DeleteBehavior.Restrict);
         mb.Entity<GeneratedReport>().HasIndex(e => new { e.ProjectId, e.GeneratedAt });
+        mb.Entity<GeneratedReport>().HasIndex(e => new { e.DatabaseId, e.GeneratedAt });
         mb.Entity<GeneratedReport>().Property(e => e.State).HasMaxLength(32);
 
         mb.Entity<EvidenceBundle>().ToTable("evidence_bundle", "reporting").HasKey(e => e.EvidenceBundleId);

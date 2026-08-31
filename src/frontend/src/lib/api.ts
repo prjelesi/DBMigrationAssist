@@ -269,9 +269,9 @@ export const deleteGraphEdge = (edgeId: string) =>
   api.delete(`/api/graph/edges/${edgeId}`).then(r => r.data);
 
 // AI / Reports
-export const generateReport = (projectId: string) =>
-  api.post<{ projectId: string; reportJson: string; generatedAt: string }>(
-    '/api/ai/generate-report', { projectId }
+export const generateReport = (projectId: string, databaseId?: string) =>
+  api.post<GeneratedReport>(
+    '/api/ai/generate-report', { projectId, databaseId: databaseId || null }
   ).then(r => r.data);
 
 export const getGeneratedReports = (projectId: string) =>

@@ -486,6 +486,9 @@ namespace AssessmentToolkit.Data.Migrations
                     b.Property<string>("ApprovedBy")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("DatabaseId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("EvidenceBundleId")
                         .HasColumnType("uuid");
 
@@ -521,6 +524,8 @@ namespace AssessmentToolkit.Data.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("GeneratedReportId");
+
+                    b.HasIndex("DatabaseId", "GeneratedAt");
 
                     b.HasIndex("EvidenceBundleId");
 
@@ -1065,6 +1070,11 @@ namespace AssessmentToolkit.Data.Migrations
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.GeneratedReport", b =>
                 {
+                    b.HasOne("AssessmentToolkit.Core.Entities.DatabaseInstance", "Database")
+                        .WithMany()
+                        .HasForeignKey("DatabaseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("AssessmentToolkit.Core.Entities.EvidenceBundle", "EvidenceBundle")
                         .WithMany()
                         .HasForeignKey("EvidenceBundleId")
@@ -1076,6 +1086,8 @@ namespace AssessmentToolkit.Data.Migrations
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Database");
 
                     b.Navigation("EvidenceBundle");
 
