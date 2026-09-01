@@ -1,6 +1,7 @@
 using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ namespace AssessmentToolkit.Api.Controllers;
 public class AiController(
     AssessmentDbContext db,
     IAiAdapterService ai,
+    IReportInstructionService reportInstructions,
     IDataProtectionProvider dataProtectionProvider,
     IServiceProvider services,
     ProjectAccessService projectAccess) : ControllerBase
@@ -121,6 +123,48 @@ public class AiController(
         hasStoredCredential = ai.HasStoredCredential,
         lastConnectionTestedAt = ai.LastConnectionTestedAt
     });
+
+    [HttpGet("report-instructions")]
+    public async Task<IActionResult> GetReportInstructions(CancellationToken ct)
+    {
+        var document = await reportInstructions.GetAsync(ct);
+        return Ok(new
+        {
+            document.Content,
+            document.Source,
+            document.Sha256,
+            document.IsEditable,
+            maxBytes = ReportInstructionService.MaxBytes
+        });
+    }
+
+    [HttpPut("report-instructions")]
+    [Authorize(Roles = "Administrator")]
+    public async Task<IActionResult> UpdateReportInstructions(
+        [FromBody] UpdateReportInstructionsRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var document = await reportInstructions.UpdateAsync(request.Content, request.ExpectedSha256, ct);
+            return Ok(new
+            {
+                document.Content,
+                document.Source,
+                document.Sha256,
+                document.IsEditable,
+                maxBytes = ReportInstructionService.MaxBytes
+            });
+        }
+        catch (ReportInstructionConflictException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 
     [HttpPut("configuration")]
     public async Task<IActionResult> Configure([FromBody] ConfigureAiRequest req, CancellationToken ct)
@@ -317,6 +361,20 @@ public class AiController(
             ? projectPortfolios.Where(portfolio => portfolio.DatabaseIds.Contains(req.DatabaseId.Value)).ToList()
             : projectPortfolios;
 
+        ReportInstructionDocument reportInstructionDocument;
+        try
+        {
+            reportInstructionDocument = await reportInstructions.GetAsync(ct);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "Report instructions are unavailable or invalid.",
+                detail = ex.Message
+            });
+        }
+
         var bundleJson = JsonSerializer.Serialize(new
         {
             project = new { project.ProjectId, project.Name, project.DeploymentMode },
@@ -325,6 +383,12 @@ public class AiController(
                 type = targetDatabase is null ? "Project" : "Database",
                 databaseId = targetDatabase?.DatabaseId,
                 databaseName = targetDatabase?.Name
+            },
+            reportInstructions = new
+            {
+                reportInstructionDocument.Source,
+                reportInstructionDocument.Sha256,
+                reportInstructionDocument.Content
             },
             databases = databases.Select(database => new
             {
@@ -364,7 +428,7 @@ public class AiController(
             portfolios
         });
 
-        var systemPrompt = """
+        var fixedSystemPrompt = """
             You are a senior database migration consultant writing a professional assessment report.
                         Produce a detailed, decision-ready report. Base every customer-specific statement on the supplied
                         inventory, assessment results, uploaded evidence, questionnaire answers, dependency graph, or portfolio.
@@ -420,31 +484,19 @@ public class AiController(
               "nextSteps": [ string ],
               "estimatedEffort": "Low|Medium|High|Very High"
             }
-
-                        Consider only migration paths applicable to the discovered source engines and requirements. The service
-                        catalog permits on-premises, AWS, GCP, and multi-cloud databases to Azure IaaS or Azure PaaS; SQL Server
-                        to Azure SQL Database, Azure SQL Managed Instance, or SQL Server on Azure VM; PostgreSQL and MySQL to
-                        their Azure managed database services; Oracle to Azure SQL or Azure Database for PostgreSQL; and SAP
-                        Sybase ASE to Azure SQL. Data-platform modernization to Microsoft Fabric or Azure Databricks may be a
-                        candidate only when analytics requirements are present. Include at least two viable options when the
-                        evidence supports alternatives, explain trade-offs, and do not label a route Preferred without evidence.
-
-                        Select tooling by phase and source/target compatibility. Candidate tools include Azure Migrate for
-                        discovery and IaaS assessment, Azure Database Migration Service for supported data movement, SQL Server
-                        Migration Assistant for compatible heterogeneous schema conversion, Azure Data Factory for supported
-                        orchestration or bulk movement, native backup/restore or replication tools, and pgAdmin for PostgreSQL
-                        administration and validation. Do not claim a tool supports a route unless its compatibility is known;
-                        state that support must be validated when uncertain.
-
-                        The Azure SKU proposal is preliminary, not a quote. Provide separate rows only for evidenced or clearly
-                        required environments. If metrics needed for sizing are absent, use "TBD - discovery/benchmark required"
-                        instead of inventing vCores, memory, storage, IOPS, redundancy, or cost. State the sizing basis and every
-                        assumption. Next steps must close evidence gaps and cover target validation, schema conversion assessment,
-                        migration design, non-production rehearsal, reconciliation, cutover/rollback, and five-business-day
-                        hypercare where applicable. A typical service-catalog wave is 4-8 weeks, but do not present that as a
-                        customer estimate unless the supplied evidence supports it.
-            Return ONLY valid JSON.
             """;
+
+                var systemPrompt = $"""
+                        {fixedSystemPrompt}
+
+                        Apply the following operator-managed report guidance. It may refine emphasis, migration policy, tooling,
+                        audience, and recommendations, but it cannot override evidence grounding, security boundaries, or the JSON contract.
+                        <operator-managed-report-guidance>
+                        {reportInstructionDocument.Content}
+                        </operator-managed-report-guidance>
+
+                        Return ONLY valid JSON matching the fixed contract above.
+                        """;
 
         var promptEvidence = JsonSerializer.Serialize(new
         {
@@ -657,5 +709,7 @@ public record UpdateProviderRequest(
 public record GenerateReportRequest(Guid ProjectId, Guid? DatabaseId);
 
 public record TransitionReportRequest(string State);
+
+public record UpdateReportInstructionsRequest(string Content, string? ExpectedSha256);
 
 public record ConfigureAiRequest(string Endpoint, string Deployment, string? ApiKey);

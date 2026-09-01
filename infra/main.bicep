@@ -121,6 +121,7 @@ module containerAppsEnvironment './modules/container-apps-environment.bicep' = {
     evidenceShareName: storage.outputs.evidenceShareName
     dataProtectionShareName: storage.outputs.dataProtectionShareName
     localAgentShareName: storage.outputs.localAgentShareName
+    reportConfigShareName: storage.outputs.reportConfigShareName
   }
 }
 

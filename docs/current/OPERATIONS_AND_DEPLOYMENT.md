@@ -1,6 +1,6 @@
 # Operations and Deployment
 
-**Reviewed:** 2026-08-20
+**Reviewed:** 2026-09-02
 
 ## Local prerequisites
 
@@ -32,6 +32,30 @@ AiFoundry__Deployment=<deployment-name>
 ```
 
 Use an HTTPS endpoint. Report generation remains unavailable until a real connectivity test succeeds.
+
+Report-generation policy is externalized through:
+
+```dotenv
+ReportGeneration__InstructionsPath=/app/config/report-instructions.md
+ReportGeneration__RequireExternalInstructions=false
+```
+
+Docker Compose mounts the repository's `report-config` directory at `/app/config`. Azure mounts a dedicated
+Azure Files share at the same path. The API reads the file for every report, so changes made directly or through
+the AI Settings page take effect without rebuilding or restarting the application. Keep the mount writable when
+using the administrator-only portal editor; a read-only mount remains supported for operator-managed on-premises installations.
+
+### Report instructions editorial workflow
+
+1. Sign in as an application administrator and open **AI Settings**.
+2. Review the effective source, SHA-256 hash and current byte count before editing.
+3. Save the Markdown policy. The API rejects content over 65,536 UTF-8 bytes.
+4. If another editor or host process changed the file after it was loaded, refresh after the `409 Conflict` response and reconcile the changes.
+5. Generate a new report to use the updated policy. Existing reports and evidence bundles are unchanged.
+
+For operator-controlled installations, mount the file read-only and edit it through the host configuration process.
+The portal displays the effective policy but disables saving. Set `ReportGeneration__RequireExternalInstructions=true`
+when falling back to the packaged default is not acceptable.
 
 ## Build and start
 
@@ -75,6 +99,9 @@ docker compose up -d
 | `local-agent` | Auto-registering platform agent using shared bootstrap and local database configuration. |
 | `agent-dev` | Optional profile for isolated tests with explicit agent ID and PSK. |
 
+Use `local-agent` for the standard local demonstration. Its bootstrap is persisted in the `local_agent_bootstrap`
+volume and reprovisioned by the API. Use `agent-dev` only for explicit manual-registration tests.
+
 Start the optional development agent only when its identity and secret are configured:
 
 ```powershell
@@ -92,6 +119,7 @@ The API must also have the matching raw PSK at `AgentPsk:<agent-id>`. Portal reg
 | `data_protection_keys` | ASP.NET Core Data Protection keys. |
 | `local_agent_bootstrap` | Platform-local agent bootstrap. |
 | `local-agent/databases.json` | Plaintext local database connection details mounted read-only into the agent. |
+| `report-config/report-instructions.md` | Live report-generation policy mounted into the API. |
 
 `docker compose down` retains named volumes. `docker compose down -v` deletes local application data and should be treated as destructive.
 
@@ -124,11 +152,11 @@ The subscription-scoped Bicep deployment under `infra/` declares:
 - Resource group and virtual network.
 - User-assigned managed identity.
 - Azure Container Registry.
-- Azure Files-backed storage for evidence, Data Protection keys and local-agent bootstrap.
+- Azure Files-backed storage for evidence, Data Protection keys, local-agent bootstrap and report instructions.
 - Key Vault and role assignments.
 - PostgreSQL Flexible Server and application database.
 - Container Apps environment.
-- API, worker and frontend Container Apps.
+- API, worker, frontend and platform discovery-agent Container Apps.
 
 The Azure environment has its own database and file storage. It is not a replica of local Compose.
 
@@ -152,6 +180,7 @@ The Azure environment has its own database and file storage. It is not a replica
 | `apiContainerImage` | Exact API image reference. |
 | `workerContainerImage` | Exact worker image reference. |
 | `frontendContainerImage` | Exact frontend image reference. |
+| `discoveryAgentContainerImage` | Exact platform discovery-agent image reference. |
 
 A functional deployment must provide the exact validated application images. Leaving the image defaults unchanged deploys a sample image, not this application. Set `configureSecrets=true` when deploying the application with Key Vault-backed configuration.
 
@@ -166,6 +195,23 @@ A functional deployment must provide the exact validated application images. Lea
 7. Review API and worker logs for startup, authorization and migration failures.
 
 Do not infer that an Azure resource is deployed or healthy only because it exists in Bicep. Runtime status must be checked in the target subscription.
+
+### Current development deployment
+
+The development environment was last verified on 2026-09-01 with immutable image tag `20260901214321`.
+All four Container Apps reached ready revisions, PostgreSQL Flexible Server 17 reported `Ready`, and the portal
+and API health endpoint returned HTTP 200.
+
+Discover the current endpoints from Azure:
+
+```powershell
+$resourceGroup = 'rg-dbmigratio-dev-1fa1'
+az containerapp list --resource-group $resourceGroup `
+	--query "[].{name:name,fqdn:properties.configuration.ingress.fqdn,image:properties.template.containers[0].image}" `
+	--output table
+```
+
+Current portal: `https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
 
 ## Backup and recovery
 

@@ -1,8 +1,10 @@
 # Current System Documentation
 
-**Status:** Authoritative current-state documentation  
-**Baseline:** `main` at `9740e207603d5c2302e46207df228dd9af7b94ff`  
-**Reviewed:** 2026-08-20
+**Status:** Authoritative current-state documentation
+
+**Baseline:** `main` at `807c3470dd79ac6a2e6d24644f232426f06bf533`, plus the documented working-tree report-policy changes
+
+**Reviewed:** 2026-09-02
 
 This documentation describes the system that is implemented in this repository. It separates verified capabilities from known limitations and future work.
 

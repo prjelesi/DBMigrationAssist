@@ -1,6 +1,6 @@
 # Architecture and Security
 
-**Reviewed:** 2026-08-20
+**Reviewed:** 2026-09-02
 
 ## Runtime architecture
 
@@ -112,6 +112,8 @@ Memberships may be project-wide or restricted to an environment. `GovernanceMidd
 - Events include actor, action, resource, HTTP method, project context and occurrence time where available.
 - Report generation snapshots source evidence into an `EvidenceBundle`.
 - Each bundle stores the source JSON and a content hash.
+- The API loads Markdown report instructions for every generation request and records the effective content, source and SHA-256 hash in the evidence bundle.
+- Administrator saves use the previously read hash as an optimistic-concurrency token; host-managed read-only policy remains supported.
 - `GeneratedReport` records reference their evidence bundle and retain reviewer/approver identities and timestamps through controlled state transitions.
 
 Audit records are application-managed. GET endpoints are not audited even when they mutate state; agent job polling, for example, assigns a pending job during `GET /api/agent/{agentId}/jobs/next`. Append-only or tamper-evident behavior is not enforced by PostgreSQL permissions, triggers or an external immutable store.
@@ -135,6 +137,7 @@ EF Core migrations are applied automatically by the API during startup. File con
 - Local Compose receives PostgreSQL, administrator and worker secrets from `.env`.
 - Data Protection keys are persisted when `DataProtection:KeysPath` is configured.
 - The local agent's `databases.json` contains plaintext database credentials and must be protected with host filesystem permissions.
+- Report instructions are mounted as an external Markdown file. Write access enables the administrator editor; read-only mounts keep policy under operator control.
 - Azure Bicep declares Key Vault, managed identity, role assignments and Azure Files mounts.
 - `configureSecrets` must be enabled with valid secure parameters for a functional secret-backed Azure deployment.
 

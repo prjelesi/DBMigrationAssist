@@ -25,6 +25,7 @@ services:
       Api__PublicUrl: "http://localhost:5000"
       Evidence__StorageRoot: "/app/evidence"
       DataProtection__KeysPath: "/app/data-protection"
+      ReportGeneration__InstructionsPath: "/app/config/report-instructions.md"
       LocalAgent__BootstrapPath: "/app/local-agent/bootstrap.json"
       LocalAgent__BackendUrl: "http://api:8080"
       AppAdmin__Email: "${APP_ADMIN_EMAIL:?Set APP_ADMIN_EMAIL in .env}"
@@ -38,6 +39,7 @@ services:
     volumes:
       - evidence_data:/app/evidence
       - data_protection_keys:/app/data-protection
+      - ./report-config:/app/config
       - local_agent_bootstrap:/app/local-agent
     ports:
       - "5000:8080"

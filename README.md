@@ -75,7 +75,9 @@ A self-hosted portal for assessing database estates before migration to the clou
 | `worker` | Background services — heartbeat monitor, job timeout, AI auto-enrichment |
 | `frontend` | React portal UI served via nginx |
 | `postgres` | PostgreSQL 16 — all portal data |
-| `agent` | Deployed **inside the customer network** — polls for jobs, runs plugins |
+| `local-agent` | Platform-managed Discovery Agent for local demonstrations and assessments |
+
+Customer-hosted Discovery Agents use the same agent image and run inside the customer network, where they poll for jobs and execute database plugins over outbound HTTPS.
 
 ---
 
@@ -137,7 +139,7 @@ Portal authentication is required in the local Compose environment. The first ap
 | Questionnaire | `/questionnaire` | Versioned baseline and database-specific discovery questionnaires |
 | Evidence | `/evidence` | Upload assessment reports and questionnaire supporting documents |
 | Reports | `/reports` | AI-generated migration assessment reports |
-| AI Settings | `/ai-settings` | Configure Azure OpenAI / AI Foundry |
+| AI Settings | `/ai-settings` | Configure Microsoft Foundry/Azure OpenAI and administer report instructions |
 
 ---
 
@@ -660,6 +662,30 @@ curl -X POST http://localhost:5000/api/ai/test
 
 Once configured, the worker automatically enriches completed assessment results with migration path recommendations, risk analysis, and remediation steps.
 
+### Customizing report generation
+
+Report policy is stored in `report-config/report-instructions.md`. Docker Compose mounts this file at
+`/app/config/report-instructions.md`, and the API reloads it for every report. Edit the host file directly or use
+the administrator-only **Report Generation Instructions** editor on the AI Settings page. The editor displays the
+effective source, SHA-256 hash and 65,536-byte limit. Saves use the last-read hash to prevent silently overwriting a
+concurrent change. Changes affect new reports immediately; they do not require an image rebuild or application restart.
+
+The same container path is used in Azure Container Apps, backed by the dedicated `report-config` Azure Files
+share. Each generated evidence bundle records the effective instruction content, source, and SHA-256 hash for
+auditability. The application keeps evidence-grounding requirements and the JSON response contract in protected
+code so custom guidance cannot remove those controls.
+
+Configuration options:
+
+```text
+ReportGeneration__InstructionsPath=/app/config/report-instructions.md
+ReportGeneration__RequireExternalInstructions=false
+```
+
+When the external file is absent, the API initializes it from the packaged default when the mount is writable.
+If initialization is unavailable, it uses the packaged default unless `RequireExternalInstructions` is enabled. A
+read-only mount is supported for operator-managed policy, but the portal editor is then unavailable.
+
 ---
 
 ## Application authentication
@@ -684,17 +710,19 @@ Production deployment uses Azure Container Apps via the Bicep template in `infra
 
 | Parameter | Description |
 |-----------|-------------|
-| `location` | Azure region (default: resource group location) |
-| `environmentName` | Base name for all resources |
+| `environmentName` | Environment tag value |
+| `location` | Azure region |
+| `sessionId`, `deployedBy`, `createdAt` | Deployment metadata tags |
+| `deployerObjectId` | Principal used by deployment role assignments |
 | `postgresAdminPassword` | Password for the PostgreSQL Flexible Server admin account (marked `@secure`) |
-| `acrServer` | Azure Container Registry login server (e.g. `myregistry.azurecr.io`) |
-| `acrUsername` | ACR username |
-| `acrPassword` | ACR password (marked `@secure`) |
-| `authenticationEnabled` | Enables Microsoft Entra portal authentication (default: `false`) |
-| `entraTenantId` | Entra tenant ID; required when authentication is enabled |
-| `entraApiClientId` | API app registration client ID; required when authentication is enabled |
-| `entraSpaClientId` | SPA app registration client ID; required when authentication is enabled |
-| `entraApiScope` | Delegated API scope; required when authentication is enabled |
+| `appAdminEmail`, `appAdminDisplayName` | Initial application administrator identity |
+| `appAdminPassword` | Initial application administrator password (marked `@secure`) |
+| `workerServiceToken` | Worker/API service token (marked `@secure`) |
+| `configureSecrets` | Enables Key Vault secret creation; defaults to `false` |
+| `containerImage` | Common fallback image; defaults to a hello-world sample |
+| `apiContainerImage`, `workerContainerImage`, `frontendContainerImage`, `discoveryAgentContainerImage` | Exact deployable image references |
+
+Container Apps pull from ACR through the shared user-assigned managed identity; registry usernames and passwords are not deployment parameters. Portal authentication is application-managed in the current release.
 
 ### Deploy steps
 
@@ -714,6 +742,20 @@ docker compose up -d api worker frontend local-agent
 
 Deployment does not rebuild application images. It resolves the immutable image ID used by each running Compose service, applies a timestamped ACR tag to that exact image, pushes it, and configures Azure Container Apps with those tags. Deployment stops if any required local service is not running.
 
+The current development portal is:
+
+`https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
+
+Retrieve the URL from Azure rather than assuming the environment DNS suffix:
+
+```powershell
+$fqdn = az containerapp show `
+  --resource-group rg-dbmigratio-dev-1fa1 `
+  --name ca-web-dbmigratio-dev-1fa1 `
+  --query properties.configuration.ingress.fqdn -o tsv
+"https://$fqdn"
+```
+
 ---
 
 ## Configuration reference
@@ -729,6 +771,8 @@ Deployment does not rebuild application images. It resolves the immutable image 
 | `AiFoundry__Endpoint` | Azure OpenAI endpoint URL | — |
 | `AiFoundry__Deployment` | Model deployment name (e.g. `gpt-4o`) | — |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI API key; alternative to the encrypted portal credential | — |
+| `ReportGeneration__InstructionsPath` | External Markdown report-policy path | `/app/config/report-instructions.md` in supplied deployments |
+| `ReportGeneration__RequireExternalInstructions` | Fail report generation instead of using the packaged default when the external file is unavailable | `false` |
 
 ### Worker (`src/backend/AssessmentToolkit.Worker`)
 

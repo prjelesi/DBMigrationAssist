@@ -6,6 +6,7 @@ param containerAppsSubnetId string
 var evidenceShareName = 'evidence'
 var dataProtectionShareName = 'data-protection'
 var localAgentShareName = 'local-agent'
+var reportConfigShareName = 'report-config'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2026-04-01' = {
   name: storageAccountName
@@ -72,8 +73,19 @@ resource localAgentShare 'Microsoft.Storage/storageAccounts/fileServices/shares@
   }
 }
 
+resource reportConfigShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
+  parent: fileService
+  name: reportConfigShareName
+  properties: {
+    accessTier: 'Hot'
+    enabledProtocols: 'SMB'
+    shareQuota: 1
+  }
+}
+
 output id string = storageAccount.id
 output name string = storageAccount.name
 output evidenceShareName string = evidenceShare.name
 output dataProtectionShareName string = dataProtectionShare.name
 output localAgentShareName string = localAgentShare.name
+output reportConfigShareName string = reportConfigShare.name

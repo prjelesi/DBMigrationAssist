@@ -15,7 +15,7 @@ The demonstration covers:
 - Evidence upload and parsing
 - Portfolio and dependency views
 - Operational status
-- Assessment findings and report readiness
+- Assessment findings, report-policy governance, and report readiness
 
 ## Important product note
 
@@ -36,12 +36,12 @@ During the demo, explain the operational pattern associated with each mode witho
 | Segment | Duration |
 | --- | ---: |
 | Introduction and dashboard | 3 minutes |
-| Connected scenario | 8 minutes |
+| Connected scenario | 10 minutes |
 | Air-gapped scenario | 6 minutes |
 | Standalone scenario | 6 minutes |
 | Comparison and close | 2 minutes |
 
-Total: approximately 25 minutes.
+Total: approximately 27 minutes.
 
 ## Prerequisites
 
@@ -73,6 +73,17 @@ The demo URLs are:
 - Local API: `http://localhost:5000`
 - Local Swagger in Development mode: `http://localhost:5000/swagger`
 - Azure portal: `https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
+
+The Azure URL above was verified on 2026-09-01 with immutable image tag `20260901214321`. Confirm the current
+frontend address before presenting rather than assuming the Container Apps environment DNS suffix:
+
+```powershell
+$fqdn = az containerapp show `
+    --resource-group rg-dbmigratio-dev-1fa1 `
+    --name ca-web-dbmigratio-dev-1fa1 `
+    --query properties.configuration.ingress.fqdn -o tsv
+"https://$fqdn"
+```
 
 Use either the local or Azure portal for the demonstration. Sign in with the application administrator account before beginning the pre-demo setup. Portal authentication is managed by the application; Microsoft Entra sign-in is not required.
 
@@ -111,6 +122,17 @@ The local administrator is seeded only when the application user table is empty.
    - SQL Server Migration Assessment v2
    - MySQL Migration Assessment v2
 
+### Review AI and report instructions
+
+1. Open **AI Settings**.
+2. Confirm whether the model status is **Connected**. Report generation requires a successful real connection test; the rest of the assessment workflow does not.
+3. In **Report Generation Instructions**, show the effective source, SHA-256 hash and byte limit.
+4. Explain that the API reloads this Markdown for every new report and records the effective content, source and hash in the report's evidence bundle.
+5. To demonstrate administration, make a small approved change and save it. Note the changed hash, then restore the original content after the demonstration.
+
+Only application administrators can save report instructions. If the policy file is mounted read-only, use this
+step as a governance explanation and do not attempt an edit.
+
 ### Create the demo customer and projects
 
 Create one customer:
@@ -135,7 +157,7 @@ For a completely fresh dataset, remove Docker volumes before starting. This dele
 
 ```powershell
 docker compose down -v
-docker compose up -d postgres api worker frontend
+docker compose up -d
 ```
 
 ## Scenario 1: Connected
@@ -207,7 +229,9 @@ Alternatively, demonstrate registration manually:
 5. Open **Discovery Agents** and show heartbeat, job status, and findings.
 6. Open **Communication Map** to discuss application and database dependencies.
 7. Open **Portfolio** and group the databases into discovery, pilot, and production waves.
-8. Open **Reports** and explain that discovered facts, questionnaire decisions, and uploaded evidence form the report inputs.
+8. Open **Reports** and explain that discovered facts, questionnaire decisions, uploaded evidence, graph edges, portfolios, and the effective report instructions form the report inputs.
+9. If AI Settings reports **Connected**, generate a report, open the draft, send it for review, and explain that approval is restricted to project owners or administrators. Export JSON only after approval.
+10. If AI is not connected, show the readiness warning and state explicitly that there is no rules-only report fallback.
 
 ### Connected scenario message
 
@@ -423,6 +447,7 @@ Before presenting:
 - [ ] The offline result is linked to the intended inventory database and contains no credentials.
 - [ ] A Connected or Standalone Discovery Agent result is available.
 - [ ] No real credentials, PSKs, customer names, or sensitive evidence are visible.
+- [ ] Report instructions show the expected source and SHA-256 hash; any temporary demo edit has a restore plan.
 - [ ] AI Foundry is either tested or clearly described as optional and not configured.
 
 ## Suggested closing statement
@@ -491,3 +516,15 @@ This does not invalidate successful sections. Review the section error, confirm 
 ### AI status is Not Configured
 
 This is acceptable for the Standalone and Air-gapped demonstrations. Inventory, questionnaires, evidence, Discovery Agent collection, and portfolio workflows do not require AI Foundry.
+
+Report generation is intentionally unavailable until AI Settings shows a successful connection test. There is no
+rules-only fallback.
+
+### Report instructions cannot be saved
+
+Check that the presenter is signed in as an application administrator and that
+`/app/config/report-instructions.md` is mounted writable. A read-only mount is valid for operator-managed policy
+and intentionally disables portal editing.
+
+If saving returns a conflict, another process changed the file after it was loaded. Refresh the page, reconcile the
+new content, and save again. Do not overwrite the host file blindly.

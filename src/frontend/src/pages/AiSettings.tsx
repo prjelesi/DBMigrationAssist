@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Delete24Regular, PlugConnected24Regular, Save24Regular } from '@fluentui/react-icons';
+import { useAuth } from '../auth/AuthContext';
 import api from '../lib/api';
 
 type ProviderType = 'AzureOpenAi' | 'AiFoundry' | 'OpenAi' | 'LocalEndpoint';
@@ -33,6 +34,14 @@ interface AiStatus {
   lastConnectionTestedAt?: string;
 }
 
+interface ReportInstructions {
+  content: string;
+  source: string;
+  sha256: string;
+  isEditable: boolean;
+  maxBytes: number;
+}
+
 const PROVIDER_TYPES: ProviderType[] = ['AzureOpenAi', 'AiFoundry', 'OpenAi', 'LocalEndpoint'];
 const STATUS_BADGE: Record<ProviderStatus, string> = {
   Active: 'badge-green', Disabled: 'badge-gray', Error: 'badge-red',
@@ -44,14 +53,21 @@ const testConnection  = () => api.post('/api/ai/test').then(r => r.data);
 const saveConfiguration = (data: { endpoint: string; deployment: string; apiKey?: string }) =>
   api.put('/api/ai/configuration', data).then(r => r.data);
 const clearCredential = () => api.delete('/api/ai/configuration/credential');
+const getReportInstructions = () => api.get<ReportInstructions>('/api/ai/report-instructions').then(r => r.data);
+const saveReportInstructions = (data: { content: string; expectedSha256: string }) =>
+  api.put<ReportInstructions>('/api/ai/report-instructions', data).then(r => r.data);
 const registerProvider = (data: object) => api.post('/api/ai/providers', data).then(r => r.data);
 const deleteProvider   = (id: string) => api.delete(`/api/ai/providers/${id}`).then(r => r.data);
 
 export default function AiSettings() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const canEditReportInstructions = user.role === 'Administrator';
   const [showAdd, setShowAdd] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [configuration, setConfiguration] = useState({ endpoint: '', deployment: 'gpt-4o', apiKey: '' });
+  const [instructionDraft, setInstructionDraft] = useState('');
+  const [instructionResult, setInstructionResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const [form, setForm] = useState({
     name: '', providerType: 'AzureOpenAi' as ProviderType,
@@ -62,6 +78,7 @@ export default function AiSettings() {
 
   const status    = useQuery({ queryKey: ['aiStatus'],    queryFn: getAiStatus,    refetchInterval: 30_000 });
   const providers = useQuery({ queryKey: ['aiProviders'], queryFn: getProviders });
+  const reportInstructions = useQuery({ queryKey: ['reportInstructions'], queryFn: getReportInstructions });
 
   useEffect(() => {
     if (!status.data) return;
@@ -71,6 +88,11 @@ export default function AiSettings() {
       deployment: status.data.deployment ?? current.deployment,
     }));
   }, [status.data]);
+
+  useEffect(() => {
+    if (reportInstructions.data)
+      setInstructionDraft(reportInstructions.data.content);
+  }, [reportInstructions.data]);
 
   const configurationMutation = useMutation({
     mutationFn: saveConfiguration,
@@ -90,6 +112,16 @@ export default function AiSettings() {
       qc.invalidateQueries({ queryKey: ['aiStatus'] });
       qc.invalidateQueries({ queryKey: ['systemStatus'] });
     },
+  });
+
+  const instructionMutation = useMutation({
+    mutationFn: saveReportInstructions,
+    onSuccess: data => {
+      setInstructionDraft(data.content);
+      setInstructionResult({ ok: true, message: 'Instructions saved. New reports will use this version immediately.' });
+      qc.setQueryData(['reportInstructions'], data);
+    },
+    onError: (e: unknown) => setInstructionResult({ ok: false, message: (e as Error).message }),
   });
 
   const addMutation = useMutation({
@@ -224,6 +256,62 @@ export default function AiSettings() {
             {configurationMutation.isPending ? 'Saving…' : 'Save Configuration'}
           </button>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header">
+          <span className="card-title">Report Generation Instructions</span>
+          {reportInstructions.data && (
+            <span className="badge badge-gray">
+              {reportInstructions.data.source} · {reportInstructions.data.sha256.slice(0, 12)}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12 }}>
+          These Markdown instructions control report emphasis, migration routes, tooling, sizing policy, and delivery guidance.
+          The API reloads the file for every report and preserves its hash with the evidence snapshot.
+          {!canEditReportInstructions && ' Administrator access is required to change this global policy.'}
+        </div>
+        {reportInstructions.isLoading && <div className="loading" />}
+        {reportInstructions.isError && <div className="error-msg">Unable to load report instructions.</div>}
+        {reportInstructions.data && (
+          <>
+            <textarea
+              value={instructionDraft}
+              onChange={event => {
+                setInstructionDraft(event.target.value);
+                setInstructionResult(null);
+              }}
+              readOnly={!canEditReportInstructions}
+              rows={18}
+              spellCheck={false}
+              style={{ width: '100%', resize: 'vertical', fontFamily: 'Consolas, monospace', fontSize: 12.5, lineHeight: 1.5 }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 10 }}>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                {new TextEncoder().encode(instructionDraft).length.toLocaleString()} / {reportInstructions.data.maxBytes.toLocaleString()} bytes
+              </span>
+              {canEditReportInstructions && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={instructionMutation.isPending || !instructionDraft.trim() || instructionDraft === reportInstructions.data.content}
+                  onClick={() => instructionMutation.mutate({
+                    content: instructionDraft,
+                    expectedSha256: reportInstructions.data.sha256,
+                  })}>
+                  <Save24Regular style={{ width: 16 }} />
+                  {instructionMutation.isPending ? 'Saving…' : 'Save Instructions'}
+                </button>
+              )}
+            </div>
+            {instructionResult && (
+              <div className={instructionResult.ok ? 'warn-msg' : 'error-msg'}
+                style={{ marginTop: 12, background: instructionResult.ok ? 'var(--green-bg)' : undefined, color: instructionResult.ok ? 'var(--green-text)' : undefined }}>
+                {instructionResult.ok ? '✅' : '❌'} {instructionResult.message}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Where AI is used */}

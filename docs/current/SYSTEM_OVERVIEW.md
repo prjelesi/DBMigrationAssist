@@ -1,6 +1,7 @@
 # System Overview
 
-**Reviewed:** 2026-08-20  
+**Reviewed:** 2026-09-02
+
 **Scope:** Implemented behavior in the repository at the documented baseline.
 
 ## Purpose
@@ -88,7 +89,9 @@ This is a database-level manual model. Automatic topology discovery, application
 - Configure and test a Microsoft Foundry/Azure OpenAI-compatible endpoint and deployment.
 - Report generation is blocked until the configured model passes a real connection test.
 - Build a bounded prompt from persisted assessment findings, uploaded evidence summaries, questionnaire answers, graph edges and portfolios.
+- Load external Markdown report instructions for every report and allow administrators to update writable policy from AI Settings with SHA-256 concurrency protection.
 - Persist the complete source snapshot as an `EvidenceBundle` with a content hash.
+- Record the effective report-instruction content, source and SHA-256 hash in each evidence bundle.
 - Persist generated report JSON and its lifecycle state.
 - Support controlled report transitions for review, approval and export.
 - Restrict approval to project owners or administrators.
@@ -120,7 +123,7 @@ User and membership management have backend APIs but no portal management screen
 | `/portfolio` | Manual portfolio grouping and persistence. | Implemented, manual grouping only |
 | `/communication-map` | Manual database graph editing and visualization. | Implemented, database-level only |
 | `/reports` | Persisted report generation, review transitions and JSON download. | Implemented with export limitations |
-| `/ai-settings` | Provider registry, active model configuration and connectivity test. | Implemented |
+| `/ai-settings` | Provider registry, active model configuration, connectivity test and administrator report-instructions editor. | Implemented |
 
 ## Environment isolation
 
@@ -130,4 +133,4 @@ The local `postgres_data` volume preserves local records across container recrea
 
 ## Verification baseline
 
-The repository includes one end-to-end PostgreSQL agent test. The current implementation has also been validated through .NET builds, frontend build/lint, local Docker smoke tests and a deployment smoke test. These checks do not replace a complete automated regression, security or all-engine compatibility suite.
+The repository includes one end-to-end PostgreSQL agent test. The current implementation has also been validated through .NET builds, frontend build/lint, local Docker smoke tests and a deployment smoke test. The 2026-09-01 Azure deployment verified all four Container Apps on immutable tag `20260901214321`, PostgreSQL Flexible Server 17 readiness, and HTTP 200 responses from the portal and API health endpoint. These checks do not replace a complete automated regression, security or all-engine compatibility suite.

@@ -74,6 +74,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
             { name: 'Api__PublicUrl', value: apiUrl }
             { name: 'Evidence__StorageRoot', value: '/app/evidence' }
             { name: 'DataProtection__KeysPath', value: '/app/data-protection' }
+            { name: 'ReportGeneration__InstructionsPath', value: '/app/config/report-instructions.md' }
             { name: 'LocalAgent__BootstrapPath', value: '/app/local-agent/bootstrap.json' }
             { name: 'LocalAgent__BackendUrl', value: apiUrl }
             { name: 'AppAdmin__Email', value: appAdminEmail }
@@ -101,6 +102,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
           volumeMounts: [
             { mountPath: '/app/evidence', volumeName: 'evidence' }
             { mountPath: '/app/data-protection', volumeName: 'data-protection' }
+            { mountPath: '/app/config', volumeName: 'report-config' }
             { mountPath: '/app/local-agent', volumeName: 'local-agent' }
           ]
         }
@@ -109,6 +111,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
       volumes: [
         { name: 'evidence', storageName: 'evidence', storageType: 'AzureFile' }
         { name: 'data-protection', storageName: 'data-protection', storageType: 'AzureFile' }
+        { name: 'report-config', storageName: 'report-config', storageType: 'AzureFile' }
         { name: 'local-agent', storageName: 'local-agent', storageType: 'AzureFile' }
       ]
     }

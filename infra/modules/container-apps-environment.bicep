@@ -6,6 +6,7 @@ param storageAccountName string
 param evidenceShareName string
 param dataProtectionShareName string
 param localAgentShareName string
+param reportConfigShareName string
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2026-04-01' existing = {
   name: storageAccountName
@@ -58,6 +59,19 @@ resource localAgentStorage 'Microsoft.App/managedEnvironments/storages@2025-01-0
       accountKey: storageAccount.listKeys().keys[0].value
       accountName: storageAccount.name
       shareName: localAgentShareName
+    }
+  }
+}
+
+resource reportConfigStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
+  parent: containerAppsEnvironment
+  name: 'report-config'
+  properties: {
+    azureFile: {
+      accessMode: 'ReadWrite'
+      accountKey: storageAccount.listKeys().keys[0].value
+      accountName: storageAccount.name
+      shareName: reportConfigShareName
     }
   }
 }

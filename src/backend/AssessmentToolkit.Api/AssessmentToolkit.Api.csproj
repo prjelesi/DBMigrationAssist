@@ -34,6 +34,10 @@
     <Content Update="QuestionnaireTemplates\*.json"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\report-config\report-instructions.md"
+             Link="ReportInstructions\report-instructions.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
