@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Delete20Regular } from '@fluentui/react-icons';
+import { isAxiosError } from 'axios';
 import { createCustomer, createProject, deleteProject, getCustomers, getProjects } from '../lib/api';
 import type { DeploymentMode } from '../types';
 
@@ -34,7 +35,10 @@ export default function Projects() {
     mutationFn: deleteProject,
     onMutate: () => setDeleteError(null),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
-    onError: () => setDeleteError('Could not delete the project. Only project owners and administrators can delete projects.'),
+    onError: error => setDeleteError(
+      isAxiosError(error) && error.response?.status === 403
+        ? 'Only project owners and administrators can delete projects.'
+        : 'Could not delete the project. Refresh the page and try again.'),
   });
 
   const MODE_BADGE: Record<string, string> = {

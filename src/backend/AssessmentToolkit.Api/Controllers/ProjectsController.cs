@@ -154,6 +154,11 @@ public class ProjectsController(
         await db.GeneratedReports
             .Where(report => report.ProjectId == id)
             .ExecuteDeleteAsync(cancellationToken);
+        await db.Jobs
+            .Where(job =>
+                (job.AgentId != null && db.Agents.Any(agent => agent.AgentId == job.AgentId && agent.ProjectId == id)) ||
+                (job.DatabaseId != null && db.Databases.Any(database => database.DatabaseId == job.DatabaseId && database.ProjectId == id)))
+            .ExecuteDeleteAsync(cancellationToken);
 
         db.Projects.Remove(project);
         await db.SaveChangesAsync(cancellationToken);
