@@ -11,6 +11,7 @@ A self-hosted portal for assessing database estates before migration to the clou
 - [DB Migration Assessment Toolkit](#db-migration-assessment-toolkit)
   - [Table of contents](#table-of-contents)
   - [Architecture](#architecture)
+  - [Fictional customer example](#fictional-customer-example)
   - [Prerequisites](#prerequisites)
   - [Quick start — local](#quick-start--local)
   - [Portal walkthrough](#portal-walkthrough)
@@ -80,6 +81,12 @@ A self-hosted portal for assessing database estates before migration to the clou
 | `local-agent` | Platform-managed Discovery Agent for local demonstrations and assessments |
 
 Customer-hosted Discovery Agents use the same agent image and run inside the customer network, where they poll for jobs and execute database plugins over outbound HTTPS.
+
+---
+
+## Fictional customer example
+
+The [Banana Inc Oracle migration example](CustomerExample/README.md) provides an import-ready database inventory, application dependency register, network and security designs, a PostgreSQL-first target decision framework, and a follow-up assessment plan. All customer and workload details in the example are fictional.
 
 ---
 

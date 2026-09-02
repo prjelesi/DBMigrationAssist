@@ -1,0 +1,8 @@
+Name,Engine,Version,HostName,Port,Criticality,OwnerName,Environment
+ora-commerce-prod,Oracle,19.20,ora-commerce.banana.internal,1521,Critical,Digital Commerce DBA,Banana Primary Datacenter
+ora-customer-prod,Oracle,19.20,ora-customer.banana.internal,1521,Critical,Customer Platform DBA,Banana Primary Datacenter
+ora-warehouse-prod,Oracle,12.2.0.1,ora-warehouse.banana.internal,1521,Critical,Warehouse Technology DBA,Banana Primary Datacenter
+ora-integration-prod,Oracle,19.18,ora-integration.banana.internal,1521,High,Integration Services DBA,Banana Primary Datacenter
+ora-finance-prod,Oracle,19.20,ora-finance.banana.internal,1521,Critical,Finance Systems DBA,Banana Primary Datacenter
+ora-hr-prod,Oracle,19.19,ora-hr.banana.internal,1521,High,People Systems DBA,Banana Primary Datacenter
+ora-reporting-prod,Oracle,19.18,ora-reporting.banana.internal,1521,High,Data and Analytics DBA,Banana Primary Datacenter

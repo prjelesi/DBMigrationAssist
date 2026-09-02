@@ -1,0 +1,16 @@
+Database,Feature,AssumedUsage,MigrationConcern,EvidenceRequired,Owner
+ora-commerce-prod,PL/SQL packages,High,Business logic conversion and regression effort,Object inventory and source complexity,Digital Commerce DBA
+ora-commerce-prod,Partitioning,Medium,Target partition design and maintenance,Partition inventory and query plans,Digital Commerce DBA
+ora-customer-prod,Virtual Private Database,High,Row-level security redesign,Policies contexts and application identity flow,Customer Platform DBA
+ora-customer-prod,Advanced Queuing,Medium,Replace with Service Bus or application events,Queue inventory throughput and ordering,Customer Platform DBA
+ora-warehouse-prod,RAC,High,Availability and connection behavior redesign,AWR service configuration and failover tests,Warehouse Technology DBA
+ora-warehouse-prod,Optimizer hints,High,SQL conversion and performance risk,SQL tuning set and AWR top SQL,Warehouse Technology DBA
+ora-integration-prod,Advanced Queuing,High,Integration redesign required,Queue payload metadata rates and consumers,Integration Services DBA
+ora-integration-prod,Database links,High,Cross-database coupling and cutover sequencing,Link inventory and dependency owners,Integration Services DBA
+ora-finance-prod,Oracle Forms and Reports coupling,High,Database-only conversion is insufficient,Application architecture and vendor roadmap,Finance Systems DBA
+ora-finance-prod,PL/SQL packages,High,Large conversion and reconciliation effort,Code volume wrapped code and test coverage,Finance Systems DBA
+ora-hr-prod,Packaged vendor schema,High,Target support is a hard gate,Written vendor certification matrix,People Systems DBA
+ora-hr-prod,Fine-grained auditing,High,Audit-control parity required,Audit policies retention and consumers,People Systems DBA
+ora-reporting-prod,Materialized views,High,Refresh and query redesign,Refresh definitions dependencies and timings,Data and Analytics DBA
+ora-reporting-prod,Bitmap indexes,Medium,Different target indexing strategy,Index inventory cardinality and query plans,Data and Analytics DBA
+ora-reporting-prod,Compression,High,Capacity and performance sizing,Segment compression and growth history,Data and Analytics DBA

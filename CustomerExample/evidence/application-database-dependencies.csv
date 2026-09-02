@@ -1,0 +1,13 @@
+Application,Database,AccessPattern,Direction,Interface,Frequency,DataClassification,Owner,CutoverDependency
+PeelPay Commerce,ora-commerce-prod,Read/write,Application to database,JDBC Oracle Net,Continuous,"Confidential; payment references",Digital Commerce,Must cut over with commerce services
+PeelPay Commerce,ora-customer-prod,Read/write,Application to database,JDBC Oracle Net,Continuous,Restricted personal data,Customer Platform,Coordinate customer and commerce connection changes
+CrateFlow WMS,ora-warehouse-prod,Read/write,Application to database,.NET Oracle provider,Continuous,Confidential operations,Warehouse Technology,Vendor-certified target required before cutover
+CrateFlow WMS,ora-integration-prod,Queue and status exchange,Bidirectional,Oracle AQ and database link,Continuous,Confidential operations,Warehouse Technology,Replace or bridge AQ before database cutover
+LedgerLeaf Finance,ora-finance-prod,Read/write and batch,Application to database,Oracle Forms and PL/SQL,Continuous plus close batches,Restricted financial data,Finance Systems,Application and database move as one release
+PeopleStem HR,ora-hr-prod,Read/write and payroll batch,Application to database,JDBC Oracle Net,Continuous plus payroll windows,Restricted employee data,People Systems,Vendor support and payroll reconciliation required
+RipenTrack Integration,ora-integration-prod,Queues and scheduler,Application to database,Oracle AQ and PL/SQL,Continuous and scheduled,Mixed confidential data,Integration Services,Integration redesign precedes persistence move
+RipenTrack Integration,ora-commerce-prod,Order export,Database to database,Oracle database link,Every 5 minutes,Confidential order data,Integration Services,Replace with API or event contract
+RipenTrack Integration,ora-warehouse-prod,Inventory exchange,Database to database,Oracle database link,Every 2 minutes,Confidential operations,Integration Services,Replace with event contract
+BananaBoard Analytics,ora-reporting-prod,Read and ETL,Application to database,ODBC and Python,Hourly and daily,Aggregated and selected personal data,Data and Analytics,Repoint after reporting load validation
+ora-reporting-prod,ora-commerce-prod,Extract,Database to database,Oracle database link,Nightly,Confidential order data,Data and Analytics,Replace with controlled ingestion pipeline
+ora-reporting-prod,ora-finance-prod,Extract,Database to database,Oracle database link,Nightly,Restricted financial data,Data and Analytics,Reconcile financial aggregates before cutover
