@@ -102,7 +102,7 @@ For manually registered agents, the API stores the raw PSK only in its in-memory
 |---|---|
 | `Viewer` | Read project and environment-scoped information. |
 | `Contributor` | Perform permitted project mutations. |
-| `Owner` | Contributor access plus membership administration and report approval. |
+| `Owner` | Contributor access plus membership administration, report approval and permanent project deletion. |
 
 Memberships may be project-wide or restricted to an environment. `GovernanceMiddleware`, controller filters and `ProjectAccessService` enforce many project/environment paths. This is not a universal object-level authorization boundary. Scope resolution is incomplete for questionnaire responses and graph edges; multipart evidence/import requests are not body-scoped by the middleware; and some global or creation endpoints, including customer/project creation, AI enrichment, system status/configuration/agents and AI provider/configuration APIs, lack membership-derived or administrator-only checks. The current portal does not provide membership administration UI.
 
@@ -131,6 +131,8 @@ Audit records are application-managed. GET endpoints are not audited even when t
 | `audit` | Successful-write audit events. |
 
 EF Core migrations are applied automatically by the API during startup. File content is stored separately from PostgreSQL under `Evidence:StorageRoot`.
+
+Project deletion is an explicit owner/administrator operation. Restrict-linked questionnaire responses and generated reports are removed transactionally before the project aggregate so the remaining project-owned records can cascade safely. Evidence files are removed from `Evidence:StorageRoot` after the database transaction commits; a filesystem cleanup failure is logged and does not restore the deleted database records. Parent customers and independent audit events are retained.
 
 ## Secret and file handling
 

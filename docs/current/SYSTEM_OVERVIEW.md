@@ -69,9 +69,10 @@ An implemented plugin is not the same as production certification for every engi
 ### Questionnaires and evidence
 
 - Load versioned questionnaire templates from JSON.
-- Create and resume project responses.
+- Create and resume project-wide responses or responses scoped to a specific database in the project.
+- Maintain one response per template at project scope and one response per template for each database scope.
 - Save answers and enforce required fields before submission.
-- Attach evidence to questionnaire responses and questions.
+- Attach evidence to questionnaire responses and questions, retaining the selected database scope.
 - Upload, list, download, delete and reparse evidence files.
 - Persist file metadata, hashes, parser state and parser summaries.
 
@@ -103,6 +104,7 @@ There is no deterministic rules-only report fallback. PDF generation, expiring s
 
 - Administrator APIs can list users, create users and activate/deactivate accounts.
 - Project owners and administrators can list, add and remove project memberships.
+- Project owners and administrators can permanently delete a project and its dependent inventory, assessments, questionnaires, evidence, reports, agents, environments and memberships.
 - Successful non-authentication requests using methods other than GET, HEAD and OPTIONS are recorded as audit events; GET-side mutations are not.
 - The System page exposes component status, system configuration and agent visibility.
 
@@ -114,11 +116,11 @@ User and membership management have backend APIs but no portal management screen
 |---|---|---|
 | `/` | Dashboard summary and project selection. Some counts use the first accessible project rather than the whole estate. | Partial |
 | `/system` | API/database/worker/AI status, system configuration and all-agent view. | Implemented |
-| `/projects` | Customer and project workspace creation and selection. | Implemented |
+| `/projects` | Customer and project workspace creation, selection and owner/admin deletion. | Implemented |
 | `/environments` | Environment creation, editing and deletion. | Implemented |
 | `/inventory` | Database CRUD, Excel import and offline collector workflow. | Implemented |
 | `/agents` | Agent registration, bootstrap, jobs, dispatch and findings. | Implemented |
-| `/questionnaire` | Template sync, drafts, validation, answers, submission and attachments. | Implemented |
+| `/questionnaire` | Project/database scope selection, template sync, drafts, validation, answers, submission and attachments. | Implemented |
 | `/evidence` | Evidence upload, listing, download, deletion and reparsing. | Implemented |
 | `/portfolio` | Manual portfolio grouping and persistence. | Implemented, manual grouping only |
 | `/communication-map` | Manual database graph editing and visualization. | Implemented, database-level only |

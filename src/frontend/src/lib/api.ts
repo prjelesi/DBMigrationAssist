@@ -47,6 +47,8 @@ export const createProject = (data: {
   customerId: string; name: string; description?: string;
   deploymentMode: string; createdBy: string;
 }) => api.post<Project>('/api/projects', data).then(r => r.data);
+export const deleteProject = (id: string) =>
+  api.delete(`/api/projects/${id}`).then(r => r.data);
 
 // Agents
 export const getAgents = (projectId: string) =>
@@ -145,7 +147,7 @@ export const seedTemplates = () =>
   api.post('/api/questionnaires/templates/seed').then(r => r.data);
 export const getResponses = (projectId: string) =>
   api.get<QuestionnaireResponse[]>('/api/questionnaires/responses', { params: { projectId } }).then(r => r.data);
-export const startResponse = (data: { projectId: string; templateId: string; assignedTo?: string }) =>
+export const startResponse = (data: { projectId: string; databaseId?: string; templateId: string; assignedTo?: string }) =>
   api.post<QuestionnaireResponse>('/api/questionnaires/responses', data).then(r => r.data);
 export const getResponse = (id: string) =>
   api.get<QuestionnaireResponse>(`/api/questionnaires/responses/${id}`).then(r => r.data);
@@ -161,6 +163,7 @@ export const uploadQuestionnaireAttachment = (
   questionId: string,
   uploadedBy: string,
   file: File,
+  databaseId?: string,
 ) => {
   const form = new FormData();
   form.append('projectId', projectId);
@@ -168,6 +171,7 @@ export const uploadQuestionnaireAttachment = (
   form.append('questionId', questionId);
   form.append('uploadedBy', uploadedBy);
   form.append('sourceType', 'Other');
+  if (databaseId) form.append('databaseId', databaseId);
   form.append('file', file);
   return api.post<QuestionnaireAttachment>('/api/evidence/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },

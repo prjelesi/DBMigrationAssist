@@ -174,6 +174,8 @@ export interface Answer {
 export interface QuestionnaireResponse {
   responseId: string;
   projectId: string;
+  databaseId?: string;
+  databaseName?: string;
   templateId: string;
   status: ResponseStatus;
   assignedTo?: string;

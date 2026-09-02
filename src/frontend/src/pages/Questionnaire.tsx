@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownload20Regular, Attach20Regular, Delete20Regular } from '@fluentui/react-icons';
 import {
   deleteEvidence, downloadEvidence, getQuestionnaireAttachments,
-  getProjects, getTemplates, getResponses, startResponse,
+  getDatabases, getProjects, getTemplates, getResponses, startResponse,
   getResponse, saveAnswers, submitResponse, seedTemplates, uploadQuestionnaireAttachment,
 } from '../lib/api';
 import type { Answer, Question, QuestionnaireAttachment, QuestionnaireResponse, ResponseStatus } from '../types';
@@ -43,6 +43,7 @@ const PHASE_BADGE: Record<string, string> = {
 export default function Questionnaire() {
   const qc = useQueryClient();
   const [selectedProject, setSelectedProject] = useState('');
+  const [selectedDatabase, setSelectedDatabase] = useState('');
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null);
   // Local draft answers: questionId → value
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -52,6 +53,11 @@ export default function Questionnaire() {
 
   const projects = useQuery({ queryKey: ['projects'], queryFn: getProjects });
   const templates = useQuery({ queryKey: ['templates'], queryFn: getTemplates });
+  const databases = useQuery({
+    queryKey: ['databases', selectedProject],
+    queryFn: () => getDatabases(selectedProject),
+    enabled: !!selectedProject,
+  });
   const responses = useQuery({
     queryKey: ['responses', selectedProject],
     queryFn: () => getResponses(selectedProject),
@@ -113,6 +119,7 @@ export default function Questionnaire() {
         questionId,
         response.assignedTo ?? 'Questionnaire respondent',
         file,
+        response.databaseId,
       );
     },
     onSuccess: () => {
@@ -347,13 +354,22 @@ export default function Questionnaire() {
     <div>
       <div className="page-header"><h2>Questionnaires</h2></div>
 
-      {/* Project selector */}
+      {/* Project and questionnaire scope selectors */}
       <div className="filter-bar">
         <div className="form-row" style={{ marginBottom: 0, minWidth: 300 }}>
           <label>Project</label>
-          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveResponseId(null); setDraft({}); }}>
+          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setSelectedDatabase(''); setActiveResponseId(null); setDraft({}); }}>
             <option value="">Choose a project…</option>
             {projects.data?.map(p => <option key={p.projectId} value={p.projectId}>{p.name}</option>)}
+          </select>
+        </div>
+        <div className="form-row" style={{ marginBottom: 0, minWidth: 300 }}>
+          <label>Questionnaire scope</label>
+          <select value={selectedDatabase} disabled={!selectedProject} onChange={e => setSelectedDatabase(e.target.value)}>
+            <option value="">Entire project</option>
+            {databases.data?.map(database => (
+              <option key={database.databaseId} value={database.databaseId}>{database.name} ({database.engine})</option>
+            ))}
           </select>
         </div>
       </div>
@@ -376,11 +392,12 @@ export default function Questionnaire() {
             )}
             {(responses.data?.length ?? 0) > 0 && (
               <table className="data-table">
-                <thead><tr><th>Template</th><th>Phase</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Template</th><th>Scope</th><th>Phase</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                   {responses.data?.map((r: QuestionnaireResponse) => (
                     <tr key={r.responseId}>
                       <td style={{ fontWeight: 600 }}>{r.template?.name ?? 'Unknown'}</td>
+                      <td>{r.databaseName ?? 'Entire project'}</td>
                       <td><span className={`badge ${PHASE_BADGE[r.template?.phase ?? ''] ?? 'badge-gray'}`}>{r.template?.phase}</span></td>
                       <td><span className={`badge ${STATUS_BADGE[r.status]}`}>{r.status}</span></td>
                       <td>
@@ -429,7 +446,11 @@ export default function Questionnaire() {
                   </div>
                   <button className="btn btn-primary btn-sm"
                     disabled={!selectedProject || startMutation.isPending}
-                    onClick={() => startMutation.mutate({ projectId: selectedProject, templateId: t.templateId })}>
+                    onClick={() => startMutation.mutate({
+                      projectId: selectedProject,
+                      databaseId: selectedDatabase || undefined,
+                      templateId: t.templateId,
+                    })}>
                     Start →
                   </button>
                 </div>
@@ -454,7 +475,7 @@ export default function Questionnaire() {
                       <div style={{ fontWeight: 700, fontSize: 16 }}>{resp.template?.name}</div>
                       <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 3 }}>
                         <span className={`badge ${STATUS_BADGE[resp.status]}`} style={{ marginRight: 8 }}>{resp.status}</span>
-                        {progress.answered}/{progress.total} answered · {progress.required} required
+                        {resp.databaseName ?? 'Entire project'} · {progress.answered}/{progress.total} answered · {progress.required} required
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

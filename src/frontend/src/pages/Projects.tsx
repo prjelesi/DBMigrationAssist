@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createCustomer, createProject, getCustomers, getProjects } from '../lib/api';
+import { Delete20Regular } from '@fluentui/react-icons';
+import { createCustomer, createProject, deleteProject, getCustomers, getProjects } from '../lib/api';
 import type { DeploymentMode } from '../types';
 
 export default function Projects() {
   const qc = useQueryClient();
   const [showProject, setShowProject] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const projects = useQuery({ queryKey: ['projects'], queryFn: getProjects });
   const customers = useQuery({ queryKey: ['customers'], queryFn: getCustomers });
@@ -28,6 +30,13 @@ export default function Projects() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); setShowCustomer(false); },
   });
 
+  const removeProject = useMutation({
+    mutationFn: deleteProject,
+    onMutate: () => setDeleteError(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+    onError: () => setDeleteError('Could not delete the project. Only project owners and administrators can delete projects.'),
+  });
+
   const MODE_BADGE: Record<string, string> = {
     Connected: 'badge-blue', Standalone: 'badge-gray', AirGapped: 'badge-yellow',
   };
@@ -43,6 +52,7 @@ export default function Projects() {
       </div>
 
       {projects.isLoading && <div className="loading">Loading…</div>}
+      {deleteError && <div className="error-msg">{deleteError}</div>}
 
       <div className="card">
         {(projects.data?.length ?? 0) === 0 && !projects.isLoading ? (
@@ -53,7 +63,7 @@ export default function Projects() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>Project</th><th>Customer</th><th>Deployment Mode</th><th>Status</th><th>Created</th></tr>
+              <tr><th>Project</th><th>Customer</th><th>Deployment Mode</th><th>Status</th><th>Created</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {projects.data?.map(p => (
@@ -63,6 +73,16 @@ export default function Projects() {
                   <td><span className={`badge ${MODE_BADGE[p.deploymentMode] ?? 'badge-gray'}`}>{p.deploymentMode}</span></td>
                   <td><span className="badge badge-green">{p.status}</span></td>
                   <td>{new Date(p.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <button type="button" className="btn btn-ghost btn-sm" title="Delete project"
+                      aria-label={`Delete project ${p.name}`} disabled={removeProject.isPending}
+                      onClick={() => {
+                        if (window.confirm(`Permanently delete “${p.name}” and all of its databases, assessments, questionnaires, evidence, and reports? This cannot be undone.`))
+                          removeProject.mutate(p.projectId);
+                      }}>
+                      <Delete20Regular />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

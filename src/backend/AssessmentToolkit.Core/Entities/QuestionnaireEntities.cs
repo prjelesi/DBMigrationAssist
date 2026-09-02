@@ -47,11 +47,12 @@ public class Question
     public QuestionnaireSection Section { get; set; } = null!;
 }
 
-/// <summary>A project's instance of a completed/in-progress template response.</summary>
+/// <summary>A project-wide or database-specific instance of a questionnaire template.</summary>
 public class QuestionnaireResponse
 {
     public Guid ResponseId { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; }
+    public Guid? DatabaseId { get; set; }
     public Guid TemplateId { get; set; }
     public ResponseStatus Status { get; set; } = ResponseStatus.NotStarted;
     public string? AssignedTo { get; set; }
@@ -60,6 +61,7 @@ public class QuestionnaireResponse
     public DateTimeOffset? SubmittedAt { get; set; }
 
     public Project Project { get; set; } = null!;
+    public DatabaseInstance? Database { get; set; }
     public QuestionnaireTemplate Template { get; set; } = null!;
     public ICollection<Answer> Answers { get; set; } = [];
 }

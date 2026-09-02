@@ -525,9 +525,9 @@ namespace AssessmentToolkit.Data.Migrations
 
                     b.HasKey("GeneratedReportId");
 
-                    b.HasIndex("DatabaseId", "GeneratedAt");
-
                     b.HasIndex("EvidenceBundleId");
+
+                    b.HasIndex("DatabaseId", "GeneratedAt");
 
                     b.HasIndex("ProjectId", "GeneratedAt");
 
@@ -794,6 +794,9 @@ namespace AssessmentToolkit.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("DatabaseId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
@@ -811,9 +814,17 @@ namespace AssessmentToolkit.Data.Migrations
 
                     b.HasKey("ResponseId");
 
+                    b.HasIndex("DatabaseId");
+
                     b.HasIndex("TemplateId");
 
-                    b.HasIndex("ProjectId", "TemplateId");
+                    b.HasIndex(new[] { "ProjectId", "DatabaseId", "TemplateId" }, "IX_response_ProjectId_DatabaseId_TemplateId_database")
+                        .IsUnique()
+                        .HasFilter("\"DatabaseId\" IS NOT NULL");
+
+                    b.HasIndex(new[] { "ProjectId", "TemplateId" }, "IX_response_ProjectId_TemplateId_project")
+                        .IsUnique()
+                        .HasFilter("\"DatabaseId\" IS NULL");
 
                     b.ToTable("response", "questionnaire");
                 });
@@ -1193,6 +1204,11 @@ namespace AssessmentToolkit.Data.Migrations
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.QuestionnaireResponse", b =>
                 {
+                    b.HasOne("AssessmentToolkit.Core.Entities.DatabaseInstance", "Database")
+                        .WithMany()
+                        .HasForeignKey("DatabaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AssessmentToolkit.Core.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -1204,6 +1220,8 @@ namespace AssessmentToolkit.Data.Migrations
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Database");
 
                     b.Navigation("Project");
 

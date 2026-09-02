@@ -103,6 +103,8 @@ public class QuestionnairesController(
             {
                 r.ResponseId,
                 r.ProjectId,
+                r.DatabaseId,
+                DatabaseName = r.Database != null ? r.Database.Name : null,
                 r.TemplateId,
                 r.Status,
                 r.AssignedTo,
@@ -129,14 +131,21 @@ public class QuestionnairesController(
         var template = await db.QuestionnaireTemplates.FindAsync(req.TemplateId);
         if (template is null) return BadRequest("Template not found.");
 
+        if (req.DatabaseId.HasValue && !await db.Databases.AnyAsync(database =>
+                database.DatabaseId == req.DatabaseId && database.ProjectId == req.ProjectId))
+            return BadRequest("Database not found in this project.");
+
         var existing = await db.QuestionnaireResponses
-            .FirstOrDefaultAsync(r => r.ProjectId == req.ProjectId && r.TemplateId == req.TemplateId);
+            .FirstOrDefaultAsync(r => r.ProjectId == req.ProjectId &&
+                                      r.DatabaseId == req.DatabaseId &&
+                                      r.TemplateId == req.TemplateId);
         if (existing is not null)
             return Ok(ToResponseSummary(existing));
 
         var response = new QuestionnaireResponse
         {
             ProjectId = req.ProjectId,
+            DatabaseId = req.DatabaseId,
             TemplateId = req.TemplateId,
             Status = ResponseStatus.InProgress,
             AssignedTo = req.AssignedTo
@@ -157,6 +166,8 @@ public class QuestionnairesController(
             {
                 r.ResponseId,
                 r.ProjectId,
+                r.DatabaseId,
+                DatabaseName = r.Database != null ? r.Database.Name : null,
                 r.TemplateId,
                 r.Status,
                 r.AssignedTo,
@@ -217,6 +228,7 @@ public class QuestionnairesController(
     {
         response.ResponseId,
         response.ProjectId,
+        response.DatabaseId,
         response.TemplateId,
         response.Status,
         response.AssignedTo,
@@ -405,6 +417,6 @@ public class QuestionnairesController(
     }
 }
 
-public record StartResponseRequest(Guid ProjectId, Guid TemplateId, string? AssignedTo);
+public record StartResponseRequest(Guid ProjectId, Guid? DatabaseId, Guid TemplateId, string? AssignedTo);
 public record AnswerInput(Guid QuestionId, string? Value);
 public record SaveAnswersRequest(List<AnswerInput> Answers);

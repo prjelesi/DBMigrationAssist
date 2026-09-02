@@ -2,7 +2,7 @@
 
 **Status:** Authoritative current-state documentation
 
-**Baseline:** `main` at `807c3470dd79ac6a2e6d24644f232426f06bf533`, plus the documented working-tree report-policy changes
+**Baseline:** Current `main` working tree, including the application release documented on the review date
 
 **Reviewed:** 2026-09-02
 

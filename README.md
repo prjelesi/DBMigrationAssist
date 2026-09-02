@@ -16,6 +16,7 @@ A self-hosted portal for assessing database estates before migration to the clou
   - [Portal walkthrough](#portal-walkthrough)
   - [Offline database assessment](#offline-database-assessment)
   - [Questionnaire templates](#questionnaire-templates)
+  - [Deleting projects](#deleting-projects)
   - [Deploying Discovery Agents](#deploying-discovery-agents)
     - [Supported plugins](#supported-plugins)
     - [1. Register a Discovery Agent in the portal](#1-register-a-discovery-agent-in-the-portal)
@@ -45,6 +46,7 @@ A self-hosted portal for assessing database estates before migration to the clou
   - [Azure deployment](#azure-deployment)
     - [Parameters](#parameters)
     - [Deploy steps](#deploy-steps)
+    - [Image-only application updates](#image-only-application-updates)
   - [Configuration reference](#configuration-reference)
     - [API (`src/backend/AssessmentToolkit.Api`)](#api-srcbackendassessmenttoolkitapi)
     - [Worker (`src/backend/AssessmentToolkit.Worker`)](#worker-srcbackendassessmenttoolkitworker)
@@ -130,13 +132,13 @@ Portal authentication is required in the local Compose environment. The first ap
 |---------|-------|-------------|
 | Dashboard | `/` | Counts of projects, Discovery Agents, databases |
 | System | `/system` | Health status, AI configuration, system config |
-| Projects | `/projects` | Create and manage migration projects |
+| Projects | `/projects` | Create migration projects; project owners and administrators can permanently delete them |
 | Environments | `/environments` | DEV / UAT / PROD environment rings |
 | DB Inventory | `/inventory` | Register source databases with engine, host, criticality |
 | Discovery Agents | `/agents` | Register Discovery Agents, dispatch jobs, view findings |
 | Communication Map | `/communication-map` | ReactFlow graph of database dependencies |
 | Portfolio | `/portfolio` | Group databases into migration waves |
-| Questionnaire | `/questionnaire` | Versioned baseline and database-specific discovery questionnaires |
+| Questionnaire | `/questionnaire` | Run versioned questionnaires for the whole project or a specific database |
 | Evidence | `/evidence` | Upload assessment reports and questionnaire supporting documents |
 | Reports | `/reports` | AI-generated migration assessment reports |
 | AI Settings | `/ai-settings` | Configure Microsoft Foundry/Azure OpenAI and administer report instructions |
@@ -178,6 +180,8 @@ The collector embeds the inventory database ID and engine plugin. The portal rej
 
 Questionnaires are defined as versioned JSON files in `src/backend/AssessmentToolkit.Api/QuestionnaireTemplates/`. The portal includes a generic baseline plus supplemental templates for Oracle, PostgreSQL, SQL Server, and MySQL. Use **Sync JSON templates** on the Questionnaire page to import new template versions; existing versions and their responses are preserved.
 
+After selecting a project, choose **Entire project** for shared migration context or select one inventory database for workload-specific answers. A project can have one response per template at project scope and one response per template for each database. Starting the same template and scope resumes the existing response. Supporting attachments inherit the selected database scope. Project reports consume project-wide responses; database reports combine those shared responses with the responses for the selected database.
+
 Each question supports `Text`, `Textarea`, `Select`, `MultiSelect`, `Boolean`, or `Number`. The following optional capabilities are controlled per question:
 
 ```json
@@ -197,6 +201,10 @@ Each question supports `Text`, `Textarea`, `Select`, `MultiSelect`, `Boolean`, o
 - Documents can be downloaded at any time, but answers and attachments become read-only after submission.
 
 Increment `version` when changing a template that may already have responses. Do not replace a synchronized version in place.
+
+## Deleting projects
+
+Project owners and application administrators can permanently delete a project from the **Projects** page. Use the trash action in the project row and confirm the named project. Deletion removes the project's environments, database inventory, Discovery Agents, assessment jobs and results, questionnaires, evidence files, communication-map edges, portfolios, generated reports, and memberships. This action cannot be undone and does not delete the parent customer or independent audit history.
 
 ---
 
@@ -741,6 +749,16 @@ docker compose up -d api worker frontend local-agent
 ```
 
 Deployment does not rebuild application images. It resolves the immutable image ID used by each running Compose service, applies a timestamped ACR tag to that exact image, pushes it, and configures Azure Container Apps with those tags. Deployment stops if any required local service is not running.
+
+### Image-only application updates
+
+For routine code releases to the existing Azure environment, build, publish, and activate all four images without redeploying infrastructure:
+
+```powershell
+.\infra\deploy.ps1 -Mode ReleaseImages
+```
+
+This command builds and starts the local API, worker, frontend, and Discovery Agent containers; pushes each image to ACR with an immutable UTC timestamp tag and the `latest` alias; updates the existing Container Apps to the immutable tag; and verifies the API health and frontend endpoints. Container Apps remain pinned to immutable tags because pushing `latest` alone does not create a new revision. Use the regular deployment modes only for infrastructure or application-configuration changes.
 
 The current development portal is:
 

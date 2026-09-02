@@ -43,10 +43,11 @@ There are no endpoints for password reset, user deletion, platform-role changes 
 | Group | Implemented routes |
 |---|---|
 | Customers | `GET /api/customers`, `GET /api/customers/{id}`, `POST /api/customers` |
-| Projects | `GET /api/projects`, `GET /api/projects/{id}`, `POST /api/projects` |
+| Projects | `GET /api/projects`, `GET /api/projects/{id}`, `POST /api/projects`, `DELETE /api/projects/{id}` |
 | Environments | `GET /api/environments`, `GET /api/environments/{id}`, `POST /api/environments`, `PATCH /api/environments/{id}`, `DELETE /api/environments/{id}` |
 
 Project visibility is membership-filtered for standard users and platform-wide for administrators.
+Project deletion is restricted to project owners and administrators. It permanently deletes the project's inventory, assessments, questionnaires, evidence, reports, agents, environments and memberships.
 
 ## Database inventory and offline assessment
 
@@ -92,12 +93,14 @@ These routes are anonymous to the portal cookie scheme but are protected by `Age
 | `GET` | `/api/questionnaires/templates` | List questionnaire templates. |
 | `GET` | `/api/questionnaires/templates/{id}` | Get an ordered template with sections and questions. |
 | `POST` | `/api/questionnaires/templates/seed` | Synchronize bundled JSON templates. |
-| `GET` | `/api/questionnaires/responses` | List accessible responses. |
-| `POST` | `/api/questionnaires/responses` | Start a response. |
+| `GET` | `/api/questionnaires/responses?projectId={projectId}` | List project-wide and database-scoped responses for a project, including database identity and name when scoped. |
+| `POST` | `/api/questionnaires/responses` | Start or resume a response. `databaseId` is optional and must belong to `projectId`. |
 | `GET` | `/api/questionnaires/responses/{id}` | Get a response and answers. |
 | `GET` | `/api/questionnaires/responses/{id}/attachments` | List response/question attachments. |
 | `PUT` | `/api/questionnaires/responses/{id}/answers` | Save answers. |
 | `POST` | `/api/questionnaires/responses/{id}/submit` | Validate required answers and submit. |
+
+Each project can have one project-wide response per template and one response per template for each database. Project reports use project-wide responses; database reports use project-wide responses plus responses scoped to that database.
 
 ## Evidence
 

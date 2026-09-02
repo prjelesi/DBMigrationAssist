@@ -345,7 +345,8 @@ public class AiController(
             .Include(response => response.Template)
             .Include(response => response.Answers)
                 .ThenInclude(answer => answer.Question)
-            .Where(response => response.ProjectId == req.ProjectId)
+            .Where(response => response.ProjectId == req.ProjectId &&
+                (!req.DatabaseId.HasValue || response.DatabaseId == null || response.DatabaseId == req.DatabaseId))
             .ToListAsync(ct);
         var graphEdges = await db.GraphEdges.AsNoTracking()
             .Where(edge => edge.ProjectId == req.ProjectId &&

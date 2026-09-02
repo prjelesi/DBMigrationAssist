@@ -1,4 +1,5 @@
 using AssessmentToolkit.Core.Entities;
+using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,10 @@ namespace AssessmentToolkit.Api.Controllers;
 
 [ApiController]
 [Route("api/projects")]
-public class ProjectsController(AssessmentDbContext db) : ControllerBase
+public class ProjectsController(
+    AssessmentDbContext db,
+    ProjectAccessService projectAccess,
+    ILogger<ProjectsController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List()
@@ -128,6 +132,46 @@ public class ProjectsController(AssessmentDbContext db) : ControllerBase
             project.CreatedAt,
             project.UpdatedAt
         });
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var project = await db.Projects.FindAsync([id], cancellationToken);
+        if (project is null) return NotFound();
+        if (!await projectAccess.IsOwnerAsync(User, id, cancellationToken)) return Forbid();
+
+        var evidencePaths = await db.UploadedReports
+            .Where(report => report.ProjectId == id)
+            .Select(report => report.StoragePath)
+            .ToListAsync(cancellationToken);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        await db.QuestionnaireResponses
+            .Where(response => response.ProjectId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+        await db.GeneratedReports
+            .Where(report => report.ProjectId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        db.Projects.Remove(project);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        foreach (var evidencePath in evidencePaths)
+        {
+            try
+            {
+                if (System.IO.File.Exists(evidencePath)) System.IO.File.Delete(evidencePath);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Could not delete evidence file {EvidencePath} for project {ProjectId}", evidencePath, id);
+            }
+        }
+
+        return NoContent();
     }
 }
 

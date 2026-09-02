@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Validate', 'WhatIf', 'Deploy', 'DeployPhase2')]
+    [ValidateSet('Validate', 'WhatIf', 'Deploy', 'DeployPhase2', 'ReleaseImages')]
     [string]$Mode = 'Validate',
     [string]$SubscriptionId = '7ee7fa4f-8359-4fb9-ac34-361728102038',
     [string]$TenantId = '53fa074c-6e61-4c96-b167-fd879039b24e',
@@ -201,19 +201,78 @@ function Push-RunningLocalImages {
             throw "Could not resolve the running image for local Compose service '$($image.Service)'."
         }
 
-        $tag = "$LoginServer/$($image.Name):$ImageTag"
-        & docker tag (($localImageId | Out-String).Trim()) $tag
-        if ($LASTEXITCODE -ne 0) {
-            throw "Docker tag failed for $($image.Name)."
+        $immutableTag = "$LoginServer/$($image.Name):$ImageTag"
+        $latestTag = "$LoginServer/$($image.Name):latest"
+        foreach ($tag in @($immutableTag, $latestTag)) {
+            & docker tag (($localImageId | Out-String).Trim()) $tag
+            if ($LASTEXITCODE -ne 0) {
+                throw "Docker tag failed for $tag."
+            }
+            & docker push $tag | Out-Host
+            if ($LASTEXITCODE -ne 0) {
+                throw "Docker push failed for $tag."
+            }
         }
-        & docker push $tag | Out-Host
-        if ($LASTEXITCODE -ne 0) {
-            throw "Docker push failed for $($image.Name)."
-        }
-        $result[$image.Name] = $tag
+        $result[$image.Name] = $immutableTag
     }
 
     return $result
+}
+
+function Build-ReleaseImages {
+    & (Join-Path $workspaceRoot 'build.ps1')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Application release build failed.'
+    }
+
+    & docker compose `
+        --project-directory $workspaceRoot `
+        --file (Join-Path $workspaceRoot 'docker-compose.yml') `
+        build api worker frontend local-agent
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Docker image build failed.'
+    }
+
+    & docker compose `
+        --project-directory $workspaceRoot `
+        --file (Join-Path $workspaceRoot 'docker-compose.yml') `
+        up -d --no-deps api worker frontend local-agent
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Local release containers failed to start.'
+    }
+}
+
+function Update-ContainerAppImages {
+    param(
+        [Parameter(Mandatory)][hashtable]$Images
+    )
+
+    $apps = @(
+        @{ Name = 'ca-api-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-api'] },
+        @{ Name = 'ca-worker-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-worker'] },
+        @{ Name = 'ca-agent-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-discovery-agent'] },
+        @{ Name = 'ca-web-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-frontend'] }
+    )
+
+    foreach ($app in $apps) {
+        $null = Invoke-AzJson -Arguments @(
+            'containerapp', 'update',
+            '--name', $app.Name,
+            '--resource-group', $resourceGroupName,
+            '--image', $app.Image
+        )
+
+        $state = Invoke-AzJson -Arguments @(
+            'containerapp', 'show',
+            '--name', $app.Name,
+            '--resource-group', $resourceGroupName,
+            '--query', '{name:name,provisioningState:properties.provisioningState,latestRevision:properties.latestRevisionName,image:properties.template.containers[0].image}'
+        )
+        if ($state.provisioningState -ne 'Succeeded' -or $state.image -ne $app.Image) {
+            throw "Container App '$($app.Name)' did not reach the expected image and provisioning state."
+        }
+        $state
+    }
 }
 
 Assert-Command -Name 'az'
@@ -251,6 +310,45 @@ if ($LASTEXITCODE -ne 0) {
 
 if ($Mode -eq 'Validate') {
     Write-Output 'Validation succeeded: prerequisites, Azure context, Docker CLI, and Bicep syntax are valid.'
+    return
+}
+
+if ($Mode -eq 'ReleaseImages') {
+    $null = & docker info --format '{{.ServerVersion}}'
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Docker engine is not available for image build and push.'
+    }
+
+    Build-ReleaseImages
+    $loginServer = Invoke-AzText -Arguments @('acr', 'show', '--name', $containerRegistryName, '--query', 'loginServer')
+    $images = Push-RunningLocalImages -LoginServer $loginServer
+    $states = Update-ContainerAppImages -Images $images
+
+    $apiFqdn = Invoke-AzText -Arguments @(
+        'containerapp', 'show', '--name', 'ca-api-dbmigratio-dev-1fa1',
+        '--resource-group', $resourceGroupName, '--query', 'properties.configuration.ingress.fqdn'
+    )
+    $frontendFqdn = Invoke-AzText -Arguments @(
+        'containerapp', 'show', '--name', 'ca-web-dbmigratio-dev-1fa1',
+        '--resource-group', $resourceGroupName, '--query', 'properties.configuration.ingress.fqdn'
+    )
+    $apiUrl = "https://$apiFqdn/health"
+    $frontendUrl = "https://$frontendFqdn/"
+    if ((Invoke-WebRequest -Uri $apiUrl -UseBasicParsing).StatusCode -ne 200) {
+        throw "API health verification failed at $apiUrl."
+    }
+    if ((Invoke-WebRequest -Uri $frontendUrl -UseBasicParsing).StatusCode -ne 200) {
+        throw "Frontend verification failed at $frontendUrl."
+    }
+
+    [pscustomobject]@{
+        ImageTag = $ImageTag
+        LatestTagPublished = $true
+        InfrastructureRedeployed = $false
+        ApiHealthUrl = $apiUrl
+        FrontendUrl = $frontendUrl
+        ContainerApps = $states
+    } | Format-List
     return
 }
 

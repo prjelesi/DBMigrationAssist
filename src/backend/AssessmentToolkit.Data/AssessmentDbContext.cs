@@ -105,6 +105,9 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
             .HasForeignKey(e => e.SectionId);
         mb.Entity<QuestionnaireResponse>().HasOne(e => e.Project).WithMany()
             .HasForeignKey(e => e.ProjectId);
+        mb.Entity<QuestionnaireResponse>().HasOne(e => e.Database).WithMany()
+            .HasForeignKey(e => e.DatabaseId)
+            .OnDelete(DeleteBehavior.Restrict);
         mb.Entity<QuestionnaireResponse>().HasOne(e => e.Template).WithMany()
             .HasForeignKey(e => e.TemplateId);
         mb.Entity<Answer>().HasOne(e => e.Response).WithMany(e => e.Answers)
@@ -113,7 +116,14 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
             .HasForeignKey(e => e.QuestionId);
 
         mb.Entity<Answer>().HasIndex(e => new { e.ResponseId, e.QuestionId }).IsUnique();
-        mb.Entity<QuestionnaireResponse>().HasIndex(e => new { e.ProjectId, e.TemplateId });
+        mb.Entity<QuestionnaireResponse>()
+            .HasIndex(e => new { e.ProjectId, e.TemplateId }, "IX_response_ProjectId_TemplateId_project")
+            .IsUnique()
+            .HasFilter("\"DatabaseId\" IS NULL");
+        mb.Entity<QuestionnaireResponse>()
+            .HasIndex(e => new { e.ProjectId, e.DatabaseId, e.TemplateId }, "IX_response_ProjectId_DatabaseId_TemplateId_database")
+            .IsUnique()
+            .HasFilter("\"DatabaseId\" IS NOT NULL");
 
         // Schema: assessment — UploadedReport
         mb.Entity<UploadedReport>().ToTable("uploaded_report", "assessment").HasKey(e => e.ReportId);

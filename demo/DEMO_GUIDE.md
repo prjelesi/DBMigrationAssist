@@ -11,7 +11,7 @@ The demonstration covers:
 - Project and environment setup
 - Database inventory
 - Discovery Agent registration and assessment
-- Baseline and engine-specific questionnaires
+- Project-wide and database-scoped questionnaires
 - Evidence upload and parsing
 - Portfolio and dependency views
 - Operational status
@@ -74,8 +74,7 @@ The demo URLs are:
 - Local Swagger in Development mode: `http://localhost:5000/swagger`
 - Azure portal: `https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
 
-The Azure URL above was verified on 2026-09-01 with immutable image tag `20260901214321`. Confirm the current
-frontend address before presenting rather than assuming the Container Apps environment DNS suffix:
+Confirm the current frontend address and immutable image tags before presenting rather than assuming the Container Apps environment DNS suffix or relying on the mutable `latest` alias:
 
 ```powershell
 $fqdn = az containerapp show `
@@ -83,6 +82,11 @@ $fqdn = az containerapp show `
     --name ca-web-dbmigratio-dev-1fa1 `
     --query properties.configuration.ingress.fqdn -o tsv
 "https://$fqdn"
+
+az containerapp list `
+    --resource-group rg-dbmigratio-dev-1fa1 `
+    --query "[].{name:name,image:properties.template.containers[0].image,status:properties.runningStatus}" `
+    --output table
 ```
 
 Use either the local or Azure portal for the demonstration. Sign in with the application administrator account before beginning the pre-demo setup. Portal authentication is managed by the application; Microsoft Entra sign-in is not required.
@@ -153,7 +157,9 @@ Create three projects for that customer:
 
 ### Optional clean demonstration environment
 
-For a completely fresh dataset, remove Docker volumes before starting. This deletes all local portal data and should only be used when existing data is disposable.
+To remove only an earlier demo project, open **Projects**, select its trash action, and confirm the named project. Only project owners and application administrators can do this. It permanently removes that project's inventory, environments, Discovery Agents, assessments, questionnaires, evidence, reports, portfolios, communication edges, and memberships, so use it only for disposable demo data.
+
+For a completely fresh local dataset, remove Docker volumes before starting. This deletes all local portal data and should only be used when every local record is disposable.
 
 ```powershell
 docker compose down -v
@@ -223,9 +229,9 @@ Alternatively, demonstrate registration manually:
 ### Demonstrate the connected workflow
 
 1. Open **DB Inventory** and show engine, version, owner, and criticality.
-2. Open **Questionnaire** and start the Database Migration Baseline.
-3. Show required-field validation, attachments, draft saving, and template versioning.
-4. Start the appropriate supplemental engine questionnaire.
+2. Open **Questionnaire**, select **Zava Connected Commerce Migration**, choose **Entire project**, and start the Database Migration Baseline.
+3. Show required-field validation, attachments, draft saving, and template versioning. Explain that reopening the same template and scope resumes its existing response.
+4. Change the questionnaire scope to `commerce-orders-prod` and start the PostgreSQL supplemental questionnaire. Point out the database name on the response and that attachments retain this database scope.
 5. Open **Discovery Agents** and show heartbeat, job status, and findings.
 6. Open **Communication Map** to discuss application and database dependencies.
 7. Open **Portfolio** and group the databases into discovery, pilot, and production waves.
@@ -338,14 +344,14 @@ Offline assessment summary
 7. Open **Evidence** and select the Air-gapped project.
 8. Upload the sanitized inventory CSV and assessment summary as supporting evidence.
 9. Explain file hashing, source-type detection, parse status, and evidence traceability.
-10. Open **Questionnaire** and start Database Migration Baseline v3.
+10. Open **Questionnaire**, select the Air-gapped project and **Entire project**, then start Database Migration Baseline v3.
 11. Highlight the questions covering:
    - Assessment script security approval
    - Read-only metadata collection
    - Missing prerequisites and owners
    - Data residency and transfer restrictions
    - RACI and sign-off
-12. Start Oracle Migration Assessment v3.
+12. Change the questionnaire scope to `smart-fabric-rnd-oracle` and start Oracle Migration Assessment v3.
 13. Highlight AWR or Statspack evidence, unsupported Oracle objects, offline migration, reconciliation, rollback, and licensing.
 14. Show that no active Discovery Agent is required for offline result collection or upload.
 15. Open **Portfolio** and place the databases into separate waves based on criticality and remediation effort.
@@ -403,7 +409,7 @@ flowchart LR
 4. Show that its identity is persisted in a private Docker volume and it reaches the API using `http://api:8080`.
 5. Dispatch a local PostgreSQL assessment.
 6. Open the findings and compare them with the inventory record.
-7. Start the baseline and PostgreSQL questionnaires.
+7. Start the baseline questionnaire at **Entire project** scope, then select `apparel-production` and start the PostgreSQL questionnaire at database scope.
 8. Upload a local evidence file.
 9. Demonstrate the dashboard counts and recent project activity.
 
@@ -428,7 +434,7 @@ Use this table to conclude the demo:
 | Portal location | Central/shared | Separate from source zone | Customer-local |
 | Discovery Agent communication | Live outbound HTTPS | No live connection | Local network or Docker network |
 | Evidence transfer | Automatic result upload and manual files | Generated assessment JSON plus controlled manual transfer | Local automatic upload and manual files |
-| Questionnaire workflow | Supported | Supported | Supported |
+| Questionnaire workflow | Project and database scopes | Project and database scopes | Project and database scopes |
 | AI Foundry | Optional, centrally configured | Typically disabled or separately approved | Optional; core workflow works without it |
 | Best fit | Enterprise shared service | Restricted or classified networks | PoC, departmental, or self-contained use |
 
@@ -441,6 +447,7 @@ Before presenting:
 - [ ] The application administrator can sign in successfully.
 - [ ] System Status shows API, database, and worker as healthy or running.
 - [ ] The v3 baseline and Oracle questionnaire templates are active.
+- [ ] At least one project-wide response and one database-scoped response are ready to demonstrate.
 - [ ] Three projects exist with the correct deployment modes.
 - [ ] Each project has at least one environment and database record.
 - [ ] The generated Air-gapped collector and a synthetic `offline-2.0` result are ready.
@@ -480,6 +487,16 @@ The frontend image copies prebuilt output. Rebuild it from the current source:
 npm --prefix src/frontend run build
 docker compose up -d --build frontend
 ```
+
+### Azure application is stale
+
+Publish the current application images without redeploying Azure infrastructure:
+
+```powershell
+.\infra\deploy.ps1 -Mode ReleaseImages
+```
+
+The release publishes immutable and `latest` tags to ACR, activates the immutable tag on all four Container Apps, and verifies the API and frontend. Pushing `latest` by itself does not create a new Container Apps revision.
 
 ### New questionnaire templates are missing
 

@@ -196,11 +196,23 @@ A functional deployment must provide the exact validated application images. Lea
 
 Do not infer that an Azure resource is deployed or healthy only because it exists in Bicep. Runtime status must be checked in the target subscription.
 
+## Image-only application releases
+
+Routine application releases do not require a Bicep deployment. Build, publish, and activate all four application images with:
+
+```powershell
+.\infra\deploy.ps1 -Mode ReleaseImages
+```
+
+This mode builds and smoke-runs the local API, worker, frontend, and discovery agent images; pushes each image to ACR with both an immutable UTC timestamp tag and the `latest` alias; and updates the existing Container Apps to the immutable tag. It does not redeploy the resource group, network, PostgreSQL server, Key Vault, storage, managed environment, identities, or role assignments.
+
+Container Apps intentionally run the immutable tag. The `latest` tag is available for discovery and manual use, but pushing a new image to an existing mutable tag does not by itself create a Container Apps revision. Always use `ReleaseImages` to activate a release. Use the regular Bicep deployment workflow only when infrastructure or application configuration changes.
+
 ### Current development deployment
 
-The development environment was last verified on 2026-09-01 with immutable image tag `20260901214321`.
-All four Container Apps reached ready revisions, PostgreSQL Flexible Server 17 reported `Ready`, and the portal
-and API health endpoint returned HTTP 200.
+The development application release was last verified on 2026-09-02 with immutable image tag `20260902082359`.
+The image-only release updated all four Container Apps and returned HTTP 200 from the portal and API health endpoint.
+The infrastructure and PostgreSQL Flexible Server were not redeployed by this release.
 
 Discover the current endpoints from Azure:
 
