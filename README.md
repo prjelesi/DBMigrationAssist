@@ -648,11 +648,13 @@ Saving configuration and proving connectivity are separate states:
 | Status | Meaning |
 |--------|---------|
 | `Not configured` | Endpoint or credential is missing. |
-| `Not tested` / `Configured` | Configuration loaded, but no successful model request has been made since startup or the last configuration change. |
-| `Connected` | The latest explicit connection test returned a model response. |
+| `Not tested` / `Configured` | Configuration loaded, but no successful model request has been made since startup or the last configuration change. The automatic startup check normally clears this state within a few seconds. |
+| `Connected` | The latest manual or automatic connection test returned a model response. |
 | `Connection failed` / `Error` | The latest test could not get a model response. Check endpoint, deployment, key, and network access. |
 
 For Docker Compose, the Data Protection key ring is persisted in the `data_protection_keys` named volume. If deploying the API another way, set `DataProtection__KeysPath` to durable storage shared across API restarts. Back up that key ring with the database; without it, stored API credentials cannot be decrypted.
+
+The API tests configured Foundry connectivity five seconds after startup and every 15 minutes afterward. Override the defaults with `AiFoundry__ConnectivityCheckStartupDelaySeconds` and `AiFoundry__ConnectivityCheckIntervalMinutes`. The System and AI Settings pages poll the resulting status automatically. Manual **Test Connection** remains available for immediate verification.
 
 ### Verifying AI is active
 
@@ -661,7 +663,7 @@ curl http://localhost:5000/api/ai/status
 # {"available":true,"connectionStatus":"Not tested","message":"Configuration loaded. Test the connection to verify model access.",...}
 ```
 
-Use **Test Connection** in AI Settings or call:
+Wait for the automatic startup check, use **Test Connection** in AI Settings, or call:
 
 ```bash
 curl -X POST http://localhost:5000/api/ai/test

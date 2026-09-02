@@ -88,6 +88,7 @@ builder.Services.AddScoped<ProjectAccessService>();
 
 // AI Foundry adapter — singleton, used by evidence parser, finding enricher and report generator
 builder.Services.AddSingleton<IAiAdapterService, AiAdapterService>();
+builder.Services.AddHostedService<AiConnectivityMonitor>();
 builder.Services.AddSingleton<IReportInstructionService, ReportInstructionService>();
 builder.Services.AddSingleton<IQuestionnaireTemplateLoader, QuestionnaireTemplateLoader>();
 builder.Services.AddEndpointsApiExplorer();

@@ -29,9 +29,11 @@ Optional AI configuration can be supplied through API container environment vari
 AiFoundry__Endpoint=https://<resource>.openai.azure.com/
 AiFoundry__ApiKey=<credential>
 AiFoundry__Deployment=<deployment-name>
+AiFoundry__ConnectivityCheckStartupDelaySeconds=5
+AiFoundry__ConnectivityCheckIntervalMinutes=15
 ```
 
-Use an HTTPS endpoint. Report generation remains unavailable until a real connectivity test succeeds.
+Use an HTTPS endpoint. The API performs a real model connectivity test five seconds after startup and every 15 minutes afterward; the timing values above are optional overrides. A successful manual or automatic test enables report generation, while a later successful check automatically recovers the status after a transient failure.
 
 Report-generation policy is externalized through:
 
