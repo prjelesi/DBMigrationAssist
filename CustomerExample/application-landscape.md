@@ -1,4 +1,3 @@
-# Banana Inc Application Landscape
 
 All application names and details are fictional.
 
@@ -17,7 +16,7 @@ All application names and details are fictional.
 
 ### PeelPay Commerce
 
-PeelPay owns customer baskets, orders, price calculations and payment references. Most persistence uses JDBC and an ORM, but promotional pricing and order-number allocation use PL/SQL packages, sequences and triggers. It synchronously calls Customer DB and publishes order events to RipenTrack. PostgreSQL is credible if package logic is moved into services or converted and transaction semantics pass regression testing.
+PeelPay owns customer baskets, orders, price calculations and payment references. Most persistence uses JDBC and an ORM, but promotional pricing and order-number allocation use PL/SQL packages, sequences and triggers. It synchronously calls Customer DB and publishes order events to RipenTrack. PostgreSQL is credible if package logic is moved into services or converted and transaction semantics pass regression testing. The [PeelPay Commerce application dossier](peelpay-commerce-application.md) documents the fictional architecture, workflows, service levels, interfaces and migration acceptance criteria.
 
 ### CrateFlow WMS
 

@@ -20,6 +20,7 @@ Preference is not a decision. Application support, Oracle feature usage, perform
 | --- | --- |
 | `customer-profile.md` | Business drivers, scope, assumptions and success measures. |
 | `application-landscape.md` | Applications, owners, technology stacks and database dependencies. |
+| `peelpay-commerce-application.md` | Detailed fictional PeelPay Commerce architecture, workflows, Oracle dependencies and migration criteria. |
 | `database-estate.md` | Oracle estate details and workload-specific assessment hypotheses. |
 | `network-topology.md` | Current and proposed network diagrams, flows and connectivity requirements. |
 | `security-and-compliance.md` | Data classification, identity, encryption, logging and control requirements. |
