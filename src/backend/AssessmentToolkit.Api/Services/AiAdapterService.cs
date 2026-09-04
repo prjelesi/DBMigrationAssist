@@ -22,7 +22,11 @@ public interface IAiAdapterService
     bool HasStoredCredential { get; }
     bool? LastConnectionSucceeded { get; }
     DateTimeOffset? LastConnectionTestedAt { get; }
-    Task<string?> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken ct = default);
+    Task<string?> CompleteAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken ct = default,
+        int maxOutputTokenCount = 2048);
     Task<AiConnectionTestResult> TestConnectionAsync(CancellationToken ct = default);
     Task ReloadConfigAsync(IServiceProvider services);
 }
@@ -122,7 +126,11 @@ public class AiAdapterService : IAiAdapterService
         }
     }
 
-    public async Task<string?> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
+    public async Task<string?> CompleteAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken ct = default,
+        int maxOutputTokenCount = 2048)
     {
         if (!IsAvailable) return null;
 
@@ -131,7 +139,7 @@ public class AiAdapterService : IAiAdapterService
             var chat = _client!.GetChatClient(_deployment);
             var response = await chat.CompleteChatAsync(
                 [ChatMessage.CreateSystemMessage(systemPrompt), ChatMessage.CreateUserMessage(userPrompt)],
-                new ChatCompletionOptions { Temperature = 0.2f, MaxOutputTokenCount = 2048 },
+                new ChatCompletionOptions { Temperature = 0.2f, MaxOutputTokenCount = maxOutputTokenCount },
                 ct);
             return response.Value.Content[0].Text;
         }

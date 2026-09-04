@@ -18,6 +18,7 @@ Preference is not a decision. Application support, Oracle feature usage, perform
 
 | Path | Purpose |
 | --- | --- |
+| `DEMO_GUIDE.md` | Presenter runbook for loading and demonstrating this customer example. |
 | `customer-profile.md` | Business drivers, scope, assumptions and success measures. |
 | `application-landscape.md` | Applications, owners, technology stacks and database dependencies. |
 | `peelpay-commerce-application.md` | Detailed fictional PeelPay Commerce architecture, workflows, Oracle dependencies and migration criteria. |
@@ -52,3 +53,5 @@ Preference is not a decision. Application support, Oracle feature usage, perform
 For a runnable source workload, install the [Banana Commerce Oracle sample](database/README.md) into the repository's disposable Oracle lab or another Oracle 19c/21c test schema.
 
 The workbook imports inventory only. Application relationships, target hypotheses and security requirements remain assessment evidence and should be reflected in the communication map, questionnaires and generated report.
+
+For a timed walkthrough, expected import checks, suggested dependency-map entries and assessment waves, follow the [Banana Inc demo guide](DEMO_GUIDE.md).

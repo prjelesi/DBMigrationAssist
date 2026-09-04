@@ -86,7 +86,7 @@ Customer-hosted Discovery Agents use the same agent image and run inside the cus
 
 ## Fictional customer example
 
-The [Banana Inc Oracle migration example](CustomerExample/README.md) provides an import-ready database inventory, application dependency register, network and security designs, a PostgreSQL-first target decision framework, and a follow-up assessment plan. All customer and workload details in the example are fictional.
+The [Banana Inc Oracle migration example](CustomerExample/README.md) provides an import-ready database inventory, application dependency register, network and security designs, a PostgreSQL-first target decision framework, and a follow-up assessment plan. Its [presenter runbook](CustomerExample/DEMO_GUIDE.md) provides a timed portal walkthrough, expected import checks, dependency-map entries, migration waves, and an optional runnable Oracle extension. All customer and workload details in the example are fictional.
 
 ---
 

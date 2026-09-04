@@ -2,6 +2,8 @@
 
 This guide provides a repeatable demonstration of the toolkit across all three project deployment modes: **Connected**, **Air-gapped**, and **Standalone**.
 
+For a deeper customer-assessment narrative built around a seven-database Oracle estate, use the [Banana Inc customer example demo guide](../CustomerExample/DEMO_GUIDE.md). The Banana runbook focuses on evidence quality, target decisions and migration waves; this guide focuses on comparing deployment modes.
+
 ## Demo objective
 
 Show how one assessment platform can support database discovery and migration planning across environments with different connectivity and security requirements.

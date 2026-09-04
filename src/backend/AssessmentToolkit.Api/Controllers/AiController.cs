@@ -20,7 +20,8 @@ public class AiController(
     IReportInstructionService reportInstructions,
     IDataProtectionProvider dataProtectionProvider,
     IServiceProvider services,
-    ProjectAccessService projectAccess) : ControllerBase
+    ProjectAccessService projectAccess,
+    ILogger<AiController> logger) : ControllerBase
 {
     // ── Providers ────────────────────────────────────────────────────────
 
@@ -549,8 +550,24 @@ public class AiController(
             {promptEvidence}
             """;
 
-        var reportJson = await ai.CompleteAsync(systemPrompt, userPrompt, ct);
+        var reportJson = await ai.CompleteAsync(systemPrompt, userPrompt, ct, maxOutputTokenCount: 8192);
         if (reportJson is null) return StatusCode(502, new { error = "Report generation failed." });
+
+        try
+        {
+            reportJson = NormalizeJson(reportJson);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex,
+                "AI report output was not valid JSON for project {ProjectId}; output length was {OutputLength}.",
+                req.ProjectId,
+                reportJson.Length);
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                error = "Report generation returned an invalid or incomplete response. Please try again."
+            });
+        }
 
         var actor = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name ?? "unknown";
         var evidenceBundle = new EvidenceBundle
@@ -575,6 +592,20 @@ public class AiController(
         await db.SaveChangesAsync(ct);
 
         return Ok(ToReportResponse(generatedReport));
+    }
+
+    private static string NormalizeJson(string value)
+    {
+        var normalized = value.Trim();
+        if (normalized.StartsWith("```", StringComparison.Ordinal))
+        {
+            var firstLineEnd = normalized.IndexOf('\n');
+            if (firstLineEnd >= 0 && normalized.EndsWith("```", StringComparison.Ordinal))
+                normalized = normalized[(firstLineEnd + 1)..^3].Trim();
+        }
+
+        using var document = JsonDocument.Parse(normalized);
+        return JsonSerializer.Serialize(document.RootElement);
     }
 
     [HttpGet("reports")]
