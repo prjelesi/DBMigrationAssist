@@ -14,7 +14,7 @@ This is a route inventory, not a replacement for generated OpenAPI. Swagger UI i
 - `GET /health` is anonymous and outside the `/api` base path.
 - Role and project membership checks may further restrict authenticated requests.
 
-Authentication does not imply administrator authorization. User administration is explicitly administrator-only, but system configuration and AI provider/configuration endpoints currently have no `Administrator` role annotation and are available to any authenticated portal user.
+Authentication does not imply administrator authorization. User administration, global system configuration and agent overview, AI provider/configuration, connection testing and report-instruction endpoints require the `Administrator` role.
 
 ## Authentication
 
@@ -126,17 +126,17 @@ Graph edges connect database inventory records. Portfolios persist a JSON list o
 
 | Method | Route | Behavior |
 |---|---|---|
-| `GET` | `/api/ai/providers` | List provider registry entries. |
-| `POST` | `/api/ai/providers` | Create a provider registry entry. |
-| `PATCH` | `/api/ai/providers/{id}` | Update a provider entry. |
-| `DELETE` | `/api/ai/providers/{id}` | Delete a provider entry. |
+| `GET` | `/api/ai/providers` | Administrator-only. List provider registry entries. |
+| `POST` | `/api/ai/providers` | Administrator-only. Create a provider registry entry. |
+| `PATCH` | `/api/ai/providers/{id}` | Administrator-only. Update a provider entry. |
+| `DELETE` | `/api/ai/providers/{id}` | Administrator-only. Delete a provider entry. |
 | `GET` | `/api/ai/status` | Return configuration, connection and reporting readiness state. |
-| `PUT` | `/api/ai/configuration` | Save active endpoint/deployment configuration and optional credential. |
-| `DELETE` | `/api/ai/configuration/credential` | Remove the saved model credential. |
-| `POST` | `/api/ai/test` | Perform a real model completion test. |
+| `PUT` | `/api/ai/configuration` | Administrator-only. Save active endpoint/deployment configuration and optional credential. |
+| `DELETE` | `/api/ai/configuration/credential` | Administrator-only. Remove the saved model credential. |
+| `POST` | `/api/ai/test` | Administrator-only. Perform a real model completion test. |
 | `POST` | `/api/ai/enrich/{resultId}` | Enrich one result; used by the worker service identity. |
 | `POST` | `/api/ai/generate-report` | Snapshot evidence, call the model and persist a report. Accepts `projectId` and an optional `databaseId`; database scope includes matching database evidence plus project-wide evidence. |
-| `GET` | `/api/ai/report-instructions` | Return the effective Markdown report instructions, source, SHA-256 hash and size limit. |
+| `GET` | `/api/ai/report-instructions` | Administrator-only. Return the effective Markdown report instructions, source, SHA-256 hash and size limit. |
 | `PUT` | `/api/ai/report-instructions` | Administrator-only. Atomically update external report instructions. Accepts `content` and the previously read `expectedSha256`; returns `409` if another update won the race. |
 | `GET` | `/api/ai/reports` | List accessible persisted reports. |
 | `GET` | `/api/ai/reports/{id}` | Get one persisted report. |
@@ -149,10 +149,10 @@ Report generation returns `503` when Microsoft Foundry is not configured and suc
 | Method | Route | Behavior |
 |---|---|---|
 | `GET` | `/api/system/status` | Return API, database, worker and AI component status. |
-| `GET` | `/api/system/config` | List supported system configuration. |
-| `PUT` | `/api/system/config` | Save supported system configuration. |
-| `DELETE` | `/api/system/config/{key}` | Remove a supported setting. |
-| `GET` | `/api/system/agents` | List agents across projects for administration. |
+| `GET` | `/api/system/config` | Administrator-only. List supported system configuration. |
+| `PUT` | `/api/system/config` | Administrator-only. Save supported system configuration. |
+| `DELETE` | `/api/system/config/{key}` | Administrator-only. Remove a supported setting. |
+| `GET` | `/api/system/agents` | Administrator-only. List agents across projects for administration. |
 
 ## Error behavior
 

@@ -26,10 +26,12 @@ public class AiController(
     // ── Providers ────────────────────────────────────────────────────────
 
     [HttpGet("providers")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> ListProviders() =>
         Ok(await db.AiProviders.OrderByDescending(p => p.IsDefault).ThenBy(p => p.Name).ToListAsync());
 
     [HttpPost("providers")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> RegisterProvider([FromBody] RegisterProviderRequest req)
     {
         if (req.IsDefault)
@@ -61,6 +63,7 @@ public class AiController(
     }
 
     [HttpPatch("providers/{id:guid}")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> UpdateProvider(Guid id, [FromBody] UpdateProviderRequest req)
     {
         var provider = await db.AiProviders.FindAsync(id);
@@ -86,6 +89,7 @@ public class AiController(
     }
 
     [HttpDelete("providers/{id:guid}")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> DeleteProvider(Guid id)
     {
         var provider = await db.AiProviders.FindAsync(id);
@@ -126,6 +130,7 @@ public class AiController(
     });
 
     [HttpGet("report-instructions")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> GetReportInstructions(CancellationToken ct)
     {
         var document = await reportInstructions.GetAsync(ct);
@@ -168,6 +173,7 @@ public class AiController(
     }
 
     [HttpPut("configuration")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> Configure([FromBody] ConfigureAiRequest req, CancellationToken ct)
     {
         if (!Uri.TryCreate(req.Endpoint, UriKind.Absolute, out var endpoint) ||
@@ -212,6 +218,7 @@ public class AiController(
     }
 
     [HttpDelete("configuration/credential")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> ClearStoredCredential(CancellationToken ct)
     {
         var credential = await db.SystemConfigs
@@ -229,6 +236,7 @@ public class AiController(
     // ── Test connection ───────────────────────────────────────────────────
 
     [HttpPost("test")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> Test(CancellationToken ct)
     {
         var result = await ai.TestConnectionAsync(ct);

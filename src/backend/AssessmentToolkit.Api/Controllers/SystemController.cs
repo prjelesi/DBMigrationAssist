@@ -1,6 +1,7 @@
 using AssessmentToolkit.Api.Services;
 using AssessmentToolkit.Core.Entities;
 using AssessmentToolkit.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,6 +56,7 @@ public class SystemController(AssessmentDbContext db, IAiAdapterService ai, ISer
     // ── Config ────────────────────────────────────────────────────────────
 
     [HttpGet("config")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> GetConfig()
     {
         var raw = await db.SystemConfigs.OrderBy(c => c.Key).ToListAsync();
@@ -68,6 +70,7 @@ public class SystemController(AssessmentDbContext db, IAiAdapterService ai, ISer
     }
 
     [HttpPut("config")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> SetConfig([FromBody] SetConfigRequest req)
     {
         // Reject attempts to store API keys in the DB — they must stay in env vars
@@ -110,6 +113,7 @@ public class SystemController(AssessmentDbContext db, IAiAdapterService ai, ISer
     }
 
     [HttpDelete("config/{key}")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> DeleteConfig(string key)
     {
         var config = await db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == key);
@@ -124,6 +128,7 @@ public class SystemController(AssessmentDbContext db, IAiAdapterService ai, ISer
     // ── Agents (all projects) ─────────────────────────────────────────────
 
     [HttpGet("agents")]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> AllAgents() =>
         Ok(await db.Agents
             .Include(a => a.Project).ThenInclude(p => p.Customer)

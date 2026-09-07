@@ -100,7 +100,9 @@ export default function Layout() {
               <div className="nav-section">
                 <span className="nav-section-label">{group.section}</span>
               </div>
-              {group.items.map(item => (
+              {group.items
+                .filter(item => user.role === "Administrator" || !["/system", "/ai-settings"].includes(item.to))
+                .map(item => (
                 <NavLink
                   key={item.to}
                   to={item.to}

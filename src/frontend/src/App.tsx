@@ -1,9 +1,10 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import Layout from "./components/Layout";
 import AuthProvider from "./auth/AuthProvider";
+import { useAuth } from "./auth/AuthContext";
 
 const Dashboard       = lazy(() => import("./pages/Dashboard"));
 const Environments    = lazy(() => import("./pages/Environments"));
@@ -20,6 +21,11 @@ const System          = lazy(() => import("./pages/System"));
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
+function RequireAdministrator({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return user.role === "Administrator" ? children : <Navigate to="/" replace />;
+}
+
 export default function App() {
   return (
     <FluentProvider theme={webLightTheme}>
@@ -30,7 +36,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Layout />}>
                   <Route index element={<Dashboard />} />
-                  <Route path="system" element={<System />} />
+                  <Route path="system" element={<RequireAdministrator><System /></RequireAdministrator>} />
                   <Route path="projects" element={<Projects />} />
                   <Route path="questionnaire" element={<Questionnaire />} />
                   <Route path="evidence" element={<Evidence />} />
@@ -40,7 +46,7 @@ export default function App() {
                   <Route path="portfolio" element={<Portfolio />} />
                   <Route path="communication-map" element={<CommunicationMap />} />
                   <Route path="reports" element={<Reports />} />
-                  <Route path="ai-settings" element={<AiSettings />} />
+                  <Route path="ai-settings" element={<RequireAdministrator><AiSettings /></RequireAdministrator>} />
                 </Route>
               </Routes>
             </Suspense>

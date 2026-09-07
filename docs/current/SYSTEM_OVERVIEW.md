@@ -32,7 +32,7 @@ The current system supports connected agents, generated offline collectors, manu
 - Administrators can access all projects. Standard users see projects for which they have membership.
 - Creating a project gives its creator an `Owner` membership.
 
-Project-list visibility is membership-filtered, but not every API is role-restricted. Any authenticated user can currently reach unannotated system configuration and AI provider/configuration endpoints. See [Known Limitations](KNOWN_LIMITATIONS.md).
+Project-list visibility is membership-filtered. Global system configuration, agent overview, AI provider/configuration, connection testing and report-instruction endpoints require the `Administrator` role. Object-level authorization remains incomplete for the routes identified in [Known Limitations](KNOWN_LIMITATIONS.md).
 
 ### Workspace and inventory
 

@@ -10,7 +10,6 @@ This document is part of the current system contract. Items listed here must not
 - User and project-membership administration exist only as APIs; there is no management screen.
 - Password reset, user deletion, platform-role changes and self-service profile management are absent.
 - There is no documented account lockout, MFA or external identity lifecycle integration.
-- System configuration and AI provider/configuration endpoints require authentication but do not currently require the `Administrator` role.
 
 ## Authorization and audit
 

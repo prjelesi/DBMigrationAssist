@@ -104,7 +104,7 @@ For manually registered agents, the API stores the raw PSK only in its in-memory
 | `Contributor` | Perform permitted project mutations. |
 | `Owner` | Contributor access plus membership administration, report approval and permanent project deletion. |
 
-Memberships may be project-wide or restricted to an environment. `GovernanceMiddleware`, controller filters and `ProjectAccessService` enforce many project/environment paths. This is not a universal object-level authorization boundary. Scope resolution is incomplete for questionnaire responses and graph edges; multipart evidence/import requests are not body-scoped by the middleware; and some global or creation endpoints, including customer/project creation, AI enrichment, system status/configuration/agents and AI provider/configuration APIs, lack membership-derived or administrator-only checks. The current portal does not provide membership administration UI.
+Memberships may be project-wide or restricted to an environment. `GovernanceMiddleware`, controller filters and `ProjectAccessService` enforce many project/environment paths. Global system configuration, agent overview, AI provider/configuration, connection testing and report-instruction endpoints require the `Administrator` role. This is not a universal object-level authorization boundary: scope resolution is incomplete for questionnaire responses and graph edges, multipart evidence/import requests are not body-scoped by the middleware, and some creation and AI enrichment paths lack complete object-level checks. The current portal does not provide membership administration UI.
 
 ## Governance and report integrity
 
