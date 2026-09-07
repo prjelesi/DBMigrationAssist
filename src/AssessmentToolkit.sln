@@ -21,6 +21,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "agent", "agent", "{73F9E708
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Agent", "agent\AssessmentToolkit.Agent\AssessmentToolkit.Agent.csproj", "{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssessmentToolkit.Api.Tests", "tests\AssessmentToolkit.Api.Tests\AssessmentToolkit.Api.Tests.csproj", "{CFAF1139-1412-4640-B01F-725AA7736263}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +56,10 @@ Global
 		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{18F3CA7D-6051-45AA-B9C9-F07F0AF2E41F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFAF1139-1412-4640-B01F-725AA7736263}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFAF1139-1412-4640-B01F-725AA7736263}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFAF1139-1412-4640-B01F-725AA7736263}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFAF1139-1412-4640-B01F-725AA7736263}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{9BFB2C2B-7DA7-48E1-A5BA-D2B83213C76D} = {06E22C34-7899-4F16-9131-1CFCDC24875E}

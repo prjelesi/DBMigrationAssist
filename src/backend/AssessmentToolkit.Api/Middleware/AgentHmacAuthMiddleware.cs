@@ -31,6 +31,15 @@ public class AgentHmacAuthMiddleware(RequestDelegate next)
             return;
         }
 
+        if (!context.Request.RouteValues.TryGetValue("agentId", out var routeValue) ||
+            !Guid.TryParse(Convert.ToString(routeValue), out var routeAgentId) ||
+            routeAgentId != agentId)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new { error = "Agent identity does not match the requested route." });
+            return;
+        }
+
         var agent = await db.Agents.FirstOrDefaultAsync(a =>
             a.AgentId == agentId && a.Status != Core.Enums.AgentStatus.Revoked);
         if (agent is null)

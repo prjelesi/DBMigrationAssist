@@ -76,7 +76,7 @@ Microsoft Entra federation is not part of the current authentication path.
 - Stored agent records contain a salted hash, not a recoverable PSK.
 - Raw bootstrap material must be handled as a secret and is shown/provisioned only where required for agent startup.
 
-The middleware authenticates the agent ID from `X-Agent-Id` but does not compare it with the `{agentId}` route value. A valid agent credential can therefore address another agent's route. The implementation also does not maintain a nonce cache, so it does not provide one-time replay rejection inside the accepted timestamp window.
+The middleware authenticates the agent ID from `X-Agent-Id` and requires it to match the `{agentId}` route value before database lookup or request processing. The implementation does not maintain a nonce cache, so it does not provide one-time replay rejection inside the accepted timestamp window.
 
 For manually registered agents, the API stores the raw PSK only in its in-memory configuration. The persisted salted hash cannot be used by the current verifier after an API restart. The platform-local agent is reprovisioned through its bootstrap flow, but manual agents require explicit PSK configuration or re-registration. Durable self-service key rotation is not implemented.
 

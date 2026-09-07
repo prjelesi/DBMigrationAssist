@@ -24,7 +24,6 @@ This document is part of the current system contract. Items listed here must not
 
 - Seven plugin families are implemented, but only PostgreSQL has repository end-to-end coverage.
 - Other engines require testing against supported live versions, permissions and topology variants before production claims.
-- Agent HMAC identity is taken from `X-Agent-Id` and is not bound to the `{agentId}` route value.
 - HMAC validation uses timestamp freshness but no nonce cache for one-time replay prevention inside the accepted window.
 - Manually registered raw PSKs live only in API process configuration; after restart they must be supplied explicitly or the agent must be re-registered.
 - Durable agent key storage, rotation and acknowledgement workflows are not implemented.
