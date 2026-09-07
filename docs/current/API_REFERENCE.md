@@ -9,7 +9,7 @@ This is a route inventory, not a replacement for generated OpenAPI. Swagger UI i
 
 - Portal API calls use the application session cookie.
 - Portal writes also send `X-CSRF-TOKEN`, obtained from `GET /api/auth/antiforgery`.
-- Agent-facing routes under `/api/agent/{agentId}` require HMAC headers.
+- Agent-facing routes under `/api/agent/{agentId}` require `X-Agent-Id`, `X-Agent-Timestamp`, `X-Agent-Nonce` and `X-Agent-Signature` HMAC headers.
 - Worker enrichment uses `X-Worker-Token`.
 - `GET /health` is anonymous and outside the `/api` base path.
 - Role and project membership checks may further restrict authenticated requests.
@@ -84,7 +84,7 @@ The offline upload path creates a completed assessment job with no agent and rec
 | `GET` | `/api/agent/{agentId}/jobs/next` | Poll for the next assigned job. |
 | `POST` | `/api/agent/{agentId}/results` | Submit structured job findings. |
 
-These routes are anonymous to the portal cookie scheme but are protected by `AgentHmacAuthMiddleware`.
+These routes are anonymous to the portal cookie scheme but are protected by `AgentHmacAuthMiddleware`. The GUID nonce is included in the signature and persisted atomically per agent, so reusing an accepted nonce within the timestamp window returns `401` before controller execution.
 
 ## Questionnaires
 

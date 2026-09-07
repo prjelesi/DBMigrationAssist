@@ -83,6 +83,11 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
         var job = await db.Jobs
             .FirstOrDefaultAsync(candidate => candidate.JobId == submission.JobId);
         if (job is null || job.AgentId != agentId) return BadRequest("Job not found for this agent.");
+        if (job.Status is JobStatus.Completed or JobStatus.Failed ||
+            await db.Results.AnyAsync(candidate => candidate.JobId == submission.JobId))
+        {
+            return Conflict(new { error = "A result has already been submitted for this job." });
+        }
 
         var result = new AssessmentResult
         {
@@ -102,7 +107,17 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
         job.UpdatedAt = DateTimeOffset.UtcNow;
 
         db.Results.Add(result);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            if (await db.Results.AnyAsync(candidate => candidate.JobId == submission.JobId))
+                return Conflict(new { error = "A result has already been submitted for this job." });
+            throw;
+        }
 
         return Ok(new { result.ResultId, job.Status });
     }

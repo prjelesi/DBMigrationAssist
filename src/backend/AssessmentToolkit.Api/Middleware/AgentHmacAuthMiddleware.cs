@@ -16,11 +16,20 @@ public class AgentHmacAuthMiddleware(RequestDelegate next)
         var agentIdHeader = context.Request.Headers["X-Agent-Id"].FirstOrDefault();
         var signatureHeader = context.Request.Headers["X-Agent-Signature"].FirstOrDefault();
         var timestampHeader = context.Request.Headers["X-Agent-Timestamp"].FirstOrDefault();
+        var nonceHeader = context.Request.Headers["X-Agent-Nonce"].FirstOrDefault();
 
-        if (string.IsNullOrEmpty(agentIdHeader) || string.IsNullOrEmpty(signatureHeader) || string.IsNullOrEmpty(timestampHeader))
+        if (string.IsNullOrEmpty(agentIdHeader) || string.IsNullOrEmpty(signatureHeader) ||
+            string.IsNullOrEmpty(timestampHeader) || string.IsNullOrEmpty(nonceHeader))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsJsonAsync(new { error = "Missing agent authentication headers." });
+            return;
+        }
+
+        if (!Guid.TryParse(nonceHeader, out var nonce))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Invalid request nonce." });
             return;
         }
 
@@ -72,6 +81,7 @@ public class AgentHmacAuthMiddleware(RequestDelegate next)
             context.Request.Method,
             context.Request.Path.ToString(),
             timestampHeader,
+            nonceHeader,
             bodyHash,
             signatureHeader);
 
@@ -82,13 +92,47 @@ public class AgentHmacAuthMiddleware(RequestDelegate next)
             return;
         }
 
+        if (!DateTimeOffset.TryParse(
+                timestampHeader,
+                null,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var timestamp))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Invalid agent timestamp." });
+            return;
+        }
+
+        db.AgentRequestNonces.Add(new Core.Entities.AgentRequestNonce
+        {
+            AgentId = agentId,
+            Nonce = nonce,
+            ExpiresAt = timestamp + PskAuthenticator.ReplayWindow
+        });
+
         // Stamp the agent identity into the request for downstream use
         context.Items["AgentId"] = agentId;
         context.Items["Agent"] = agent;
 
         // Update heartbeat
         agent.LastHeartbeatAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            if (await db.AgentRequestNonces.AnyAsync(
+                candidate => candidate.AgentId == agentId && candidate.Nonce == nonce))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(new { error = "Agent request nonce has already been used." });
+                return;
+            }
+
+            throw;
+        }
 
         await next(context);
     }

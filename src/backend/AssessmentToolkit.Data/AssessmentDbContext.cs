@@ -10,6 +10,7 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
     public DbSet<ProjectEnvironment> Environments => Set<ProjectEnvironment>();
     public DbSet<DatabaseInstance> Databases => Set<DatabaseInstance>();
     public DbSet<Agent> Agents => Set<Agent>();
+    public DbSet<AgentRequestNonce> AgentRequestNonces => Set<AgentRequestNonce>();
     public DbSet<AssessmentJob> Jobs => Set<AssessmentJob>();
     public DbSet<AssessmentResult> Results => Set<AssessmentResult>();
 
@@ -59,6 +60,8 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
             .HasKey(e => e.AgentId);
         mb.Entity<Agent>().Property(e => e.AllowedPlugins)
             .HasColumnType("jsonb");
+        mb.Entity<AgentRequestNonce>().ToTable("agent_request_nonce", "assessment")
+            .HasKey(e => new { e.AgentId, e.Nonce });
 
         mb.Entity<AssessmentJob>().ToTable("assessment_job", "assessment")
             .HasKey(e => e.JobId);
@@ -80,6 +83,9 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
             .HasForeignKey(e => e.ProjectId);
         mb.Entity<Agent>().HasOne(e => e.Environment).WithMany(e => e.Agents)
             .HasForeignKey(e => e.EnvironmentId);
+        mb.Entity<AgentRequestNonce>().HasOne(e => e.Agent).WithMany()
+            .HasForeignKey(e => e.AgentId)
+            .OnDelete(DeleteBehavior.Cascade);
         mb.Entity<AssessmentJob>().HasOne(e => e.Agent).WithMany(e => e.Jobs)
             .HasForeignKey(e => e.AgentId);
         mb.Entity<AssessmentResult>().HasOne(e => e.Job).WithMany(e => e.Results)
@@ -88,8 +94,9 @@ public class AssessmentDbContext(DbContextOptions<AssessmentDbContext> options) 
         // Composite indexes
         mb.Entity<DatabaseInstance>().HasIndex(e => new { e.ProjectId, e.EnvironmentId });
         mb.Entity<Agent>().HasIndex(e => new { e.ProjectId, e.EnvironmentId });
+        mb.Entity<AgentRequestNonce>().HasIndex(e => e.ExpiresAt);
         mb.Entity<AssessmentJob>().HasIndex(e => new { e.AgentId, e.Status });
-        mb.Entity<AssessmentResult>().HasIndex(e => e.JobId);
+        mb.Entity<AssessmentResult>().HasIndex(e => e.JobId).IsUnique();
 
         // Schema: questionnaire
         mb.Entity<QuestionnaireTemplate>().ToTable("template", "questionnaire").HasKey(e => e.TemplateId);

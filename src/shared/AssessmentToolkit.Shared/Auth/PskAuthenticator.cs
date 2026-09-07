@@ -5,16 +5,22 @@ namespace AssessmentToolkit.Shared.Auth;
 
 /// <summary>
 /// Computes and verifies per-agent HMAC-SHA256 signatures for PSK authentication.
-/// Signature covers: HTTP method, path, UTC timestamp and SHA-256 body hash.
+/// Signature covers: HTTP method, path, UTC timestamp, request nonce and SHA-256 body hash.
 /// Requests with a timestamp outside ±5 minutes of server time are rejected.
 /// </summary>
 public static class PskAuthenticator
 {
-    private const int ReplayWindowMinutes = 5;
+    public static readonly TimeSpan ReplayWindow = TimeSpan.FromMinutes(5);
 
-    public static string ComputeSignature(string psk, string method, string path, string timestamp, string bodyHash)
+    public static string ComputeSignature(
+        string psk,
+        string method,
+        string path,
+        string timestamp,
+        string nonce,
+        string bodyHash)
     {
-        var message = $"{method.ToUpperInvariant()}\n{path}\n{timestamp}\n{bodyHash}";
+        var message = $"{method.ToUpperInvariant()}\n{path}\n{timestamp}\n{nonce}\n{bodyHash}";
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(psk));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
         return Convert.ToBase64String(hash);
@@ -27,15 +33,22 @@ public static class PskAuthenticator
         return Convert.ToBase64String(hash);
     }
 
-    public static bool Verify(string psk, string method, string path, string timestamp, string bodyHash, string providedSignature)
+    public static bool Verify(
+        string psk,
+        string method,
+        string path,
+        string timestamp,
+        string nonce,
+        string bodyHash,
+        string providedSignature)
     {
         if (!DateTimeOffset.TryParse(timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var ts))
             return false;
 
-        if (Math.Abs((DateTimeOffset.UtcNow - ts).TotalMinutes) > ReplayWindowMinutes)
+        if ((DateTimeOffset.UtcNow - ts).Duration() > ReplayWindow)
             return false;
 
-        var expected = ComputeSignature(psk, method, path, timestamp, bodyHash);
+        var expected = ComputeSignature(psk, method, path, timestamp, nonce, bodyHash);
 
         // Constant-time comparison to prevent timing attacks
         return CryptographicOperations.FixedTimeEquals(

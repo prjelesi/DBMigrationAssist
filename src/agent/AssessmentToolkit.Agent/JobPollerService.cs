@@ -139,12 +139,14 @@ public class JobPollerService(
     private HttpRequestMessage BuildSignedRequest(HttpMethod method, string path, string body)
     {
         var timestamp = DateTimeOffset.UtcNow.ToString("O");
+        var nonce = Guid.NewGuid().ToString("D");
         var bodyHash = PskAuthenticator.ComputeBodyHash(Encoding.UTF8.GetBytes(body));
-        var signature = PskAuthenticator.ComputeSignature(bootstrap.Psk, method.Method, path, timestamp, bodyHash);
+        var signature = PskAuthenticator.ComputeSignature(bootstrap.Psk, method.Method, path, timestamp, nonce, bodyHash);
 
         var request = new HttpRequestMessage(method, path);
         request.Headers.Add("X-Agent-Id", bootstrap.AgentId.ToString());
         request.Headers.Add("X-Agent-Timestamp", timestamp);
+        request.Headers.Add("X-Agent-Nonce", nonce);
         request.Headers.Add("X-Agent-Signature", signature);
         return request;
     }

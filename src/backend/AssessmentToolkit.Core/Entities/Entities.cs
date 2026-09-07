@@ -125,6 +125,16 @@ public class Agent
     public ICollection<AssessmentJob> Jobs { get; set; } = [];
 }
 
+public class AgentRequestNonce
+{
+    public Guid AgentId { get; set; }
+    public Guid Nonce { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public Agent Agent { get; set; } = null!;
+}
+
 public class AssessmentJob
 {
     public Guid JobId { get; set; } = Guid.NewGuid();

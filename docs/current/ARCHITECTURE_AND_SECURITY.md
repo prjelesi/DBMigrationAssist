@@ -71,12 +71,12 @@ Microsoft Entra federation is not part of the current authentication path.
 ### Agents
 
 - Each agent has an ID and pre-shared key.
-- Requests under `/api/agent/*` are signed with HMAC-SHA256 over request attributes and a body hash.
-- The middleware enforces a timestamp freshness window and performs constant-time signature comparison.
+- Requests under `/api/agent/*` are signed with HMAC-SHA256 over the method, path, timestamp, GUID nonce and body hash.
+- The middleware enforces a timestamp freshness window, performs constant-time signature comparison and atomically records accepted nonces in PostgreSQL.
 - Stored agent records contain a salted hash, not a recoverable PSK.
 - Raw bootstrap material must be handled as a secret and is shown/provisioned only where required for agent startup.
 
-The middleware authenticates the agent ID from `X-Agent-Id` and requires it to match the `{agentId}` route value before database lookup or request processing. The implementation does not maintain a nonce cache, so it does not provide one-time replay rejection inside the accepted timestamp window.
+The middleware authenticates the agent ID from `X-Agent-Id` and requires it to match the `{agentId}` route value before database lookup or request processing. `X-Agent-Nonce` must contain a GUID included in the signature. The `(AgentId, Nonce)` primary key provides one-time replay rejection across API replicas; expired nonce rows are removed periodically after their timestamp can no longer pass validation.
 
 For manually registered agents, the API stores the raw PSK only in its in-memory configuration. The persisted salted hash cannot be used by the current verifier after an API restart. The platform-local agent is reprovisioned through its bootstrap flow, but manual agents require explicit PSK configuration or re-registration. Durable self-service key rotation is not implemented.
 

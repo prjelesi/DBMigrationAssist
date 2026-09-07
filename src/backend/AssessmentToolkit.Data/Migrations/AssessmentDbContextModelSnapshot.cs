@@ -82,6 +82,27 @@ namespace AssessmentToolkit.Data.Migrations
                     b.ToTable("agent", "assessment");
                 });
 
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.AgentRequestNonce", b =>
+                {
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Nonce")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("AgentId", "Nonce");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("agent_request_nonce", "assessment");
+                });
+
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.AiProvider", b =>
                 {
                     b.Property<Guid>("ProviderId")
@@ -298,7 +319,8 @@ namespace AssessmentToolkit.Data.Migrations
 
                     b.HasIndex("DatabaseId");
 
-                    b.HasIndex("JobId");
+                    b.HasIndex("JobId")
+                        .IsUnique();
 
                     b.ToTable("assessment_result", "assessment");
                 });
@@ -998,6 +1020,17 @@ namespace AssessmentToolkit.Data.Migrations
                     b.Navigation("Environment");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("AssessmentToolkit.Core.Entities.AgentRequestNonce", b =>
+                {
+                    b.HasOne("AssessmentToolkit.Core.Entities.Agent", "Agent")
+                        .WithMany()
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Agent");
                 });
 
             modelBuilder.Entity("AssessmentToolkit.Core.Entities.Answer", b =>

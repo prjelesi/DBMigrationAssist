@@ -827,8 +827,8 @@ $fqdn = az containerapp show `
 
 ## Security notes
 
-- All agent-to-backend communication is authenticated with **HMAC-SHA256** (method + path + timestamp + body hash).
-- Timestamps are validated within a ±5 minute window to prevent replay attacks.
+- All agent-to-backend communication is authenticated with **HMAC-SHA256** (method + path + timestamp + request nonce + body hash).
+- Timestamps are validated within a ±5 minute window, and each signed GUID nonce is accepted only once. Accepted nonces are stored in PostgreSQL so replay rejection is atomic across API replicas.
 - PSKs are stored as **salted SHA-256 hashes** in the database — the raw value is shown once at registration and never recoverable.
 - AI API keys entered in the portal are encrypted at rest with ASP.NET Core Data Protection, never returned by the API, and require a persistent protected key ring for recovery after restart.
 - Use TLS in production — the portal API should be served behind HTTPS; the agent verifies the server certificate.

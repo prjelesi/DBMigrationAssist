@@ -85,6 +85,7 @@ builder.Services.AddAntiforgery(options =>
 });
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<ProjectAccessService>();
+builder.Services.AddHostedService<AgentNonceCleanupService>();
 
 // AI Foundry adapter — singleton, used by evidence parser, finding enricher and report generator
 builder.Services.AddSingleton<IAiAdapterService, AiAdapterService>();

@@ -144,6 +144,7 @@ Run the PostgreSQL connected-agent E2E test against a disposable target using th
 - The API applies pending EF Core migrations on startup. Back up production data before deploying schema changes.
 - The worker and API must share `Worker:ServiceToken`.
 - The local agent must be able to read its bootstrap volume and local database configuration.
+- Deploy nonce-aware agents and the API from the same revision. The nonce is part of the HMAC signature, so older agents cannot authenticate after a replay-protected API revision is activated.
 - Rebuilding or redeploying images does not copy PostgreSQL data between environments.
 - Dashboard labels may suggest estate-wide counts while some values are scoped to the first accessible project.
 
