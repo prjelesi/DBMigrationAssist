@@ -1,88 +1,15 @@
 import { useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { generateReport, getAiStatus, getDatabases, getGeneratedReports, getProjects, transitionGeneratedReport } from '../lib/api';
+import { parseReportContent } from '../lib/reportContent';
+import type { ReportContent } from '../lib/reportContent';
 import type { GeneratedReport, ReportState } from '../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface RiskItem {
-  title: string;
-  severity: 'High' | 'Medium' | 'Low';
-  description: string;
-}
-
-interface MigrationRequirement {
-  category: string;
-  requirement: string;
-  evidenceStatus: 'Confirmed' | 'Assumption' | 'Gap';
-  details: string;
-}
-
-interface SourceEnvironment {
-  summary: string;
-  environments: Array<{ name: string; type: string; location: string; connectivity: string; databaseCount: number }>;
-  databaseEstate: Array<{ name: string; engine: string; version: string; host: string; criticality: string; environment: string }>;
-  dependencies: string[];
-  informationGaps: string[];
-}
-
-interface MigrationOption {
-  sourcePlatform: string;
-  targetAzureService: string;
-  migrationType: string;
-  recommendation: 'Preferred' | 'Candidate' | 'Not Recommended';
-  rationale: string;
-  considerations: string[];
-}
-
-interface MigrationToolingItem {
-  phase: string;
-  tools: string[];
-  purpose: string;
-  prerequisites: string[];
-}
-
-interface AzureSkuProposal {
-  environment: string;
-  targetService: string;
-  skuTier: string;
-  compute: string;
-  storage: string;
-  availability: string;
-  networking: string;
-  rationale: string;
-  sizingBasis: string;
-  assumptions: string[];
-}
-
-interface ReportContent {
-  executiveSummary: string;
-  scopeSummary: { databaseCount: number; enginesFound: string[]; criticalCount: number };
-  migrationReadiness: 'Ready' | 'NeedsWork' | 'NotReady';
-  migrationRequirements?: MigrationRequirement[];
-  sourceEnvironment?: SourceEnvironment;
-  possibleMigrations?: MigrationOption[];
-  migrationTooling?: MigrationToolingItem[];
-  azureSkuProposal?: AzureSkuProposal[];
-  keyRisks: RiskItem[];
-  recommendedWave: string;
-  nextSteps: string[];
-  estimatedEffort: string;
-}
-
 interface ViewReport extends GeneratedReport {
   projectName: string;
   parsedContent: ReportContent | null;
-}
-
-/** Extract JSON from an AI response that may wrap it in markdown fences. */
-function extractJson(raw: string): ReportContent | null {
-  try {
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    try { return JSON.parse(raw); } catch { return null; }
-  }
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -150,7 +77,7 @@ export default function Reports() {
     (query.data ?? []).map(report => ({
       ...report,
       projectName: projects.data?.[index]?.name ?? 'Unknown project',
-      parsedContent: extractJson(report.reportJson),
+      parsedContent: parseReportContent(report.reportJson),
     }))
   ).sort((left, right) => right.generatedAt.localeCompare(left.generatedAt));
 
@@ -275,14 +202,14 @@ export default function Reports() {
                       <span className={`badge ${READINESS_BADGE[r.parsedContent.migrationReadiness] ?? 'badge-gray'}`}>
                         {r.parsedContent.migrationReadiness}
                       </span>
-                    ) : '—'}
+                    ) : <span className="badge badge-red">Unavailable</span>}
                   </td>
                   <td>
                     {r.parsedContent ? (
                       <span className={`badge ${EFFORT_BADGE[r.parsedContent.estimatedEffort] ?? 'badge-gray'}`}>
                         {r.parsedContent.estimatedEffort}
                       </span>
-                    ) : '—'}
+                    ) : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Invalid data</span>}
                   </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                     {new Date(r.generatedAt).toLocaleString()}
@@ -292,17 +219,20 @@ export default function Reports() {
                       {r.parsedContent && (
                         <button className="btn btn-secondary btn-sm" onClick={() => setViewReport(r)}>View</button>
                       )}
-                      {r.state === 'DraftReady' && (
+                      {!r.parsedContent && (
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Report unavailable</span>
+                      )}
+                      {r.parsedContent && r.state === 'DraftReady' && (
                         <button className="btn btn-secondary btn-sm" onClick={() => void advanceState(r, 'InReview')}>
                           Send for Review
                         </button>
                       )}
-                      {r.state === 'InReview' && (
+                      {r.parsedContent && r.state === 'InReview' && (
                         <button className="btn btn-primary btn-sm" onClick={() => void advanceState(r, 'Approved')}>
                           Approve
                         </button>
                       )}
-                      {r.state === 'Approved' && (
+                      {r.parsedContent && r.state === 'Approved' && (
                         <button className="btn btn-secondary btn-sm" onClick={() => void exportReport(r)}>
                           Export JSON
                         </button>

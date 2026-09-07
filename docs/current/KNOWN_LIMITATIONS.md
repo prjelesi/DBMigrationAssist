@@ -41,6 +41,7 @@ This document is part of the current system contract. Items listed here must not
 - Report generation depends on a configured Microsoft Foundry/Azure OpenAI-compatible model and a successful real connectivity test.
 - There is no deterministic rules-only or local-model fallback.
 - Generated output should be reviewed by a qualified migration practitioner.
+- Persisted reports do not currently record a report-contract version; legacy malformed rows are shown as unavailable and cannot advance through review or export in the portal.
 - Report export is browser-generated JSON followed by a state transition.
 - Report-instruction edits have optimistic concurrency and are captured in new evidence bundles, but the application does not provide policy version history, diff, approval or rollback workflows.
 - PDF generation, expiring share links, section comments, section locking and server-side publishing are absent.

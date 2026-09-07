@@ -563,14 +563,18 @@ public class AiController(
 
         try
         {
-            reportJson = NormalizeJson(reportJson);
+            reportJson = GeneratedReportContract.NormalizeAndValidate(reportJson);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or ReportContractException)
         {
+            var validationErrors = ex is ReportContractException contractException
+                ? contractException.Errors.Take(20).ToArray()
+                : ["Malformed or truncated JSON."];
             logger.LogWarning(ex,
-                "AI report output was not valid JSON for project {ProjectId}; output length was {OutputLength}.",
+                "AI report output failed contract validation for project {ProjectId}; output length was {OutputLength}; errors: {ValidationErrors}.",
                 req.ProjectId,
-                reportJson.Length);
+                reportJson.Length,
+                validationErrors);
             return StatusCode(StatusCodes.Status502BadGateway, new
             {
                 error = "Report generation returned an invalid or incomplete response. Please try again."
@@ -600,20 +604,6 @@ public class AiController(
         await db.SaveChangesAsync(ct);
 
         return Ok(ToReportResponse(generatedReport));
-    }
-
-    private static string NormalizeJson(string value)
-    {
-        var normalized = value.Trim();
-        if (normalized.StartsWith("```", StringComparison.Ordinal))
-        {
-            var firstLineEnd = normalized.IndexOf('\n');
-            if (firstLineEnd >= 0 && normalized.EndsWith("```", StringComparison.Ordinal))
-                normalized = normalized[(firstLineEnd + 1)..^3].Trim();
-        }
-
-        using var document = JsonDocument.Parse(normalized);
-        return JsonSerializer.Serialize(document.RootElement);
     }
 
     [HttpGet("reports")]

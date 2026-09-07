@@ -110,7 +110,7 @@ Memberships may be project-wide or restricted to an environment. `GovernanceMidd
 
 - `GovernanceMiddleware` records successful non-authentication requests whose HTTP method is not GET, HEAD or OPTIONS as `AuditEvent` rows.
 - Events include actor, action, resource, HTTP method, project context and occurrence time where available.
-- Report generation snapshots source evidence into an `EvidenceBundle`.
+- Report generation validates model output against the fixed typed JSON contract before persisting an `EvidenceBundle` and `DraftReady` report. Validation logs field paths and counts, not report evidence.
 - Each bundle stores the source JSON and a content hash.
 - The API loads Markdown report instructions for every generation request and records the effective content, source and SHA-256 hash in the evidence bundle.
 - Administrator saves use the previously read hash as an optimistic-concurrency token; host-managed read-only policy remains supported.
