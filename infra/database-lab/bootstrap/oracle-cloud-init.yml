@@ -84,6 +84,9 @@ write_files:
       systemctl enable oracle-xe-21c
       systemctl restart oracle-xe-21c
 
+      firewall-cmd --permanent --add-port=1521/tcp
+      firewall-cmd --reload
+
       export ORACLE_SID=XE
       export ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE
       export PATH="$ORACLE_HOME/bin:$PATH"
@@ -113,6 +116,21 @@ write_files:
         END IF;
       END;
       /
+      GRANT SELECT_CATALOG_ROLE TO assessment_reader;
+      GRANT SELECT ON sys.aux_stats$ TO assessment_reader;
+      GRANT SELECT ON sys.v_$version TO assessment_reader;
+      GRANT SELECT ON sys.v_$instance TO assessment_reader;
+      GRANT SELECT ON sys.v_$database TO assessment_reader;
+      GRANT SELECT ON sys.v_$option TO assessment_reader;
+      GRANT SELECT ON sys.v_$parameter TO assessment_reader;
+      GRANT SELECT ON sys.v_$sgainfo TO assessment_reader;
+      GRANT SELECT ON sys.v_$system_event TO assessment_reader;
+      GRANT SELECT ON sys.v_$log TO assessment_reader;
+      GRANT SELECT ON sys.v_$log_history TO assessment_reader;
+      GRANT SELECT ON sys.v_$pdbs TO assessment_reader;
+      GRANT SELECT ON sys.gv_$instance TO assessment_reader;
+      GRANT SELECT ON sys.v_$session TO assessment_reader;
+      GRANT SELECT ON sys.v_$archived_log TO assessment_reader;
       ALTER SESSION SET CURRENT_SCHEMA = migration_lab;
       BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE employee_seq START WITH 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
       /

@@ -505,6 +505,10 @@ public class AiController(
                         {reportInstructionDocument.Content}
                         </operator-managed-report-guidance>
 
+                        For required string fields whose source evidence is missing, use the exact value "Not provided" and
+                        record the omission in sourceEnvironment.informationGaps. Never omit a required property or return null.
+                        Before declaring an information gap, check every structured assessmentResults.findings object. Treat
+                        collected version, feature usage, capacity, LOB, data type, segment, and redo fields as available evidence.
                         Return ONLY valid JSON matching the fixed contract above.
                         """;
 
@@ -512,8 +516,17 @@ public class AiController(
         {
             databases = databases.Select(database => new
             {
-                database.DatabaseId, database.Name, database.Engine, database.Version, database.Criticality,
-                database.HostName, database.Port, database.OwnerName, database.EnvironmentId
+                database.DatabaseId,
+                database.Name,
+                database.Engine,
+                version = string.IsNullOrWhiteSpace(database.Version) ? "Not provided" : database.Version,
+                database.Criticality,
+                hostName = string.IsNullOrWhiteSpace(database.HostName) ? "Not provided" : database.HostName,
+                database.Port,
+                ownerName = string.IsNullOrWhiteSpace(database.OwnerName) ? "Not provided" : database.OwnerName,
+                database.EnvironmentId,
+                environment = environments.FirstOrDefault(environment => environment.EnvironmentId == database.EnvironmentId)?.Name
+                    ?? "Not provided"
             }),
             environments,
             evidence = evidence.Select(item => new
@@ -531,7 +544,7 @@ public class AiController(
                 result.PluginId,
                 result.PluginVersion,
                 result.Confidence,
-                findings = Truncate(result.FindingJson, 3000)
+                findings = AssessmentFindingEvidence.Create(result.FindingJson)
             }),
             questionnaireResponses = questionnaireResponses.Select(response => new
             {

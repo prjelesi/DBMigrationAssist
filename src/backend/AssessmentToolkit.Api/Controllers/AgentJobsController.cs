@@ -106,6 +106,18 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
         job.CompletedAt = DateTimeOffset.UtcNow;
         job.UpdatedAt = DateTimeOffset.UtcNow;
 
+        if (submission.Success && job.DatabaseId.HasValue)
+        {
+            var database = await db.Databases.FindAsync([job.DatabaseId.Value], HttpContext.RequestAborted);
+            var discoveredVersion = GetFindingString(submission.FindingJson, "db_version");
+            if (database is not null && string.IsNullOrWhiteSpace(database.Version) &&
+                !string.IsNullOrWhiteSpace(discoveredVersion))
+            {
+                database.Version = discoveredVersion;
+                database.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+        }
+
         db.Results.Add(result);
         try
         {
@@ -120,6 +132,24 @@ public class AgentJobsController(AssessmentDbContext db) : ControllerBase
         }
 
         return Ok(new { result.ResultId, job.Status });
+    }
+
+    private static string? GetFindingString(string? findingJson, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(findingJson)) return null;
+
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(findingJson);
+            return document.RootElement.TryGetProperty(propertyName, out var value) &&
+                   value.ValueKind == System.Text.Json.JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
 }

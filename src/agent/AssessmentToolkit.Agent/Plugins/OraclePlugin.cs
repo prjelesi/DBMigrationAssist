@@ -26,7 +26,7 @@ namespace AssessmentToolkit.Agent.Plugins;
 public sealed class OraclePlugin : IAssessmentPlugin
 {
     public string PluginId      => "oracle";
-    public string PluginVersion => "1.2.0";
+    public string PluginVersion => "1.3.0";
     public string TargetEngine  => "Oracle";
 
     public async Task<PluginResult> RunAsync(PluginContext ctx, CancellationToken ct)
@@ -53,6 +53,21 @@ public sealed class OraclePlugin : IAssessmentPlugin
                 "SELECT DB_UNIQUE_NAME FROM V$DATABASE", ct);
             findings["platform_name"] = await ScalarAsync(conn,
                 "SELECT PLATFORM_NAME FROM V$DATABASE", ct);
+            await CollectListSectionAsync(findings, sectionErrors, "oracle_components", conn, @"
+                SELECT PRODUCT, VERSION, VERSION_FULL, STATUS
+                FROM PRODUCT_COMPONENT_VERSION
+                ORDER BY PRODUCT", ct);
+            await CollectListSectionAsync(findings, sectionErrors, "installed_options", conn, @"
+                SELECT PARAMETER, VALUE
+                FROM V$OPTION
+                WHERE VALUE = 'TRUE'
+                ORDER BY PARAMETER", ct);
+            await CollectListSectionAsync(findings, sectionErrors, "sql_patches", conn, @"
+                SELECT PATCH_ID, PATCH_TYPE, ACTION, STATUS,
+                       TO_CHAR(ACTION_TIME, 'YYYY-MM-DD HH24:MI:SS') AS ACTION_TIME,
+                       DESCRIPTION, SOURCE_VERSION, TARGET_VERSION
+                FROM DBA_REGISTRY_SQLPATCH
+                ORDER BY ACTION_TIME DESC", ct);
 
             // ── Character set ──────────────────────────────────────────────────────────
             findings["character_set"] = await ScalarAsync(conn,
@@ -135,6 +150,15 @@ public sealed class OraclePlugin : IAssessmentPlugin
             findings["object_counts"] = await ListAsync(conn,
                 "SELECT OWNER, OBJECT_TYPE, COUNT(*) AS CNT FROM DBA_OBJECTS WHERE ORACLE_MAINTAINED = 'N' GROUP BY OWNER, OBJECT_TYPE ORDER BY OWNER, OBJECT_TYPE", ct);
 
+            await CollectListSectionAsync(findings, sectionErrors, "feature_usage", conn, @"
+                SELECT NAME, DETECTED_USAGES, CURRENTLY_USED,
+                       TO_CHAR(FIRST_USAGE_DATE,'YYYY-MM-DD') AS FIRST_USAGE_DATE,
+                       TO_CHAR(LAST_USAGE_DATE,'YYYY-MM-DD') AS LAST_USAGE_DATE,
+                       VERSION
+                FROM DBA_FEATURE_USAGE_STATISTICS
+                WHERE DETECTED_USAGES > 0 OR CURRENTLY_USED = 'TRUE'
+                ORDER BY NAME", ct);
+
             // ── Tablespace usage ───────────────────────────────────────────────────────
             findings["tablespace_usage"] = await ListAsync(conn, @"
                 SELECT df.tablespace_name,
@@ -206,6 +230,32 @@ public sealed class OraclePlugin : IAssessmentPlugin
                                     AND NAME IS NOT NULL
                                 GROUP BY TRUNC(FIRST_TIME)
                                 ORDER BY TRUNC(FIRST_TIME)", ct);
+                            await CollectListSectionAsync(findings, sectionErrors, "data_type_usage", conn, @"
+                                SELECT c.DATA_TYPE,
+                                       COUNT(*) AS COLUMN_COUNT,
+                                       COUNT(DISTINCT c.OWNER || '.' || c.TABLE_NAME) AS TABLE_COUNT
+                                FROM DBA_TAB_COLUMNS c
+                                JOIN DBA_USERS u ON u.USERNAME = c.OWNER
+                                WHERE u.ORACLE_MAINTAINED = 'N'
+                                GROUP BY c.DATA_TYPE
+                                ORDER BY COLUMN_COUNT DESC", ct);
+                            await CollectListSectionAsync(findings, sectionErrors, "largest_segments", conn, @"
+                                SELECT * FROM (
+                                    SELECT OWNER, SEGMENT_NAME, SEGMENT_TYPE, TABLESPACE_NAME,
+                                       ROUND(BYTES / 1048576, 2) AS SIZE_MB
+                                    FROM DBA_SEGMENTS
+                                    WHERE OWNER NOT IN ('SYS', 'SYSTEM')
+                                    ORDER BY BYTES DESC
+                                )
+                                WHERE ROWNUM <= 50", ct);
+                            await CollectListSectionAsync(findings, sectionErrors, "capacity", conn, @"
+                                SELECT
+                                    (SELECT ROUND(SUM(BYTES) / 1048576, 2) FROM DBA_DATA_FILES) AS ALLOCATED_DATA_MB,
+                                    (SELECT ROUND(SUM(BYTES) / 1048576, 2) FROM DBA_SEGMENTS) AS USED_SEGMENT_MB,
+                                    (SELECT ROUND(SUM(BYTES) / 1048576, 2) FROM DBA_TEMP_FILES) AS ALLOCATED_TEMP_MB,
+                                    (SELECT ROUND(SUM(CASE WHEN AUTOEXTENSIBLE = 'YES' THEN MAXBYTES ELSE BYTES END) / 1048576, 2)
+                                       FROM DBA_DATA_FILES) AS DATAFILE_MAX_MB
+                                FROM DUAL", ct);
 
             // Partitioned tables
             try
