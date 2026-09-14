@@ -3,27 +3,34 @@ param tags object
 param storageAccountName string
 param containerAppsSubnetId string
 
-var evidenceShareName = 'evidence'
-var dataProtectionShareName = 'data-protection'
-var localAgentShareName = 'local-agent'
-var reportConfigShareName = 'report-config'
+// Single NFS-protocol Azure Files share backing all app-data mount points (evidence,
+// data-protection, local-agent, report-config live as sub-directories on this share).
+// NFS shares authenticate purely via network rules (VNet/service endpoint), never via
+// the storage account key, so this configuration keeps working even when organizational
+// policy enforces `allowSharedKeyAccess = false` on storage accounts (see
+// docs/decisions for the incident that prompted this: SMB mounts required the account
+// key and broke when the policy disabled shared-key access).
+var appDataShareName = 'appdata'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2026-04-01' = {
   name: storageAccountName
   location: location
   tags: tags
-  kind: 'StorageV2'
+  kind: 'FileStorage'
   sku: {
-    name: 'Standard_LRS'
+    name: 'Premium_LRS'
   }
   properties: {
-    accessTier: 'Hot'
     allowBlobPublicAccess: false
     allowCrossTenantReplication: false
-    allowSharedKeyAccess: true
     minimumTlsVersion: 'TLS1_2'
     publicNetworkAccess: 'Enabled'
-    supportsHttpsTrafficOnly: true
+    // NFS 4.1 (used exclusively by this account) is mounted by Container Apps using the
+    // plain kernel NFS client, which does not speak TLS/HTTPS. "Secure transfer required"
+    // must stay disabled here or every NFS mount fails with "access denied by server" -
+    // this is not a security regression because the account has no SMB/REST clients and
+    // access is already restricted to the container-apps subnet via the network rule below.
+    supportsHttpsTrafficOnly: false
     networkAcls: {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
@@ -43,49 +50,16 @@ resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2026-04-01'
   properties: {}
 }
 
-resource evidenceShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
+resource appDataShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
   parent: fileService
-  name: evidenceShareName
+  name: appDataShareName
   properties: {
-    accessTier: 'Hot'
-    enabledProtocols: 'SMB'
-    shareQuota: 10
-  }
-}
-
-resource dataProtectionShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
-  parent: fileService
-  name: dataProtectionShareName
-  properties: {
-    accessTier: 'Hot'
-    enabledProtocols: 'SMB'
-    shareQuota: 5
-  }
-}
-
-resource localAgentShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
-  parent: fileService
-  name: localAgentShareName
-  properties: {
-    accessTier: 'Hot'
-    enabledProtocols: 'SMB'
-    shareQuota: 5
-  }
-}
-
-resource reportConfigShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
-  parent: fileService
-  name: reportConfigShareName
-  properties: {
-    accessTier: 'Hot'
-    enabledProtocols: 'SMB'
-    shareQuota: 1
+    enabledProtocols: 'NFS'
+    rootSquash: 'NoRootSquash'
+    shareQuota: 100
   }
 }
 
 output id string = storageAccount.id
 output name string = storageAccount.name
-output evidenceShareName string = evidenceShare.name
-output dataProtectionShareName string = dataProtectionShare.name
-output localAgentShareName string = localAgentShare.name
-output reportConfigShareName string = reportConfigShare.name
+output appDataShareName string = appDataShare.name

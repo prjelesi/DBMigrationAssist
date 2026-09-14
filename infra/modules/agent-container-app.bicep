@@ -38,13 +38,13 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
           ]
           resources: { cpu: json('0.5'), memory: '1Gi' }
           volumeMounts: [
-            { mountPath: '/app/bootstrap', volumeName: 'local-agent' }
+            { mountPath: '/app/bootstrap', volumeName: 'appdata', subPath: 'local-agent' }
           ]
         }
       ]
       scale: { maxReplicas: 1, minReplicas: 1 }
       volumes: [
-        { name: 'local-agent', storageName: 'local-agent', storageType: 'AzureFile' }
+        { name: 'appdata', storageName: 'appdata', storageType: 'NfsAzureFile' }
       ]
     }
   }

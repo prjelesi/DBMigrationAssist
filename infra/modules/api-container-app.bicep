@@ -100,19 +100,16 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
           ]
           resources: { cpu: json('0.5'), memory: '1Gi' }
           volumeMounts: [
-            { mountPath: '/app/evidence', volumeName: 'evidence' }
-            { mountPath: '/app/data-protection', volumeName: 'data-protection' }
-            { mountPath: '/app/config', volumeName: 'report-config' }
-            { mountPath: '/app/local-agent', volumeName: 'local-agent' }
+            { mountPath: '/app/evidence', volumeName: 'appdata', subPath: 'evidence' }
+            { mountPath: '/app/data-protection', volumeName: 'appdata', subPath: 'data-protection' }
+            { mountPath: '/app/config', volumeName: 'appdata', subPath: 'report-config' }
+            { mountPath: '/app/local-agent', volumeName: 'appdata', subPath: 'local-agent' }
           ]
         }
       ]
       scale: { maxReplicas: 1, minReplicas: 1 }
       volumes: [
-        { name: 'evidence', storageName: 'evidence', storageType: 'AzureFile' }
-        { name: 'data-protection', storageName: 'data-protection', storageType: 'AzureFile' }
-        { name: 'report-config', storageName: 'report-config', storageType: 'AzureFile' }
-        { name: 'local-agent', storageName: 'local-agent', storageType: 'AzureFile' }
+        { name: 'appdata', storageName: 'appdata', storageType: 'NfsAzureFile' }
       ]
     }
   }

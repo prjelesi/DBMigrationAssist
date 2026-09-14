@@ -38,7 +38,7 @@ var frontendContainerAppName = 'ca-web-dbmigratio-dev-1fa1'
 var discoveryAgentContainerAppName = 'ca-agent-dbmigratio-dev-1fa1'
 var containerRegistryName = 'crdbmigratiodev1fa1'
 var postgresServerName = 'psql-dbmigratio-dev-1fa1'
-var storageAccountName = 'stdbmigratiodev1fa1'
+var storageAccountName = 'stdbmigrnfs1fa1'
 var keyVaultName = 'kv-dbmigratio-dev-1fa1'
 var managedIdentityName = 'id-dbmigratio-dev-1fa1'
 var postgresAdministratorLogin = 'assessmentadmin'
@@ -118,10 +118,7 @@ module containerAppsEnvironment './modules/container-apps-environment.bicep' = {
     containerAppsEnvironmentName: containerAppsEnvironmentName
     infrastructureSubnetId: network.outputs.containerAppsSubnetId
     storageAccountName: storageAccountName
-    evidenceShareName: storage.outputs.evidenceShareName
-    dataProtectionShareName: storage.outputs.dataProtectionShareName
-    localAgentShareName: storage.outputs.localAgentShareName
-    reportConfigShareName: storage.outputs.reportConfigShareName
+    appDataShareName: storage.outputs.appDataShareName
   }
 }
 

@@ -3,14 +3,9 @@ param tags object
 param containerAppsEnvironmentName string
 param infrastructureSubnetId string
 param storageAccountName string
-param evidenceShareName string
-param dataProtectionShareName string
-param localAgentShareName string
-param reportConfigShareName string
+param appDataShareName string
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2026-04-01' existing = {
-  name: storageAccountName
-}
+var appDataFileHost = '${storageAccountName}.file.${environment().suffixes.storage}'
 
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: containerAppsEnvironmentName
@@ -24,54 +19,18 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2025-01-01'
   }
 }
 
-resource evidenceStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
+// NFS mount: authenticated purely by the container app subnet's network rule on the
+// storage account, no storage account key involved. Immune to policies that disable
+// shared-key access. App containers mount this single share multiple times using
+// different subPath values (see api-container-app.bicep / agent-container-app.bicep).
+resource appDataStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
   parent: containerAppsEnvironment
-  name: 'evidence'
+  name: 'appdata'
   properties: {
-    azureFile: {
+    nfsAzureFile: {
       accessMode: 'ReadWrite'
-      accountKey: storageAccount.listKeys().keys[0].value
-      accountName: storageAccount.name
-      shareName: evidenceShareName
-    }
-  }
-}
-
-resource dataProtectionStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
-  parent: containerAppsEnvironment
-  name: 'data-protection'
-  properties: {
-    azureFile: {
-      accessMode: 'ReadWrite'
-      accountKey: storageAccount.listKeys().keys[0].value
-      accountName: storageAccount.name
-      shareName: dataProtectionShareName
-    }
-  }
-}
-
-resource localAgentStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
-  parent: containerAppsEnvironment
-  name: 'local-agent'
-  properties: {
-    azureFile: {
-      accessMode: 'ReadWrite'
-      accountKey: storageAccount.listKeys().keys[0].value
-      accountName: storageAccount.name
-      shareName: localAgentShareName
-    }
-  }
-}
-
-resource reportConfigStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
-  parent: containerAppsEnvironment
-  name: 'report-config'
-  properties: {
-    azureFile: {
-      accessMode: 'ReadWrite'
-      accountKey: storageAccount.listKeys().keys[0].value
-      accountName: storageAccount.name
-      shareName: reportConfigShareName
+      server: appDataFileHost
+      shareName: '/${storageAccountName}/${appDataShareName}'
     }
   }
 }
