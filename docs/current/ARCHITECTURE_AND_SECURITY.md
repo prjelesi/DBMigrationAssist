@@ -1,6 +1,6 @@
 # Architecture and Security
 
-**Reviewed:** 2026-09-02
+**Reviewed:** 2026-09-23
 
 ## Runtime architecture
 

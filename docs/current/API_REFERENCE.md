@@ -1,6 +1,7 @@
 # API Reference
 
-**Reviewed:** 2026-08-20  
+**Reviewed:** 2026-09-23
+
 **Base path:** `/api`
 
 This is a route inventory, not a replacement for generated OpenAPI. Swagger UI is enabled only when the API runs in the ASP.NET Core `Development` environment.
@@ -57,6 +58,7 @@ Project deletion is restricted to project owners and administrators. It permanen
 | `GET` | `/api/databases/{id}` | Get one accessible database. |
 | `POST` | `/api/databases` | Create a database inventory record. |
 | `PATCH` | `/api/databases/{id}` | Update a database inventory record. |
+| `DELETE` | `/api/databases/{id}` | Delete a database record, detach its jobs/results and remove it from portfolios. |
 | `GET` | `/api/databases/import-template` | Download the Excel inventory template. |
 | `POST` | `/api/databases/import` | Validate and atomically import an Excel inventory workbook. |
 | `GET` | `/api/databases/{id}/assessment-script` | Generate a database-specific PowerShell collector. |
@@ -74,6 +76,7 @@ The offline upload path creates a completed assessment job with no agent and rec
 | `POST` | `/api/agents/{id}/heartbeat` | Portal-side heartbeat operation. |
 | `GET` | `/api/agents/{id}/jobs` | List an agent's job history. |
 | `POST` | `/api/agents/{id}/jobs` | Dispatch an assessment job. |
+| `POST` | `/api/agents/{id}/jobs/{jobId}/inventory` | Link a completed job to inventory in an accessible target project, creating or reusing the database record. |
 | `GET` | `/api/agents/{id}/jobs/{jobId}/results` | List persisted findings for a job. |
 
 ## Agent-facing HMAC routes

@@ -33,7 +33,7 @@ A self-hosted portal for assessing database estates before migration to the clou
     - [Dispatch an assessment](#dispatch-an-assessment)
     - [View findings](#view-findings)
     - [Troubleshooting](#troubleshooting)
-  - [End-to-end test](#end-to-end-test)
+  - [Testing](#testing)
   - [Database account requirements](#database-account-requirements)
     - [PostgreSQL](#postgresql)
     - [Oracle](#oracle)
@@ -69,7 +69,10 @@ A self-hosted portal for assessing database estates before migration to the clou
   │ · oracle       │                  ┌────┴─────┐         ┌─────┴────┐
   │ · sqlserver    │                  │ Frontend │         │ Worker   │
   │ · mysql        │                  │ :3000    │         │          │
-  └────────────────┘                  └──────────┘         └──────────┘
+  │ · mongodb      │                  └──────────┘         └──────────┘
+  │ · cassandra    │
+  │ · sybase       │
+  └────────────────┘
 ```
 
 | Container | Purpose |
@@ -107,7 +110,7 @@ The [Banana Inc Oracle migration example](CustomerExample/README.md) provides an
 
 ```powershell
 # 1. Build all artifacts (requires .NET 8 SDK + Node 20)
-cd c:\github\DBMigrationReady
+cd c:\github\DBMigrationAssist
 dotnet restore src/AssessmentToolkit.sln
 .\build.ps1
 
@@ -526,7 +529,24 @@ In **Job History**, select the finding count for a completed job. The portal sho
 
 ---
 
-## End-to-end test
+## Testing
+
+Run the backend and frontend unit tests:
+
+```powershell
+dotnet test .\src\tests\AssessmentToolkit.Api.Tests\AssessmentToolkit.Api.Tests.csproj
+
+Push-Location .\src\frontend
+npm test
+Pop-Location
+```
+
+The backend suite covers administrative authorization, agent HMAC and result submission, report-contract
+validation, assessment-result selection, and Oracle evidence parsing/report shaping. The frontend Vitest suite
+covers persisted-report validation and unavailable-state rendering. These are focused suites, not comprehensive
+application regression coverage.
+
+### PostgreSQL connected-agent test
 
 The PostgreSQL smoke test creates an isolated customer, project, agent, and job; starts the real agent container; assesses the Compose PostgreSQL instance; and verifies that a finding containing `server_version` is persisted.
 
@@ -572,22 +592,42 @@ CREATE USER assessment_reader IDENTIFIED BY "strong-password-here";
 GRANT CREATE SESSION TO assessment_reader;
 
 -- System views required by all collections
-GRANT SELECT ON V_$VERSION   TO assessment_reader;
-GRANT SELECT ON V_$DATABASE  TO assessment_reader;
-GRANT SELECT ON V_$SESSION   TO assessment_reader;
+GRANT SELECT ON V_$VERSION            TO assessment_reader;
+GRANT SELECT ON V_$DATABASE           TO assessment_reader;
+GRANT SELECT ON V_$INSTANCE           TO assessment_reader;
+GRANT SELECT ON GV_$INSTANCE          TO assessment_reader;
+GRANT SELECT ON V_$SESSION            TO assessment_reader;
+GRANT SELECT ON V_$PARAMETER          TO assessment_reader;
+GRANT SELECT ON V_$SGAINFO            TO assessment_reader;
+GRANT SELECT ON V_$SYSTEM_EVENT       TO assessment_reader;
+GRANT SELECT ON V_$LOG                TO assessment_reader;
+GRANT SELECT ON V_$ARCHIVED_LOG       TO assessment_reader;
+GRANT SELECT ON V_$PDBS               TO assessment_reader;
 
 -- DBA views required for schema/object inventory (recommended)
-GRANT SELECT ON DBA_USERS    TO assessment_reader;
-GRANT SELECT ON DBA_OBJECTS  TO assessment_reader;
+GRANT SELECT ON DBA_USERS TO assessment_reader;
+GRANT SELECT ON DBA_OBJECTS TO assessment_reader;
 GRANT SELECT ON DBA_DATA_FILES TO assessment_reader;
+GRANT SELECT ON DBA_TEMP_FILES TO assessment_reader;
 GRANT SELECT ON DBA_FREE_SPACE TO assessment_reader;
-GRANT SELECT ANY DICTIONARY  TO assessment_reader;  -- convenience grant
-
--- AWR (optional — requires Diagnostics Pack licence)
-GRANT SELECT ON DBA_HIST_SNAPSHOT TO assessment_reader;
+GRANT SELECT ON DBA_TABLESPACES TO assessment_reader;
+GRANT SELECT ON DBA_TEMP_FREE_SPACE TO assessment_reader;
+GRANT SELECT ON DBA_SEGMENTS TO assessment_reader;
+GRANT SELECT ON DBA_PROFILES TO assessment_reader;
+GRANT SELECT ON DBA_SYNONYMS TO assessment_reader;
+GRANT SELECT ON DBA_SQL_PROFILES TO assessment_reader;
+GRANT SELECT ON DBA_SQL_PLAN_BASELINES TO assessment_reader;
+GRANT SELECT_CATALOG_ROLE TO assessment_reader;       -- convenience role
+GRANT SELECT ON SYS.AUX_STATS$ TO assessment_reader;
 ```
 
-> If `DBA_` views are not accessible, the agent falls back to a partial collection and reports lower confidence findings.
+The plugin treats optional catalog and platform views independently. Missing privileges are recorded in
+`section_errors` with the Oracle error code while other sections continue. AWR is intentionally not queried by
+the agent; upload a database-scoped AWR text or HTML report as evidence when licensed performance analysis is
+required. The evidence parser extracts database identity, host capacity, snapshot duration, DB time, load-profile
+rates and top timed events before those values are supplied to report generation.
+Exadata and ASM sections require access to `V_$CELL_STATE` and `V_$ASM_DISKGROUP` respectively and are reported
+as unavailable when those views are not accessible.
 
 ### SQL Server
 

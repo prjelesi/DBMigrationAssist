@@ -1,6 +1,6 @@
 # System Overview
 
-**Reviewed:** 2026-09-02
+**Reviewed:** 2026-09-23
 
 **Scope:** Implemented behavior in the repository at the documented baseline.
 
@@ -75,6 +75,7 @@ An implemented plugin is not the same as production certification for every engi
 - Attach evidence to questionnaire responses and questions, retaining the selected database scope.
 - Upload, list, download, delete and reparse evidence files.
 - Persist file metadata, hashes, parser state and parser summaries.
+- Deterministically extract database identity, snapshot period, host capacity, load profile and top timed events from database-scoped Oracle AWR text or HTML evidence.
 
 ### Portfolio and communication map
 
@@ -89,7 +90,8 @@ This is a database-level manual model. Automatic topology discovery, application
 
 - Configure and test a Microsoft Foundry/Azure OpenAI-compatible endpoint and deployment.
 - Report generation is blocked until the configured model passes a real connection test.
-- Build a bounded prompt from persisted assessment findings, uploaded evidence summaries, questionnaire answers, graph edges and portfolios.
+- Build a bounded prompt from the latest successful assessment per database/plugin, uploaded evidence summaries, questionnaire answers, graph edges and portfolios.
+- Supply Oracle-specific topology, sizing, compatibility, conversion-complexity and collection-gap summaries to report generation.
 - Load external Markdown report instructions for every report and allow administrators to update writable policy from AI Settings with SHA-256 concurrency protection.
 - Persist the complete source snapshot as an `EvidenceBundle` with a content hash.
 - Record the effective report-instruction content, source and SHA-256 hash in each evidence bundle.
@@ -135,4 +137,4 @@ The local `postgres_data` volume preserves local records across container recrea
 
 ## Verification baseline
 
-The repository includes one end-to-end PostgreSQL agent test. The current implementation has also been validated through .NET builds, frontend build/lint, local Docker smoke tests and a deployment smoke test. The 2026-09-01 Azure deployment verified all four Container Apps on immutable tag `20260901214321`, PostgreSQL Flexible Server 17 readiness, and HTTP 200 responses from the portal and API health endpoint. These checks do not replace a complete automated regression, security or all-engine compatibility suite.
+The repository includes focused xUnit API/service tests, focused Vitest report tests and one end-to-end PostgreSQL agent test. The current implementation has also been validated through .NET builds, frontend build/lint, local Docker smoke tests and a deployment smoke test. The 2026-09-01 Azure deployment verified all four Container Apps on immutable tag `20260901214321`, PostgreSQL Flexible Server 17 readiness, and HTTP 200 responses from the portal and API health endpoint. These checks do not replace a complete automated regression, security or all-engine compatibility suite.

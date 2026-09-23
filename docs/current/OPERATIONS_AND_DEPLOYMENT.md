@@ -1,6 +1,6 @@
 # Operations and Deployment
 
-**Reviewed:** 2026-09-02
+**Reviewed:** 2026-09-23
 
 ## Local prerequisites
 
@@ -136,6 +136,16 @@ Invoke-WebRequest http://localhost:3000
 ```
 
 After signing in, verify the System page reports API and database health and the expected AI readiness state. The displayed worker value is currently a static `Running` response, not a worker heartbeat or liveness probe. `Not configured` is valid when AI features are intentionally disabled; it means report generation is unavailable.
+
+Run the focused automated tests:
+
+```powershell
+dotnet test .\src\tests\AssessmentToolkit.Api.Tests\AssessmentToolkit.Api.Tests.csproj
+
+Push-Location .\src\frontend
+npm test
+Pop-Location
+```
 
 Run the PostgreSQL connected-agent E2E test against a disposable target using the parameters documented in `tests/AgentPostgresE2E.ps1`.
 

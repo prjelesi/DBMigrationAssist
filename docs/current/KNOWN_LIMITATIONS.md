@@ -1,6 +1,6 @@
 # Known Limitations
 
-**Reviewed:** 2026-09-02
+**Reviewed:** 2026-09-23
 
 This document is part of the current system contract. Items listed here must not be represented as implemented, production-certified or fully automated.
 
@@ -64,8 +64,8 @@ This document is part of the current system contract. Items listed here must not
 
 ## Testing and delivery
 
-- The repository does not contain a broad backend unit/integration test suite.
-- Frontend unit tests and Playwright regression tests are absent.
+- Backend xUnit coverage is focused on selected authorization, agent submission/authentication, report-contract, assessment-selection and evidence/report-processing paths; broad controller and integration coverage is absent.
+- Frontend Vitest coverage is limited to report parsing and unavailable-state rendering; browser-level Playwright regression tests are absent.
 - Connected database E2E coverage is limited to PostgreSQL.
 - There is no complete CI/CD pipeline represented in the repository.
 - Production security testing, load testing and failure-recovery testing are incomplete.

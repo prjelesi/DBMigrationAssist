@@ -4,7 +4,7 @@
 
 **Baseline:** Current `main` working tree, including the application release documented on the review date
 
-**Reviewed:** 2026-09-02
+**Reviewed:** 2026-09-23
 
 This documentation describes the system that is implemented in this repository. It separates verified capabilities from known limitations and future work.
 
@@ -27,4 +27,5 @@ When documentation and code disagree, use the implementation and tests as the so
 - `src/backend/AssessmentToolkit.Worker/`
 - `src/agent/AssessmentToolkit.Agent/`
 - `src/frontend/src/App.tsx`, `pages/` and `lib/api.ts`
+- `src/tests/AssessmentToolkit.Api.Tests/` and `src/frontend/src/**/*.test.ts(x)`
 - `docker-compose.yml`, `build.ps1`, `infra/` and `tests/`
