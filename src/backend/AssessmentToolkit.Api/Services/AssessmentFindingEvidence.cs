@@ -11,11 +11,21 @@ public static class AssessmentFindingEvidence
         "db_version", "db_name", "db_created", "db_unique_name", "platform_name",
         "oracle_components", "installed_options", "sql_patches",
         "character_set", "nchar_character_set", "cdb", "con_name", "pdbs", "rac_instances",
-        "key_parameters", "log_mode", "redo_logs", "awr_available", "active_sessions",
-        "object_counts", "invalid_object_count", "wrapped_code", "unsupported_objects",
+        "key_parameters", "optimizer_configuration", "system_statistics", "host_capacity",
+        "memory_configuration", "sga_info", "top_wait_events", "log_mode", "redo_logs", "active_sessions",
+        "rac_configuration", "database_services", "resource_manager", "sql_plan_management",
+        "sql_tuning_patches", "database_profiles", "synonym_mappings",
+        "database_directories", "restore_points", "refresh_groups",
+        "audit_policies", "lockdown_profiles",
+        "exadata", "hcc_usage", "recovery_configuration", "asm_disk_groups",
+        "schemas", "object_counts", "per_schema_summary", "invalid_object_count", "invalid_objects",
+        "wrapped_code", "unsupported_objects",
         "feature_usage", "partitioned_table_count", "partitioned_tables", "scheduler_jobs",
         "database_links", "data_type_usage", "lob_size", "largest_segments",
-        "total_size_mb", "capacity", "tablespace_usage", "daily_redo_generation", "section_errors"
+        "total_size_mb", "capacity", "database_size_summary", "tablespace_usage",
+        "tablespace_inventory", "temporary_tablespace_usage", "daily_redo_generation",
+        "hourly_redo_generation", "section_errors", "collection_contract_version",
+        "awr_assessment_source"
     };
 
     public static object Create(string? findingJson)
@@ -46,7 +56,7 @@ public static class AssessmentFindingEvidence
 
     private static object? ToBoundedValue(JsonElement value) => value.ValueKind switch
     {
-        JsonValueKind.Array => value.EnumerateArray().Take(MaxArrayItems).Select(ToBoundedValue).ToArray(),
+        JsonValueKind.Array => ToBoundedArray(value),
         JsonValueKind.Object => value.EnumerateObject().ToDictionary(
             property => property.Name,
             property => ToBoundedValue(property.Value)),
@@ -57,4 +67,20 @@ public static class AssessmentFindingEvidence
         JsonValueKind.False => false,
         _ => null
     };
+
+    private static object ToBoundedArray(JsonElement value)
+    {
+        var totalCount = value.GetArrayLength();
+        var items = value.EnumerateArray().Take(MaxArrayItems).Select(ToBoundedValue).ToArray();
+        if (totalCount <= MaxArrayItems)
+            return items;
+
+        return new
+        {
+            totalCount,
+            includedCount = items.Length,
+            truncated = true,
+            items
+        };
+    }
 }

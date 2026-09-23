@@ -197,7 +197,7 @@ public class EvidenceController(
 
             var content = await System.IO.File.ReadAllTextAsync(report.StoragePath);
 
-            // Use AI for unsupported formats (AWR, Statspack, etc.); structured parsers for known types
+            // Use deterministic parsers for known formats, including AWR, and AI for remaining free-form evidence.
             var result = await EvidenceParserService.ParseWithAiAsync(report.SourceType, content, ai);
 
             report.ParseStatus      = result.Status;

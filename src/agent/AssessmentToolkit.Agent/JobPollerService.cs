@@ -4,6 +4,7 @@ using AssessmentToolkit.Shared.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -82,8 +83,8 @@ public class JobPollerService(
         var localProfile = job.DatabaseId != Guid.Empty ? dbStore.Resolve(job.DatabaseId) : null;
         if (localProfile is not null)
         {
-            host     = localProfile.Host;
-            port     = localProfile.Port;
+            host = localProfile.Host;
+            port = localProfile.Port;
             database = localProfile.Database;
             username = localProfile.Username;
             password = localProfile.Password;
@@ -91,8 +92,8 @@ public class JobPollerService(
         }
         else
         {
-            host     = job.Host;
-            port     = job.Port;
+            host = job.Host;
+            port = job.Port;
             database = job.Database;
             username = job.Username;
             password = job.Password;
@@ -123,6 +124,7 @@ public class JobPollerService(
             result.FindingJson,
             result.RawSummaryJson,
             result.ErrorMessage,
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(result.FindingJson))),
             SubmittedAt = DateTimeOffset.UtcNow
         };
 

@@ -42,6 +42,14 @@ Choose tools only when compatible with the evidenced source and target. Candidat
 
 When compatibility is uncertain, state that it must be validated instead of claiming support.
 
+For Oracle assessments:
+
+- Treat collector `section_errors` as explicit evidence gaps, not proof that an Oracle feature is absent.
+- Use wrapped code, unsupported objects, database links, HCC, partitioning, data types, scheduler jobs, and SQL/PLSQL dependencies to explain heterogeneous conversion effort.
+- Treat AWR values as valid only for the database, instance, and snapshot period recorded by the parsed evidence.
+- Do not extrapolate short AWR intervals into steady-state or peak sizing without representative-period evidence.
+- Compare Oracle on Azure VM with heterogeneous PostgreSQL and Azure SQL routes when relevant, but do not prefer a route without evidence for compatibility, operations, licensing, and transformation effort.
+
 ## Azure sizing and SKU policy
 
 - Treat SKU recommendations as preliminary architecture proposals, not quotes.

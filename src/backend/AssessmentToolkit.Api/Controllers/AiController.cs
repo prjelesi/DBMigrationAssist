@@ -341,9 +341,20 @@ public class AiController(
         if (req.DatabaseId.HasValue)
             agentResultsQuery = agentResultsQuery.Where(result => result.DatabaseId == req.DatabaseId);
         var agentResults = await agentResultsQuery
+            .LatestSuccessfulPerDatabase()
             .OrderByDescending(r => r.AssessedAt)
-            .Take(20)
             .ToListAsync(ct);
+        var oracleAssessmentSummaries = agentResults
+            .Where(result => string.Equals(result.PluginId, "oracle", StringComparison.OrdinalIgnoreCase))
+            .Select(result => new
+            {
+                result.ResultId,
+                result.DatabaseId,
+                databaseName = databases.FirstOrDefault(database => database.DatabaseId == result.DatabaseId)?.Name,
+                result.AssessedAt,
+                summary = OracleReportEvidenceBuilder.Create(result.FindingJson)
+            })
+            .ToList();
         var evidence = await db.UploadedReports
             .Where(item => item.ProjectId == req.ProjectId &&
                 item.ParseStatus == Core.Enums.ParseStatus.Parsed &&
@@ -419,6 +430,7 @@ public class AiController(
                 result.ResultId, result.DatabaseId, result.PluginId, result.PluginVersion,
                 result.Confidence, result.PayloadHash, result.FindingJson, result.AssessedAt
             }),
+            oracleAssessmentSummaries,
             questionnaireResponses = questionnaireResponses.Select(response => new
             {
                 response.ResponseId,
@@ -509,6 +521,17 @@ public class AiController(
                         record the omission in sourceEnvironment.informationGaps. Never omit a required property or return null.
                         Before declaring an information gap, check every structured assessmentResults.findings object. Treat
                         collected version, feature usage, capacity, LOB, data type, segment, and redo fields as available evidence.
+                        Large finding collections may use an object with totalCount, includedCount, truncated, and items.
+                        Use totalCount for scale, inspect items as a bounded sample, and do not claim the sample is exhaustive.
+                        For Oracle sources, use oracleAssessmentSummaries for compatibility, conversion-complexity, topology,
+                        sizing, and collection-gap evidence. Represent every unavailable Oracle section as a Gap in either
+                        migrationRequirements or sourceEnvironment.informationGaps. Treat database-scoped AWR parsed summaries
+                        as performance evidence only for their recorded snapshot period. Do not extrapolate a short AWR period
+                        to peak or steady-state demand without corroborating evidence.
+                        Compare Oracle on Azure VM, Azure Database for PostgreSQL, and Azure SQL only when relevant to the
+                        collected compatibility evidence. Rehosting preserves Oracle-specific behavior but does not prove
+                        modernization value. Heterogeneous targets require explicit treatment of wrapped code, unsupported
+                        objects, database links, HCC, partitioning, data types, scheduler jobs, and SQL/PLSQL dependencies.
                         Return ONLY valid JSON matching the fixed contract above.
                         """;
 
@@ -546,6 +569,17 @@ public class AiController(
                 result.Confidence,
                 findings = AssessmentFindingEvidence.Create(result.FindingJson)
             }),
+            oracleAssessmentSummaries,
+            awrEvidence = evidence
+                .Where(item => item.SourceType == Core.Enums.ReportSourceType.Awr)
+                .Select(item => new
+                {
+                    item.DatabaseId,
+                    databaseName = databases.FirstOrDefault(database => database.DatabaseId == item.DatabaseId)?.Name,
+                    item.FileName,
+                    item.ParseConfidence,
+                    parsedSummary = Truncate(item.ParseSummaryJson, 12000)
+                }),
             questionnaireResponses = questionnaireResponses.Select(response => new
             {
                 template = response.Template.Name,
