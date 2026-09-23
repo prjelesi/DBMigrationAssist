@@ -236,7 +236,7 @@ function Build-ReleaseImages {
     & docker compose `
         --project-directory $workspaceRoot `
         --file (Join-Path $workspaceRoot 'docker-compose.yml') `
-        up -d --no-deps api worker frontend local-agent
+        up -d --no-deps --force-recreate api worker frontend local-agent
     if ($LASTEXITCODE -ne 0) {
         throw 'Local release containers failed to start.'
     }
