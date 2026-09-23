@@ -45,3 +45,6 @@ Thumbs.db
 # VS Code
 .vscode/settings.json
 .vscode/launch.json
+
+# Local reference files
+/FIles/
