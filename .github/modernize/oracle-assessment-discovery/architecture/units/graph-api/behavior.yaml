@@ -1,0 +1,8 @@
+unit: graph-api
+side_effects:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:46", effect: "replaces project graph edge canvas transactionally", must_preserve: true }
+branches:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:49", condition: "project ID empty", behavior: "reject request", must_preserve: true }
+error_paths:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:98", trigger: "edge missing", outcome: "not found", contract: "HTTP 404", must_preserve: true }
+concurrency: { model: async, tx_boundary: { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:51", scope: "delete stale and upsert incoming edges", isolation: "database default", must_preserve: true } }

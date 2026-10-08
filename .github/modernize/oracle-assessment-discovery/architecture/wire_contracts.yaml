@@ -1,0 +1,81 @@
+contracts:
+  - name: oracle-plugin-result
+    unit: oracle-collector
+    type: sdk
+    stability: must_preserve
+    source_loc: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:32"
+    contract:
+      method: "RunAsync"
+      path: "pluginId=oracle"
+      request: "PluginContext with host, port, service/database and credentials"
+      response: "PluginResult with success state, FindingJson and section errors"
+      error: "Connection failure returns unsuccessful plugin result; section failures are recorded individually"
+      auth: "Database credentials resolved locally by agent"
+    target_contract:
+      method: "Task<PluginResult> RunAsync(PluginContext, CancellationToken)"
+      notes: "Preserve existing plugin contract and add only versioned evidence fields."
+    semantic_divergence: []
+  - name: agent-result-submit
+    unit: agent-result-submission
+    type: rest
+    stability: frozen
+    source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80"
+    contract:
+      method: POST
+      path: "/api/agent/{agentId}/results"
+      request: "signed agent result payload"
+      response: "accepted persisted result"
+      error: "agent, job, signature and payload validation statuses"
+      auth: "HMAC-SHA256 agent authentication"
+    target_contract:
+      method: "POST /api/agent/{agentId}/results"
+      notes: "Existing agents remain compatible; baseline processing occurs after validated persistence."
+    semantic_divergence: []
+  - name: questionnaire-responses
+    unit: questionnaire-api
+    type: rest
+    stability: must_preserve
+    source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:96"
+    contract:
+      method: "GET/POST/PUT"
+      path: "/api/questionnaires/responses*"
+      request: "project/database scope, template and typed answers"
+      response: "response, answers, validation and submission state"
+      error: "400 validation, 403 authorization, 404 missing response"
+      auth: "portal cookie plus antiforgery for mutations"
+    target_contract:
+      method: "Existing routes plus evidence attribution/completeness fields"
+      notes: "Preserve current drafts and database-scoped uniqueness."
+    semantic_divergence: []
+  - name: graph-edges
+    unit: graph-api
+    type: rest
+    stability: must_preserve
+    source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:14"
+    contract:
+      method: "GET/POST/DELETE"
+      path: "/api/graph/edges*"
+      request: "project ID and full canvas edge set"
+      response: "edge list or save counts"
+      error: "400 missing project, 404 missing edge"
+      auth: "portal cookie plus antiforgery for mutations"
+    target_contract:
+      method: "Compatibility graph routes plus separate candidate/review routes"
+      notes: "Do not silently change full-canvas replacement semantics during compatibility phase."
+    semantic_divergence: []
+  - name: portfolios
+    unit: portfolio-api
+    type: rest
+    stability: must_preserve
+    source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:14"
+    contract:
+      method: "GET/POST/PATCH/DELETE"
+      path: "/api/portfolios*"
+      request: "project, grouping metadata and database IDs"
+      response: "stored portfolio"
+      error: "400 missing name, 404 missing portfolio"
+      auth: "portal cookie plus antiforgery for mutations"
+    target_contract:
+      method: "Compatibility portfolio routes plus separate suggestion/review routes"
+      notes: "Preserve accepted manual groups and distinguish generated suggestions."
+    semantic_divergence: []

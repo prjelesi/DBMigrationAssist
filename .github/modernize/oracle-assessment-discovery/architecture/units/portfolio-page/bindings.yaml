@@ -1,0 +1,4 @@
+unit: portfolio-page
+bindings:
+  - { type: route-declaration, name: "/portfolio", source_loc: "src/frontend/src/App.tsx:46", target: "Portfolio", must_appear_in_target: true, notes: "lazy-loaded portal page" }
+runtime_config: []

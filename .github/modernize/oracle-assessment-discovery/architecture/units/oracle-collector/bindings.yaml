@@ -1,0 +1,4 @@
+unit: oracle-collector
+bindings:
+  - { type: di-registration, name: "IAssessmentPlugin OraclePlugin", source_loc: "src/agent/AssessmentToolkit.Agent/Program.cs:23", target: "OraclePlugin", must_appear_in_target: true, notes: "registered only when oracle is allowed" }
+runtime_config: []

@@ -1,0 +1,43 @@
+user_intent:
+  raw_request: "Complete Oracle assessment for ordered Azure targets and replace manual graph/portfolio maintenance with discovery."
+  inferred_acceptance:
+    - "preserve current collection and manual data"
+    - "add ordered target assessments"
+    - "add reviewed discovery candidates"
+    - "use questionnaire evidence"
+  cleanup_required: false
+strategy: phased
+runtime_reachable:
+  - src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs
+  - src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs
+  - src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs
+  - src/backend/AssessmentToolkit.Api/Controllers/AiController.cs
+  - src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs
+  - src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs
+  - src/frontend/src/pages/CommunicationMap.tsx
+  - src/frontend/src/pages/Portfolio.tsx
+must_rewrite:
+  - path: src/backend/AssessmentToolkit.Core/Entities/Entities.cs
+    reason: "new persisted assessment, evidence, discovery and portfolio lifecycle records are required"
+  - path: src/backend/AssessmentToolkit.Data/AssessmentDbContext.cs
+    reason: "new records require schema mapping, relationships and constraints"
+  - path: src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs
+    reason: "manual replacement semantics must coexist with candidate review and authoritative edges"
+  - path: src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs
+    reason: "manual groups must coexist with generated suggestions and review state"
+  - path: src/frontend/src/pages/CommunicationMap.tsx
+    reason: "candidate review and evidence state must be exposed"
+  - path: src/frontend/src/pages/Portfolio.tsx
+    reason: "generated suggestions and stale-review state must be exposed"
+copy_as_is:
+  - src/backend/AssessmentToolkit.Api/Middleware/AgentHmacAuthMiddleware.cs
+  - src/backend/AssessmentToolkit.Api/Middleware/GovernanceMiddleware.cs
+legacy_allowed_to_remain:
+  - "Existing graph batch-save contract during compatibility phase"
+  - "Existing portfolio CRUD contract during compatibility phase"
+defer_cleanup:
+  - "Remove compatibility endpoints only after the portal and stored manual records are migrated."
+full_rewrite_reason: null
+implementation_rule: >
+  Add versioned feature slices around current contracts. Preserve current user data and agent
+  submission behavior; do not infer implementation scope from all architecture source anchors.

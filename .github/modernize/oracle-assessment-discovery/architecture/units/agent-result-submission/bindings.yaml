@@ -1,0 +1,4 @@
+unit: agent-result-submission
+bindings:
+  - { type: route-declaration, name: "POST results", source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80", target: "SubmitResults", must_appear_in_target: true, notes: "protected by agent HMAC middleware" }
+runtime_config: []

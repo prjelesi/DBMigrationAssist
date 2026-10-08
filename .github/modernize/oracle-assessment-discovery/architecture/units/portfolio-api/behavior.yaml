@@ -1,0 +1,8 @@
+unit: portfolio-api
+side_effects:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:48", effect: "creates manual database grouping", must_preserve: true }
+branches:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:51", condition: "name blank", behavior: "reject request", must_preserve: true }
+error_paths:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:96", trigger: "portfolio missing", outcome: "not found", contract: "HTTP 404", must_preserve: true }
+concurrency: { model: async, tx_boundary: { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:48", scope: "single portfolio mutation", isolation: "database default", must_preserve: true } }

@@ -1,0 +1,7 @@
+unit: oracle-collector
+commit: false
+candidate_splits:
+  - id: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:32-610"
+    drivers: [concern_split]
+    rationale: "Collection, contract serialization and section error handling can evolve at different rates."
+    source_slice: { file: src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs, lines: [32, 610] }

@@ -1,0 +1,4 @@
+unit: questionnaire-api
+bindings:
+  - { type: route-declaration, name: "/api/questionnaires", source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:11", target: "QuestionnairesController", must_appear_in_target: true, notes: "cookie auth and antiforgery on mutations" }
+runtime_config: []

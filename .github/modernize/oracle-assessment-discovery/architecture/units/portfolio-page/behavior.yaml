@@ -1,0 +1,8 @@
+unit: portfolio-page
+side_effects:
+  - { source_loc: "src/frontend/src/pages/Portfolio.tsx:1", effect: "loads and manages project portfolios", must_preserve: true }
+branches:
+  - { source_loc: "src/frontend/src/pages/Portfolio.tsx:1", condition: "no selected project or portfolios", behavior: "renders an explicit empty state", must_preserve: true }
+error_paths:
+  - { source_loc: "src/frontend/src/pages/Portfolio.tsx:1", trigger: "portfolio mutation failure", outcome: "visible portal error", contract: "user-visible error state", must_preserve: true }
+concurrency: { model: event-loop, tx_boundary: { source_loc: "src/frontend/src/pages/Portfolio.tsx:1", scope: "none; API owns persistence", isolation: "none", must_preserve: false } }

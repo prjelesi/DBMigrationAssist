@@ -1,0 +1,7 @@
+unit: agent-result-submission
+commit: false
+candidate_splits:
+  - id: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80"
+    drivers: [concern_split]
+    rationale: "Validated persistence and post-persistence evidence-baseline processing have distinct failure contracts."
+    source_slice: { file: src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs, lines: [80, 149] }

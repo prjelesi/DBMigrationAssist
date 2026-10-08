@@ -1,0 +1,10 @@
+unit: oracle-collector
+side_effects:
+  - { source_loc: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:32", effect: "connects read-only and produces versioned Oracle findings", must_preserve: true }
+branches:
+  - { source_loc: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:40", condition: "connection or section query fails", behavior: "connection fails explicitly; section failures are retained as gaps", must_preserve: true }
+error_paths:
+  - { source_loc: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:40", trigger: "Oracle connection failure", outcome: "unsuccessful plugin result", contract: "PluginResult failure", must_preserve: true }
+concurrency:
+  model: async
+  tx_boundary: { source_loc: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:32", scope: "none; read-only queries", isolation: "Oracle session default", must_preserve: false }

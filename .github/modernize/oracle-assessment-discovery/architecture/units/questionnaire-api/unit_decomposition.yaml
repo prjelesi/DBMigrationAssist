@@ -1,0 +1,7 @@
+unit: questionnaire-api
+commit: false
+candidate_splits:
+  - id: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:96-370"
+    drivers: [concern_split]
+    rationale: "Response lifecycle and evidence-completeness interpretation are separate concerns."
+    source_slice: { file: src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs, lines: [96, 370] }

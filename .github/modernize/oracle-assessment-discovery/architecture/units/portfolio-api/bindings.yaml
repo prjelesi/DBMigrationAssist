@@ -1,0 +1,4 @@
+unit: portfolio-api
+bindings:
+  - { type: route-declaration, name: "/api/portfolios", source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:9", target: "PortfolioController", must_appear_in_target: true, notes: "portal-authenticated API" }
+runtime_config: []

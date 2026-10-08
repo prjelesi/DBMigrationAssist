@@ -1,0 +1,7 @@
+unit: report-generation-api
+commit: false
+candidate_splits:
+  - id: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294-655"
+    drivers: [concern_split, lifecycle_split]
+    rationale: "Deterministic target assessment and probabilistic narrative generation require separate lifecycle controls."
+    source_slice: { file: src/backend/AssessmentToolkit.Api/Controllers/AiController.cs, lines: [294, 655] }

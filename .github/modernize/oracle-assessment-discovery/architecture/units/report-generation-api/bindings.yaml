@@ -1,0 +1,5 @@
+unit: report-generation-api
+bindings:
+  - { type: route-declaration, name: "POST /api/ai/generate-report", source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294", target: "GenerateReport", must_appear_in_target: true, notes: "uses configured AI provider" }
+runtime_config:
+  - { key: "ReportGeneration:InstructionsPath", source_loc: "src/backend/AssessmentToolkit.Api/Program.cs:75", source: env, default_value: "", must_appear_in_target: true, notes: "external report policy" }

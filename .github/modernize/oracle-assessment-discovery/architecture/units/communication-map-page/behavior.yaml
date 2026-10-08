@@ -1,0 +1,8 @@
+unit: communication-map-page
+side_effects:
+  - { source_loc: "src/frontend/src/pages/CommunicationMap.tsx:1", effect: "loads, edits and saves project communication edges", must_preserve: true }
+branches:
+  - { source_loc: "src/frontend/src/pages/CommunicationMap.tsx:1", condition: "no selected project or no edges", behavior: "renders an explicit empty state", must_preserve: true }
+error_paths:
+  - { source_loc: "src/frontend/src/pages/CommunicationMap.tsx:1", trigger: "graph load/save failure", outcome: "visible portal error", contract: "user-visible error state", must_preserve: true }
+concurrency: { model: event-loop, tx_boundary: { source_loc: "src/frontend/src/pages/CommunicationMap.tsx:1", scope: "none; API owns transaction", isolation: "none", must_preserve: false } }

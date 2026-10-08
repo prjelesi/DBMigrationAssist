@@ -1,0 +1,8 @@
+unit: agent-result-submission
+side_effects:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80", effect: "validates and persists one result for the assigned job", must_preserve: true }
+branches:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80", condition: "agent/job mismatch or duplicate result", behavior: "reject invalid submission", must_preserve: true }
+error_paths:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80", trigger: "invalid signed payload", outcome: "HTTP error without result persistence", contract: "4xx", must_preserve: true }
+concurrency: { model: async, tx_boundary: { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80", scope: "result and job state persistence", isolation: "database default", must_preserve: true } }

@@ -1,0 +1,7 @@
+unit: portfolio-api
+commit: false
+candidate_splits:
+  - id: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:14-104"
+    drivers: [lifecycle_split]
+    rationale: "Generated suggestions and accepted planner-owned portfolios require distinct lifecycle semantics."
+    source_slice: { file: src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs, lines: [14, 104] }

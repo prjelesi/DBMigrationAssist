@@ -1,0 +1,36 @@
+modules:
+  - name: assessment-db-context
+    kind: store
+    source_loc: "src/backend/AssessmentToolkit.Data/AssessmentDbContext.cs:6"
+    used_by_units: [agent-result-submission, questionnaire-api, report-generation-api, graph-api, portfolio-api]
+    fields:
+      - { name: Results, type: "DbSet<AssessmentResult>" }
+      - { name: Jobs, type: "DbSet<AssessmentJob>" }
+      - { name: Databases, type: "DbSet<DatabaseInstance>" }
+      - { name: UploadedReports, type: "DbSet<UploadedReport>" }
+      - { name: QuestionnaireTemplates, type: "DbSet<QuestionnaireTemplate>" }
+      - { name: QuestionnaireResponses, type: "DbSet<QuestionnaireResponse>" }
+      - { name: Answers, type: "DbSet<Answer>" }
+      - { name: GraphEdges, type: "DbSet<GraphEdge>" }
+      - { name: Portfolios, type: "DbSet<Portfolio>" }
+      - { name: EvidenceBundles, type: "DbSet<EvidenceBundle>" }
+      - { name: GeneratedReports, type: "DbSet<GeneratedReport>" }
+    god_class: false
+    split_candidate: false
+    migration_strategy: extract
+    notes: "Single EF Core unit of work; new feature entities must share project and database scope."
+  - name: frontend-api-client
+    kind: utility
+    source_loc: "src/frontend/src/lib/api.ts:1"
+    used_by_units: [communication-map-page, portfolio-page]
+    fields:
+      - { name: getGraphEdges, type: "async function" }
+      - { name: saveGraphEdges, type: "async function" }
+      - { name: getPortfolios, type: "async function" }
+      - { name: createPortfolio, type: "async function" }
+      - { name: updatePortfolio, type: "async function" }
+      - { name: deletePortfolio, type: "async function" }
+    god_class: true
+    split_candidate: true
+    migration_strategy: split
+    notes: "Large cross-domain client; discovery and assessment contracts should use cohesive exported groups."

@@ -1,0 +1,7 @@
+unit: graph-api
+commit: false
+candidate_splits:
+  - id: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:14-106"
+    drivers: [lifecycle_split]
+    rationale: "Discovery candidate lifecycle and authoritative graph lifecycle require different state transitions."
+    source_slice: { file: src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs, lines: [14, 106] }

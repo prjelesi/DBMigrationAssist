@@ -1,0 +1,7 @@
+unit: portfolio-page
+commit: false
+candidate_splits:
+  - id: "src/frontend/src/pages/Portfolio.tsx:1"
+    drivers: [concern_split]
+    rationale: "Suggestion review and accepted portfolio management have different user actions and refresh behavior."
+    source_slice: { file: src/frontend/src/pages/Portfolio.tsx, lines: [1, 1] }

@@ -1,0 +1,31 @@
+seams:
+  - id: src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:32
+    description: "Evolve Oracle evidence while preserving existing agent submission compatibility."
+    source: inferred
+    cut_between: { migrated_side: agent-result-submission, frozen_side: oracle-collector }
+    protocol_shift: null
+    frozen_side_rule: "Existing Oracle collector result submission MUST remain accepted while versioned baseline parsing is introduced."
+    bridge_points:
+      - at: "Oracle finding JSON ingestion"
+        from_form: "collection_contract_version=2.0 JSON dictionary"
+        to_form: "version-selected evidence baseline parser"
+        mapping_rule: "Select the 2.0 parser from collection_contract_version; retain original JSON; map absent sections to explicit evidence gaps."
+        edge_cases: ["missing version", "invalid JSON", "unknown future version"]
+        idempotency_retry: "Result identity remains the idempotency boundary."
+        fallback: "Reject unsupported contract versions explicitly; never coerce to a successful empty assessment."
+        must_preserve: true
+  - id: src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:46
+    description: "Introduce candidate review without losing manually authored graph edges."
+    source: inferred
+    cut_between: { migrated_side: graph-api, frozen_side: communication-map-page }
+    protocol_shift: null
+    frozen_side_rule: "The current canvas load/save behavior MUST remain functional until the portal adopts candidate review endpoints."
+    bridge_points:
+      - at: "legacy graph batch save"
+        from_form: "full authoritative canvas edge list"
+        to_form: "manual asserted candidates plus accepted authoritative edges"
+        mapping_rule: "Preserve existing edge IDs and values; classify newly manual edges as asserted and reviewed; never convert omission into deletion of discovered history."
+        edge_cases: ["legacy edge without provenance", "deleted canvas edge", "duplicate discovered candidate"]
+        idempotency_retry: "Edge ID and project scope provide idempotent upsert behavior."
+        fallback: "Keep the legacy edge authoritative and flag provenance for later review."
+        must_preserve: true

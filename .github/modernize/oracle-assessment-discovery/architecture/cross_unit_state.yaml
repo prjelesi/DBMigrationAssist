@@ -1,0 +1,31 @@
+flows:
+  - name: oracle-findings-to-report
+    medium: database
+    key: assessment.assessment_result.FindingJson
+    writer: { unit: agent-result-submission, source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs:80" }
+    reader: { unit: report-generation-api, source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294" }
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Submit an Oracle result and verify the exact stored evidence reaches the generated bundle."
+    notes: "Versioned JSON is the current cross-process Oracle evidence contract."
+  - name: questionnaire-to-report
+    medium: database
+    key: questionnaire.response-and-answer
+    writer: { unit: questionnaire-api, source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:264" }
+    reader: { unit: report-generation-api, source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294" }
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Save database-scoped answers and verify evidence bundle attribution."
+    notes: "Database scope and question identity must remain intact."
+  - name: authoritative-graph-to-portfolio
+    medium: database
+    key: graph.graph_edge
+    writer: { unit: graph-api, source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:46" }
+    reader: { unit: portfolio-api, source_loc: "src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs:14" }
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Accept an edge and verify refreshed portfolio suggestions include it."
+    notes: "Current portfolio API does not consume edges; feature implementation introduces this read."

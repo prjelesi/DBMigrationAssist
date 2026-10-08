@@ -1,0 +1,9 @@
+unit: questionnaire-api
+side_effects:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:125", effect: "creates database- or project-scoped response", must_preserve: true }
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:264", effect: "saves typed answers", must_preserve: true }
+branches:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:300", condition: "required answer missing", behavior: "submission rejected with validation", must_preserve: true }
+error_paths:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:300", trigger: "incomplete response", outcome: "validation error and draft retained", contract: "HTTP 400", must_preserve: true }
+concurrency: { model: async, tx_boundary: { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs:264", scope: "answer upsert", isolation: "database default", must_preserve: true } }

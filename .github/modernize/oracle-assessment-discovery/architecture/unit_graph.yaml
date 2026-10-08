@@ -1,0 +1,101 @@
+units:
+  - name: oracle-collector
+    trigger: job
+    trigger_detail: "Agent job selects pluginId=oracle and invokes RunAsync"
+    source_anchors:
+      - path: src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs
+        line: 27
+    exported_signature:
+      - method: "Task<PluginResult> OraclePlugin.RunAsync(PluginContext, CancellationToken)"
+        source_loc: "src/agent/AssessmentToolkit.Agent/Plugins/OraclePlugin.cs:32"
+        stability: must_preserve
+    dynamic_entrypoints:
+      - target: "AssessmentToolkit.Agent.Plugins.OraclePlugin"
+        mechanism: di
+        source_loc: "src/agent/AssessmentToolkit.Agent/Program.cs:23"
+    depends_on: []
+    shared_refs: []
+  - name: agent-result-submission
+    trigger: route
+    trigger_detail: "POST /api/agent/{agentId}/results"
+    source_anchors:
+      - path: src/backend/AssessmentToolkit.Api/Controllers/AgentJobsController.cs
+        line: 80
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs:
+      - module: assessment-db-context
+        used_fields: [Results, Jobs, Databases]
+  - name: questionnaire-api
+    trigger: route
+    trigger_detail: "REST /api/questionnaires/templates and /api/questionnaires/responses"
+    source_anchors:
+      - path: src/backend/AssessmentToolkit.Api/Controllers/QuestionnairesController.cs
+        line: 11
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs:
+      - module: assessment-db-context
+        used_fields: [QuestionnaireTemplates, QuestionnaireResponses, Answers, Databases]
+  - name: report-generation-api
+    trigger: route
+    trigger_detail: "POST /api/ai/generate-report and report lifecycle routes"
+    source_anchors:
+      - path: src/backend/AssessmentToolkit.Api/Controllers/AiController.cs
+        line: 294
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [ { unit: questionnaire-api, via: "persisted questionnaire evidence" } ]
+    shared_refs:
+      - module: assessment-db-context
+        used_fields: [Results, UploadedReports, QuestionnaireResponses, GraphEdges, Portfolios, EvidenceBundles, GeneratedReports]
+  - name: graph-api
+    trigger: route
+    trigger_detail: "REST /api/graph/edges"
+    source_anchors:
+      - path: src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs
+        line: 9
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs:
+      - module: assessment-db-context
+        used_fields: [GraphEdges, Databases]
+  - name: portfolio-api
+    trigger: route
+    trigger_detail: "REST /api/portfolios"
+    source_anchors:
+      - path: src/backend/AssessmentToolkit.Api/Controllers/PortfolioController.cs
+        line: 9
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [ { unit: graph-api, via: "database IDs and accepted graph relationships" } ]
+    shared_refs:
+      - module: assessment-db-context
+        used_fields: [Portfolios, GraphEdges, Databases]
+  - name: communication-map-page
+    trigger: page
+    trigger_detail: "Portal route /communication-map"
+    source_anchors:
+      - path: src/frontend/src/pages/CommunicationMap.tsx
+        line: 1
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [ { unit: graph-api, via: "Axios graph endpoints" } ]
+    shared_refs:
+      - module: frontend-api-client
+        used_fields: [getGraphEdges, saveGraphEdges]
+  - name: portfolio-page
+    trigger: page
+    trigger_detail: "Portal route /portfolio"
+    source_anchors:
+      - path: src/frontend/src/pages/Portfolio.tsx
+        line: 1
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on: [ { unit: portfolio-api, via: "Axios portfolio endpoints" } ]
+    shared_refs:
+      - module: frontend-api-client
+        used_fields: [getPortfolios, createPortfolio, updatePortfolio, deletePortfolio]

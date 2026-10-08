@@ -1,0 +1,8 @@
+unit: report-generation-api
+side_effects:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294", effect: "persists hashed evidence bundle and generated report", must_preserve: true }
+branches:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294", condition: "AI unavailable or generated contract invalid", behavior: "generation fails explicitly", must_preserve: true }
+error_paths:
+  - { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294", trigger: "invalid generated report", outcome: "no success-shaped report", contract: "HTTP error", must_preserve: true }
+concurrency: { model: async, tx_boundary: { source_loc: "src/backend/AssessmentToolkit.Api/Controllers/AiController.cs:294", scope: "bundle and report persistence", isolation: "database default", must_preserve: true } }

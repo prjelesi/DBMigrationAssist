@@ -1,0 +1,4 @@
+unit: communication-map-page
+bindings:
+  - { type: route-declaration, name: "/communication-map", source_loc: "src/frontend/src/App.tsx:47", target: "CommunicationMap", must_appear_in_target: true, notes: "lazy-loaded portal page" }
+runtime_config: []

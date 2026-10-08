@@ -1,0 +1,69 @@
+metadata:
+  generated: "2026-10-06"
+  source_plan: ".github/modernize/oracle-assessment-discovery/plan.md"
+  target_tasks: ".github/modernize/oracle-assessment-discovery/plan.md#task-breakdown"
+summary:
+  total_plan_items: 27
+  covered_plan_items: 27
+  missing_plan_items: 0
+  coverage_percentage: 100.0
+  total_tasks_generated: 60
+  orphan_tasks: 0
+phases:
+  - phase_id: Phase-1
+    items:
+      - { item_id: "1.1", tasks: [T001, T004, T005] }
+      - { item_id: "1.2", tasks: [T007, T008, T009, T010, T015] }
+      - { item_id: "1.3", tasks: [T011, T024] }
+  - phase_id: Phase-2
+    items:
+      - { item_id: "2.1", tasks: [T012] }
+      - { item_id: "2.2", tasks: [T010, T013, T014] }
+  - phase_id: Phase-3
+    items:
+      - { item_id: "3.1", tasks: [T016, T017] }
+      - { item_id: "3.2", tasks: [T018] }
+  - phase_id: Phase-4
+    items:
+      - { item_id: "4.1", tasks: [T019] }
+      - { item_id: "4.2", tasks: [T020] }
+  - phase_id: Phase-5
+    items:
+      - { item_id: "5.1", tasks: [T021] }
+      - { item_id: "5.2", tasks: [T022] }
+      - { item_id: "5.3", tasks: [T023, T024] }
+  - phase_id: Phase-6
+    items:
+      - { item_id: "6.1", tasks: [T002, T004, T005] }
+      - { item_id: "6.2", tasks: [T025, T026, T029] }
+      - { item_id: "6.3", tasks: [T027, T028, T029] }
+  - phase_id: Phase-7
+    items:
+      - { item_id: "7.1", tasks: [T030, T032] }
+      - { item_id: "7.2", tasks: [T006, T032] }
+      - { item_id: "7.3", tasks: [T033, T034, T035] }
+  - phase_id: Phase-8
+    items:
+      - { item_id: "8.1", tasks: [T036, T037] }
+      - { item_id: "8.2", tasks: [T003, T004, T005, T038, T039] }
+      - { item_id: "8.3", tasks: [T006, T040, T041] }
+  - phase_id: Phase-9
+    items:
+      - { item_id: "9.1", tasks: [T031, T039, T042] }
+      - { item_id: "9.2", tasks: [T043, T044, T045, T046, T047] }
+      - { item_id: "9.3", tasks: [T048, T049, T050] }
+  - phase_id: Phase-10
+    items:
+      - { item_id: "10.1", tasks: [T051, T052, T053, T054, T055, T058] }
+      - { item_id: "10.2", tasks: [T056, T057, T058] }
+      - { item_id: "10.3", tasks: [T059, T060] }
+missing_plan_items: []
+orphan_tasks: []
+upstream_trace:
+  - { plan_item: "1.1", source_requirements: [REQ-001, REQ-002, REQ-003, REQ-005, REQ-017, REQ-019, REQ-021, REQ-036, REQ-040], tasks: [T001, T004, T005] }
+  - { plan_item: "6.2", source_requirements: [REQ-022, REQ-023, REQ-024, REQ-025], tasks: [T025, T026, T029] }
+  - { plan_item: "9.3", source_requirements: [REQ-019, REQ-021, REQ-038, REQ-039, REQ-040], tasks: [T048, T049, T050] }
+validation:
+  passed: true
+  errors: []
+  warnings: []

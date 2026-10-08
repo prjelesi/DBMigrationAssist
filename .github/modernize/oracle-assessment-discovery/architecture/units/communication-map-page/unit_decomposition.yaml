@@ -1,0 +1,7 @@
+unit: communication-map-page
+commit: false
+candidate_splits:
+  - id: "src/frontend/src/pages/CommunicationMap.tsx:1"
+    drivers: [concern_split]
+    rationale: "Candidate review queue and authoritative graph canvas are independently testable user journeys."
+    source_slice: { file: src/frontend/src/pages/CommunicationMap.tsx, lines: [1, 1] }

@@ -1,0 +1,4 @@
+unit: graph-api
+bindings:
+  - { type: route-declaration, name: "/api/graph", source_loc: "src/backend/AssessmentToolkit.Api/Controllers/GraphController.cs:9", target: "GraphController", must_appear_in_target: true, notes: "portal-authenticated API" }
+runtime_config: []
