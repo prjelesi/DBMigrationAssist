@@ -48,3 +48,8 @@ Thumbs.db
 
 # Local reference files
 /FIles/
+
+# Private deployment records and runtime-validation output
+/.azure/
+/infra/main.parameters.local.json
+**/.tsupgrader/
