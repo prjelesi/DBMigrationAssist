@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AssessmentToolkit.Api.Services;
+using AssessmentToolkit.Core.Enums;
 using Xunit;
 
 namespace AssessmentToolkit.Api.Tests;
@@ -99,9 +100,147 @@ public class GeneratedReportContractTests
         AssertInvalid(ValidReport.Replace(validValue, invalidValue));
     }
 
-    private static void AssertInvalid(string output)
+    [Fact]
+    public void NormalizeAndValidate_AllRequiredTargetsPresent_Succeeds()
     {
-        var exception = Record.Exception(() => GeneratedReportContract.NormalizeAndValidate(output));
+        var report = ReportWithTargets(BuildTargets());
+
+        var normalized = GeneratedReportContract.NormalizeAndValidate(report, OracleTargets);
+
+        using var document = JsonDocument.Parse(normalized);
+        var targets = document.RootElement.GetProperty("targetAssessment");
+        Assert.Equal(OracleTargets.Count, targets.GetArrayLength());
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_TargetAssessmentMissing_Rejects()
+    {
+        AssertInvalid(ValidReport, OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_RequiredTargetMissing_Rejects()
+    {
+        var targets = BuildTargets();
+        targets.RemoveAt(targets.Count - 1);
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_DuplicateTarget_Rejects()
+    {
+        var targets = BuildTargets();
+        targets[^1]!["target"] = MigrationTargetCatalog.OracleDatabaseAtAzure;
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_UnknownTarget_Rejects()
+    {
+        var targets = BuildTargets();
+        targets.Add(TargetNode("Google Cloud SQL", "Viable"));
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_NoRecommendedTarget_Rejects()
+    {
+        var targets = BuildTargets();
+        foreach (var target in targets)
+            target!["verdict"] = "Viable";
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_MultipleRecommendedTargets_Rejects()
+    {
+        var targets = BuildTargets();
+        targets[0]!["verdict"] = "Recommended";
+        targets[1]!["verdict"] = "Recommended";
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_InvalidTargetVerdict_Rejects()
+    {
+        var targets = BuildTargets();
+        targets[0]!["verdict"] = "Maybe";
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_TargetMissingField_Rejects()
+    {
+        var targets = BuildTargets();
+        targets[0]!.AsObject().Remove("evidenceGaps");
+
+        AssertInvalid(ReportWithTargets(targets), OracleTargets);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_NoRequiredTargets_IgnoresTargetAssessment()
+    {
+        var normalized = GeneratedReportContract.NormalizeAndValidate(ValidReport, []);
+
+        using var document = JsonDocument.Parse(normalized);
+        Assert.False(document.RootElement.TryGetProperty("targetAssessment", out _));
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_NoRequiredTargets_StillAcceptsIncompleteTargetAssessment()
+    {
+        var targets = BuildTargets();
+        targets.RemoveAt(0);
+        foreach (var target in targets)
+            target!["verdict"] = "Viable";
+
+        var normalized = GeneratedReportContract.NormalizeAndValidate(ReportWithTargets(targets), null);
+
+        using var document = JsonDocument.Parse(normalized);
+        Assert.Equal(targets.Count, document.RootElement.GetProperty("targetAssessment").GetArrayLength());
+    }
+
+    private static IReadOnlyList<string> OracleTargets => MigrationTargetCatalog.ForEngine(EngineType.Oracle);
+
+    private static JsonArray BuildTargets()
+    {
+        var targets = new JsonArray();
+        foreach (var target in OracleTargets)
+        {
+            var verdict = target == MigrationTargetCatalog.OracleDatabaseAtAzure ? "Recommended" : "Viable";
+            targets.Add(TargetNode(target, verdict));
+        }
+
+        return targets;
+    }
+
+    private static JsonObject TargetNode(string target, string verdict) => new()
+    {
+        ["target"] = target,
+        ["verdict"] = verdict,
+        ["fitSummary"] = "Assessed against collected evidence.",
+        ["blockers"] = new JsonArray(),
+        ["remediation"] = new JsonArray(),
+        ["evidenceGaps"] = new JsonArray(),
+        ["confidence"] = "Medium"
+    };
+
+    private static string ReportWithTargets(JsonArray targets)
+    {
+        var report = JsonNode.Parse(ValidReport)!.AsObject();
+        report["targetAssessment"] = targets;
+        return report.ToJsonString();
+    }
+
+    private static void AssertInvalid(string output, IReadOnlyList<string>? requiredTargets = null)
+    {
+        var exception = Record.Exception(() => GeneratedReportContract.NormalizeAndValidate(output, requiredTargets));
 
         Assert.True(exception is JsonException or ReportContractException,
             $"Expected a JSON or report contract exception, but received {exception?.GetType().Name ?? "no exception"}.");

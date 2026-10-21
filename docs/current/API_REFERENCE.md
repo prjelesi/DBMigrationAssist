@@ -50,6 +50,9 @@ There are no endpoints for password reset, user deletion, platform-role changes 
 Project visibility is membership-filtered for standard users and platform-wide for administrators.
 Project deletion is restricted to project owners and administrators. It permanently deletes the project's inventory, assessments, questionnaires, evidence, reports, agents, environments and memberships.
 
+Environment responses expose scalar environment fields without parent-project navigation objects.
+The environment detail endpoint also includes scalar database details without back-references.
+
 ## Database inventory and offline assessment
 
 | Method | Route | Behavior |
@@ -100,7 +103,7 @@ These routes are anonymous to the portal cookie scheme but are protected by `Age
 | `POST` | `/api/questionnaires/responses` | Start or resume a response. `databaseId` is optional and must belong to `projectId`. |
 | `GET` | `/api/questionnaires/responses/{id}` | Get a response and answers. |
 | `GET` | `/api/questionnaires/responses/{id}/attachments` | List response/question attachments. |
-| `PUT` | `/api/questionnaires/responses/{id}/answers` | Save answers. |
+| `PUT` | `/api/questionnaires/responses/{id}/answers` | Insert new answers or update existing answers by question ID; submitted responses cannot be edited. |
 | `POST` | `/api/questionnaires/responses/{id}/submit` | Validate required answers and submit. |
 
 Each project can have one project-wide response per template and one response per template for each database. Project reports use project-wide responses; database reports use project-wide responses plus responses scoped to that database.
