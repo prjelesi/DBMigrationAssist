@@ -23,7 +23,7 @@
     <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.14" />
     <PackageReference Include="Microsoft.Build.Tasks.Git" Version="10.0.111" PrivateAssets="all" IncludeAssets="build;buildtransitive" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.5" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="NPOI" Version="2.8.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
