@@ -2,8 +2,13 @@
 param(
     [ValidateSet('Validate', 'WhatIf', 'Deploy', 'DeployPhase2', 'ReleaseImages')]
     [string]$Mode = 'Validate',
-    [string]$SubscriptionId = '7ee7fa4f-8359-4fb9-ac34-361728102038',
-    [string]$TenantId = '53fa074c-6e61-4c96-b167-fd879039b24e',
+    [string]$SubscriptionId = $env:AZURE_SUBSCRIPTION_ID,
+    [string]$TenantId = $env:AZURE_TENANT_ID,
+    [string]$ParametersFile = $(if (Test-Path (Join-Path $PSScriptRoot 'main.parameters.local.json')) {
+        Join-Path $PSScriptRoot 'main.parameters.local.json'
+    } else {
+        Join-Path $PSScriptRoot 'main.parameters.json'
+    }),
     [string]$Location = 'swedencentral',
     [string]$AppAdminEmail = $env:APP_ADMIN_EMAIL,
     [string]$AppAdminDisplayName = $(if ($env:APP_ADMIN_DISPLAY_NAME) { $env:APP_ADMIN_DISPLAY_NAME } else { 'Administrator' }),
@@ -18,11 +23,22 @@ $ProgressPreference = 'SilentlyContinue'
 $infraRoot = $PSScriptRoot
 $workspaceRoot = Split-Path -Parent $infraRoot
 $templateFile = Join-Path $infraRoot 'main.bicep'
-$parametersFile = Join-Path $infraRoot 'main.parameters.json'
-$resourceGroupName = 'rg-dbmigratio-dev-1fa1'
-$containerRegistryName = 'crdbmigratiodev1fa1'
-$keyVaultName = 'kv-dbmigratio-dev-1fa1'
-$sessionTag = '1fa1'
+$parametersFile = (Resolve-Path -LiteralPath $ParametersFile).Path
+if ([string]::IsNullOrWhiteSpace($SubscriptionId) -or [string]::IsNullOrWhiteSpace($TenantId)) {
+    throw 'Set AZURE_SUBSCRIPTION_ID and AZURE_TENANT_ID, or pass -SubscriptionId and -TenantId explicitly.'
+}
+$deploymentParameters = Get-Content -LiteralPath $parametersFile -Raw | ConvertFrom-Json
+$resourceNameSuffix = [string]$deploymentParameters.parameters.environmentName.value
+if ($deploymentParameters.parameters.PSObject.Properties['resourceNameSuffix']) {
+    $resourceNameSuffix = [string]$deploymentParameters.parameters.resourceNameSuffix.value
+}
+if ($resourceNameSuffix -cnotmatch '^[a-z0-9][a-z0-9-]{1,18}[a-z0-9]$') {
+    throw 'The resource name suffix must be 3-20 lowercase letters, digits, or hyphens, and start and end with a letter or digit.'
+}
+$resourceGroupName = "rg-$resourceNameSuffix"
+$containerRegistryName = "cr$($resourceNameSuffix.Replace('-', ''))"
+$keyVaultName = "kv-$resourceNameSuffix"
+$sessionTag = $resourceNameSuffix
 $placeholderImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 function Assert-Command {
@@ -248,10 +264,10 @@ function Update-ContainerAppImages {
     )
 
     $apps = @(
-        @{ Name = 'ca-api-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-api'] },
-        @{ Name = 'ca-worker-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-worker'] },
-        @{ Name = 'ca-agent-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-discovery-agent'] },
-        @{ Name = 'ca-web-dbmigratio-dev-1fa1'; Image = $Images['dbmigrationready-frontend'] }
+        @{ Name = "ca-api-$resourceNameSuffix"; Image = $Images['dbmigrationready-api'] },
+        @{ Name = "ca-worker-$resourceNameSuffix"; Image = $Images['dbmigrationready-worker'] },
+        @{ Name = "ca-agent-$resourceNameSuffix"; Image = $Images['dbmigrationready-discovery-agent'] },
+        @{ Name = "ca-web-$resourceNameSuffix"; Image = $Images['dbmigrationready-frontend'] }
     )
 
     foreach ($app in $apps) {
@@ -325,11 +341,11 @@ if ($Mode -eq 'ReleaseImages') {
     $states = Update-ContainerAppImages -Images $images
 
     $apiFqdn = Invoke-AzText -Arguments @(
-        'containerapp', 'show', '--name', 'ca-api-dbmigratio-dev-1fa1',
+        'containerapp', 'show', '--name', "ca-api-$resourceNameSuffix",
         '--resource-group', $resourceGroupName, '--query', 'properties.configuration.ingress.fqdn'
     )
     $frontendFqdn = Invoke-AzText -Arguments @(
-        'containerapp', 'show', '--name', 'ca-web-dbmigratio-dev-1fa1',
+        'containerapp', 'show', '--name', "ca-web-$resourceNameSuffix",
         '--resource-group', $resourceGroupName, '--query', 'properties.configuration.ingress.fqdn'
     )
     $apiUrl = "https://$apiFqdn/health"

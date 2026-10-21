@@ -74,19 +74,19 @@ The demo URLs are:
 - Local portal: `http://localhost:3000`
 - Local API: `http://localhost:5000`
 - Local Swagger in Development mode: `http://localhost:5000/swagger`
-- Azure portal: `https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
+- Azure portal: discover your deployment's frontend URL using the command below.
 
 Confirm the current frontend address and immutable image tags before presenting rather than assuming the Container Apps environment DNS suffix or relying on the mutable `latest` alias:
 
 ```powershell
 $fqdn = az containerapp show `
-    --resource-group rg-dbmigratio-dev-1fa1 `
-    --name ca-web-dbmigratio-dev-1fa1 `
+    --resource-group '<your-resource-group>' `
+    --name '<your-frontend-container-app>' `
     --query properties.configuration.ingress.fqdn -o tsv
 "https://$fqdn"
 
 az containerapp list `
-    --resource-group rg-dbmigratio-dev-1fa1 `
+    --resource-group '<your-resource-group>' `
     --query "[].{name:name,image:properties.template.containers[0].image,status:properties.runningStatus}" `
     --output table
 ```

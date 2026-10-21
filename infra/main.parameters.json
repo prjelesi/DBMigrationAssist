@@ -2,11 +2,11 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "environmentName": { "value": "dbmigratio-dev-1fa1" },
+    "environmentName": { "value": "dbmigration-dev" },
     "location": { "value": "swedencentral" },
-    "sessionId": { "value": "1fa184f2-7e46-48d3-96eb-b2508fe2bc0d" },
-    "deployedBy": { "value": "System Administrator" },
-    "createdAt": { "value": "2026-08-18T16:05:02.3977206+02:00" },
+    "sessionId": { "value": "example-deployment" },
+    "deployedBy": { "value": "your-name" },
+    "createdAt": { "value": "set-before-deployment" },
     "deployerObjectId": { "value": "" }
   }
 }

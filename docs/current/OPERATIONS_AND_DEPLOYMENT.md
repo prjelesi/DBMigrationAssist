@@ -66,7 +66,7 @@ Restore/install dependencies once when needed:
 ```powershell
 dotnet restore .\src\AssessmentToolkit.sln
 Push-Location .\src\frontend
-npm install
+npm ci
 Pop-Location
 ```
 
@@ -221,22 +221,26 @@ This mode builds and smoke-runs the local API, worker, frontend, and discovery a
 
 Container Apps intentionally run the immutable tag. The `latest` tag is available for discovery and manual use, but pushing a new image to an existing mutable tag does not by itself create a Container Apps revision. Always use `ReleaseImages` to activate a release. Use the regular Bicep deployment workflow only when infrastructure or application configuration changes.
 
-### Current development deployment
+### Deployment-specific configuration
 
-The development application release was last verified on 2026-09-02 with immutable image tag `20260902082359`.
-The image-only release updated all four Container Apps and returned HTTP 200 from the portal and API health endpoint.
-The infrastructure and PostgreSQL Flexible Server were not redeployed by this release.
+Copy `infra/main.parameters.json` to the ignored `infra/main.parameters.local.json`
+and set deployment metadata for your environment. Set `AZURE_SUBSCRIPTION_ID` and
+`AZURE_TENANT_ID` explicitly, or pass the corresponding deployment script parameters.
+The script also accepts `-ParametersFile`. Keep existing resource name suffixes
+and the original `storageAccountName` when updating an existing deployment.
+Private generated `.azure` records and local parameter files are not publication
+artifacts.
 
 Discover the current endpoints from Azure:
 
 ```powershell
-$resourceGroup = 'rg-dbmigratio-dev-1fa1'
+$resourceGroup = '<your-resource-group>'
 az containerapp list --resource-group $resourceGroup `
 	--query "[].{name:name,fqdn:properties.configuration.ingress.fqdn,image:properties.template.containers[0].image}" `
 	--output table
 ```
 
-Current portal: `https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
+Use the frontend FQDN returned above rather than hard-coding an environment URL.
 
 ## Backup and recovery
 

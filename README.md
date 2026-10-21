@@ -4,6 +4,11 @@ A self-hosted portal for assessing database estates before migration to the clou
 
 **Project site:** https://prjelesi.github.io/DBMigrationAssist/
 
+Licensed under [MIT](LICENSE). See [contribution guidance](CONTRIBUTING.md),
+the [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
+The toolkit is community-maintained; production hardening and support remain the
+operator's responsibility.
+
 ---
 
 ## Table of contents
@@ -99,7 +104,7 @@ The [Banana Inc Oracle migration example](CustomerExample/README.md) provides an
 |------|---------|
 | Docker Desktop (or Docker Engine + Compose) | 24 + |
 | .NET SDK | 8.0 (build only) |
-| Node.js + npm | 20 + (build only) |
+| Node.js + npm | 24 LTS (build only) |
 | PowerShell | 7 + |
 
 > **Note:** The Docker images are built from pre-compiled output. You must run `build.ps1` on a machine with the SDKs before running `docker compose build`.
@@ -109,9 +114,13 @@ The [Banana Inc Oracle migration example](CustomerExample/README.md) provides an
 ## Quick start — local
 
 ```powershell
-# 1. Build all artifacts (requires .NET 8 SDK + Node 20)
-cd c:\github\DBMigrationAssist
+# 1. Restore dependencies and build (requires .NET 8 SDK + Node 24 LTS)
+git clone https://github.com/prjelesi/DBMigrationAssist.git
+Set-Location .\DBMigrationAssist
 dotnet restore src/AssessmentToolkit.sln
+Push-Location .\src\frontend
+npm ci
+Pop-Location
 .\build.ps1
 
 # 2. Create local configuration and set a strong development password
@@ -551,6 +560,11 @@ application regression coverage.
 The PostgreSQL smoke test creates an isolated customer, project, agent, and job; starts the real agent container; assesses the Compose PostgreSQL instance; and verifies that a finding containing `server_version` is persisted.
 
 ```powershell
+# Use the disposable Compose instance's configured credentials.
+$env:APP_ADMIN_EMAIL = 'admin@example.com'
+$env:APP_ADMIN_PASSWORD = Read-Host 'Local administrator password' -MaskInput
+$env:POSTGRES_PASSWORD = Read-Host 'Local PostgreSQL password' -MaskInput
+
 # Build current binaries and images, then run the test
 .\tests\AgentPostgresE2E.ps1 -BuildImages
 
@@ -761,13 +775,29 @@ The API provisions this account only when the application-user table is empty. P
 
 ## Azure deployment
 
-Production deployment uses Azure Container Apps via the Bicep template in `infra/main.bicep`.
+Azure deployment uses Azure Container Apps via the Bicep template in `infra/main.bicep`.
+Configure and review the target environment explicitly; the repository does not
+contain private deployment account identifiers.
+
+```powershell
+Copy-Item .\infra\main.parameters.json .\infra\main.parameters.local.json
+# Edit the ignored local file with your environment and deployment metadata.
+$env:AZURE_SUBSCRIPTION_ID = '<your-subscription-id>'
+$env:AZURE_TENANT_ID = '<your-tenant-id>'
+```
+
+The deployment script prefers the ignored local parameter file when it exists.
+Use `-ParametersFile` to select a different file. For an existing deployment,
+preserve its original `environmentName`/`resourceNameSuffix` and
+`storageAccountName`; changing resource names can create new resources.
 
 ### Parameters
 
 | Parameter | Description |
 |-----------|-------------|
 | `environmentName` | Environment tag value |
+| `resourceNameSuffix` | Resource naming suffix; defaults to `environmentName` |
+| `storageAccountName` | Optional storage name override; preserve it for existing deployments |
 | `location` | Azure region |
 | `sessionId`, `deployedBy`, `createdAt` | Deployment metadata tags |
 | `deployerObjectId` | Principal used by deployment role assignments |
@@ -809,16 +839,12 @@ For routine code releases to the existing Azure environment, build, publish, and
 
 This command builds and starts the local API, worker, frontend, and Discovery Agent containers; pushes each image to ACR with an immutable UTC timestamp tag and the `latest` alias; updates the existing Container Apps to the immutable tag; and verifies the API health and frontend endpoints. Container Apps remain pinned to immutable tags because pushing `latest` alone does not create a new revision. Use the regular deployment modes only for infrastructure or application-configuration changes.
 
-The current development portal is:
-
-`https://ca-web-dbmigratio-dev-1fa1.whitetree-ce541b55.swedencentral.azurecontainerapps.io`
-
 Retrieve the URL from Azure rather than assuming the environment DNS suffix:
 
 ```powershell
 $fqdn = az containerapp show `
-  --resource-group rg-dbmigratio-dev-1fa1 `
-  --name ca-web-dbmigratio-dev-1fa1 `
+  --resource-group '<your-resource-group>' `
+  --name '<your-frontend-container-app>' `
   --query properties.configuration.ingress.fqdn -o tsv
 "https://$fqdn"
 ```

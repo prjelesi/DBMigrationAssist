@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build, test, and audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - name: Restore .NET dependencies
+        run: dotnet restore src/AssessmentToolkit.sln
+      - name: Build and test .NET
+        run: dotnet test src/AssessmentToolkit.sln --configuration Release --no-restore
+      - name: Test deployment configuration without Azure access
+        shell: pwsh
+        run: ./tests/DeploymentConfiguration.Tests.ps1
+      - name: Audit transitive NuGet dependencies
+        shell: pwsh
+        run: |
+          $json = dotnet list src/AssessmentToolkit.sln package --vulnerable --include-transitive --format json
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet audit failed.' }
+          $audit = $json | ConvertFrom-Json
+          foreach ($project in $audit.projects) {
+            foreach ($framework in $project.frameworks) {
+              foreach ($package in @($framework.topLevelPackages) + @($framework.transitivePackages)) {
+                if ($package.vulnerabilities.Count -gt 0) {
+                  throw "Known vulnerability in $($package.id) $($package.resolvedVersion)."
+                }
+              }
+            }
+          }
+      - name: Restore frontend dependencies
+        working-directory: src/frontend
+        run: npm ci
+      - name: Audit frontend dependencies
+        working-directory: src/frontend
+        run: npm audit --audit-level=moderate
+      - name: Lint frontend
+        working-directory: src/frontend
+        run: npm run lint
+      - name: Test frontend
+        working-directory: src/frontend
+        run: npm test
+      - name: Build deployable artifacts
+        shell: pwsh
+        run: ./build.ps1
+      - name: Configure disposable smoke-test credentials
+        shell: pwsh
+        run: |
+          foreach ($name in 'POSTGRES_PASSWORD', 'APP_ADMIN_PASSWORD', 'WORKER_SERVICE_TOKEN') {
+            $value = 'Aa1-' + [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+            Write-Output "::add-mask::$value"
+            "$name=$value" >> $env:GITHUB_ENV
+          }
+          'APP_ADMIN_EMAIL=ci@example.com' >> $env:GITHUB_ENV
+          'COMPOSE_PROJECT_NAME=dbmigration-ci' >> $env:GITHUB_ENV
+      - name: Build container images
+        run: docker compose --profile agent build api worker frontend local-agent agent-dev
+      - name: Exercise PostgreSQL discovery agent
+        shell: pwsh
+        run: ./tests/AgentPostgresE2E.ps1
+      - name: Verify frontend responds
+        run: curl --fail --retry 15 --retry-delay 2 --retry-connrefused http://localhost:3000/
+      - name: Show container diagnostics on failure
+        if: failure()
+        run: docker compose logs --tail 100
+      - name: Stop disposable containers
+        if: always()
+        run: docker compose --profile agent down --volumes --remove-orphans
