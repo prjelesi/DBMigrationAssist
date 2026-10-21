@@ -3,6 +3,9 @@ param(
     [int]$TimeoutSeconds = 120,
     [switch]$BuildImages,
     [string]$AdminEmail = $env:APP_ADMIN_EMAIL,
+    [securestring]$PostgresPassword = $(if ($env:POSTGRES_PASSWORD) {
+        ConvertTo-SecureString $env:POSTGRES_PASSWORD -AsPlainText -Force
+    } else { $null }),
     [securestring]$AdminPassword = $(if ($env:APP_ADMIN_PASSWORD) {
         ConvertTo-SecureString $env:APP_ADMIN_PASSWORD -AsPlainText -Force
     } else { $null })
@@ -104,6 +107,10 @@ try {
     Wait-ForApi
     Connect-Portal
 
+    if ($null -eq $PostgresPassword) {
+        throw "Set POSTGRES_PASSWORD, or pass -PostgresPassword for the disposable database."
+    }
+
     Write-Host "Creating isolated test project $runId..."
     $customer = Invoke-Api -Method Post -Path "/api/customers" -Body @{
         name = $runId
@@ -134,7 +141,7 @@ try {
         port = 5432
         database = "assessmentdb"
         username = "assessment"
-        password = "assessment_dev_password"
+        password = [System.Net.NetworkCredential]::new('', $PostgresPassword).Password
     } | ConvertTo-Json -Compress
 
     $job = Invoke-Api -Method Post -Path "/api/agents/$($registration.agentId)/jobs" -Body @{

@@ -4,7 +4,8 @@ This subscription-scope Bicep deployment creates a disposable resource group con
 
 ## Prerequisites
 
-- Azure CLI authenticated to subscription `7ee7fa4f-8359-4fb9-ac34-361728102038`.
+- Azure CLI authenticated to your intended lab subscription. Verify the account
+  and select the subscription explicitly before deployment.
 - Contributor permissions for resource creation and permission to create the Key Vault role assignment.
 - A public SSH key and an administrator source CIDR.
 - Two synthetic passwords of at least 12 characters, each containing uppercase, lowercase, numeric, and special characters. Do not reuse production credentials.

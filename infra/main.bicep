@@ -1,7 +1,7 @@
 targetScope = 'subscription'
 
-@minLength(1)
-@maxLength(64)
+@minLength(3)
+@maxLength(20)
 param environmentName string
 
 @minLength(1)
@@ -29,18 +29,25 @@ param workerContainerImage string = containerImage
 param frontendContainerImage string = containerImage
 param discoveryAgentContainerImage string = containerImage
 
-var resourceGroupName = 'rg-dbmigratio-dev-1fa1'
-var virtualNetworkName = 'vnet-dbmigratio-dev-1fa1'
-var containerAppsEnvironmentName = 'cae-dbmigratio-dev-1fa1'
-var apiContainerAppName = 'ca-api-dbmigratio-dev-1fa1'
-var workerContainerAppName = 'ca-worker-dbmigratio-dev-1fa1'
-var frontendContainerAppName = 'ca-web-dbmigratio-dev-1fa1'
-var discoveryAgentContainerAppName = 'ca-agent-dbmigratio-dev-1fa1'
-var containerRegistryName = 'crdbmigratiodev1fa1'
-var postgresServerName = 'psql-dbmigratio-dev-1fa1'
-var storageAccountName = 'stdbmigrnfs1fa1'
-var keyVaultName = 'kv-dbmigratio-dev-1fa1'
-var managedIdentityName = 'id-dbmigratio-dev-1fa1'
+@minLength(3)
+@maxLength(20)
+param resourceNameSuffix string = environmentName
+
+@minLength(3)
+@maxLength(24)
+param storageAccountName string = 'st${uniqueString(subscription().id, environmentName)}'
+
+var resourceGroupName = 'rg-${resourceNameSuffix}'
+var virtualNetworkName = 'vnet-${resourceNameSuffix}'
+var containerAppsEnvironmentName = 'cae-${resourceNameSuffix}'
+var apiContainerAppName = 'ca-api-${resourceNameSuffix}'
+var workerContainerAppName = 'ca-worker-${resourceNameSuffix}'
+var frontendContainerAppName = 'ca-web-${resourceNameSuffix}'
+var discoveryAgentContainerAppName = 'ca-agent-${resourceNameSuffix}'
+var containerRegistryName = 'cr${replace(resourceNameSuffix, '-', '')}'
+var postgresServerName = 'psql-${resourceNameSuffix}'
+var keyVaultName = 'kv-${resourceNameSuffix}'
+var managedIdentityName = 'id-${resourceNameSuffix}'
 var postgresAdministratorLogin = 'assessmentadmin'
 var applicationDatabaseName = 'assessmentdb'
 
