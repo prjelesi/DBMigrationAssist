@@ -20,7 +20,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" Version="3.8.2" />
     <!-- Security pins for transitive dependencies; retain net8.0-compatible assets. -->
-    <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.14" />
+    <PackageReference Include="Microsoft.Bcl.Memory" Version="10.0.13" />
     <PackageReference Include="Microsoft.Build.Tasks.Git" Version="10.0.111" PrivateAssets="all" IncludeAssets="build;buildtransitive" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.5" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
