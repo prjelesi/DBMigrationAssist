@@ -5,7 +5,7 @@ A self-hosted portal for assessing database estates before migration to the clou
 **Project site:** https://prjelesi.github.io/DBMigrationAssist/
 
 The [static project site](site/index.html) introduces the assessment workflow,
-engine validation status, network boundaries, and local setup. Its workspace
+engine validation status, network boundaries, Azure deployment, and local setup. Its workspace
 and evidence previews are illustrative, not live assessments. It opens in a
 light theme, with an optional dark-mode toggle. Changes under
 `site/` deploy to GitHub Pages when merged to `main`.

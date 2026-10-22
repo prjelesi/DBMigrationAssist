@@ -240,7 +240,7 @@
       </a>
       <div class="nav-actions">
         <nav class="nav-links" aria-label="Main navigation">
-          <a href="#capabilities">Workflow</a><a href="#coverage">Coverage</a><a href="#architecture">Architecture</a>
+          <a href="#capabilities">Workflow</a><a href="#coverage">Coverage</a><a href="#architecture">Architecture</a><a href="#azure">Azure</a>
           <a href="https://github.com/prjelesi/DBMigrationAssist/tree/main/docs/current">Docs</a>
           <a href="https://github.com/prjelesi/DBMigrationAssist">GitHub</a>
         </nav>
@@ -248,7 +248,7 @@
         <details class="mobile-menu" id="mobile-menu">
           <summary>Menu</summary>
           <nav aria-label="Mobile navigation">
-            <a href="#capabilities">Workflow</a><a href="#coverage">Engine coverage</a><a href="#architecture">Architecture</a><a href="#quickstart">Quick start</a>
+            <a href="#capabilities">Workflow</a><a href="#coverage">Engine coverage</a><a href="#architecture">Architecture</a><a href="#azure">Azure deployment</a><a href="#quickstart">Quick start</a>
             <a href="https://github.com/prjelesi/DBMigrationAssist/tree/main/docs/current">Documentation</a><a href="https://github.com/prjelesi/DBMigrationAssist">GitHub</a>
           </nav>
         </details>
@@ -260,7 +260,7 @@
       <div class="hero-copy">
         <span class="eyebrow">Evidence before migration</span>
         <h1 id="hero-title">Know your estate.<br><span>Plan your migration.</span></h1>
-        <p>Bring database inventory, technical findings, and business context into one self-hosted assessment workspace.</p>
+        <p>Bring database inventory, technical findings, and business context into one self-hosted assessment workspace, locally or on Azure.</p>
         <div class="actions">
           <a class="button primary" href="#quickstart">Run locally <span aria-hidden="true">&rarr;</span></a>
           <a class="button" href="#capabilities">See how it works</a>
@@ -381,6 +381,30 @@
           </div>
           <figcaption class="preview-note">Collection paths from customer network to assessment platform</figcaption>
         </figure>
+      </div>
+    </section>
+    <section class="architecture-section" id="azure" aria-labelledby="azure-title">
+      <div class="shell split">
+        <div>
+          <span class="eyebrow">Deploy to Azure</span>
+          <h2 id="azure-title">Your workspace.<br>Your Azure subscription.</h2>
+          <p>Run the toolkit on Azure Container Apps using the repository's Bicep templates and PowerShell deployment workflow. Host the assessment platform in your subscription while customer-network agents continue to collect locally.</p>
+          <p>Configure your target environment and secrets, build and start the local application containers, then validate and review the infrastructure preview before deploying.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/prjelesi/DBMigrationAssist#azure-deployment">Azure deployment guide <span aria-hidden="true">&rarr;</span></a>
+            <a class="button" href="https://github.com/prjelesi/DBMigrationAssist/tree/main/infra">Explore the Bicep templates</a>
+          </div>
+          <p class="setup-note">Azure resource charges apply. Review region availability, sizing, permissions, and the deployment preview for your environment.</p>
+        </div>
+        <div class="report" role="group" aria-label="Azure deployment components">
+          <div class="report-top"><strong>Built for your environment</strong><span class="badge">Bicep infrastructure</span></div>
+          <dl>
+            <div><dt>Application hosting</dt><dd>Azure Container Apps for the frontend, API, worker, and platform Discovery Agent</dd></div>
+            <div><dt>Assessment data</dt><dd>Azure Database for PostgreSQL Flexible Server, with Azure Files for persisted configuration and Data Protection keys</dd></div>
+            <div><dt>Container images</dt><dd>Azure Container Registry with managed-identity image pulls and timestamped image tags</dd></div>
+            <div><dt>Review before deployment</dt><dd>Validate &rarr; WhatIf &rarr; Deploy through the existing PowerShell deployment script</dd></div>
+          </dl>
+        </div>
       </div>
     </section>
     <section class="quickstart-section" id="quickstart" aria-labelledby="quickstart-title">
