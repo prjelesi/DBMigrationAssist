@@ -14,7 +14,13 @@ public static class GeneratedReportContract
         PropertyNameCaseInsensitive = false
     };
 
-    public static string NormalizeAndValidate(string value)
+    public static string NormalizeAndValidate(string value) => NormalizeAndValidate(value, null);
+
+    /// <summary>
+    /// Validates generated report JSON. When <paramref name="requiredTargets"/> is non-empty the
+    /// report must additionally carry a targetAssessment entry for every listed migration target.
+    /// </summary>
+    public static string NormalizeAndValidate(string value, IReadOnlyList<string>? requiredTargets)
     {
         if (value.Length > MaxOutputLength)
             throw new ReportContractException(["Report output exceeds the maximum allowed size."]);
@@ -27,6 +33,7 @@ public static class GeneratedReportContract
         var report = document.RootElement.Deserialize<ReportDocument>(SerializerOptions)
             ?? throw new ReportContractException(["Report root must be a JSON object."]);
         var errors = Validate(report);
+        ValidateTargetAssessment(report.TargetAssessment, requiredTargets, errors);
         if (errors.Count > 0)
             throw new ReportContractException(errors);
 
@@ -101,6 +108,55 @@ public static class GeneratedReportContract
         ValidateEnum(report.EstimatedEffort, "estimatedEffort", ["Low", "Medium", "High", "Very High"], errors);
 
         return errors;
+    }
+
+    private static void ValidateTargetAssessment(
+        List<TargetAssessmentItem>? targets,
+        IReadOnlyList<string>? requiredTargets,
+        List<string> errors)
+    {
+        if (requiredTargets is null || requiredTargets.Count == 0)
+            return;
+
+        if (targets is null)
+        {
+            errors.Add("targetAssessment is required for this report scope.");
+            return;
+        }
+
+        ValidateCollection(targets, "targetAssessment", errors, (item, path) =>
+        {
+            ValidateString(item.Target, $"{path}.target", errors);
+            ValidateEnum(item.Verdict, $"{path}.verdict", ["Recommended", "Viable", "NotRecommended", "Blocked"], errors);
+            ValidateString(item.FitSummary, $"{path}.fitSummary", errors);
+            ValidateStringCollection(item.Blockers, $"{path}.blockers", errors);
+            ValidateStringCollection(item.Remediation, $"{path}.remediation", errors);
+            ValidateStringCollection(item.EvidenceGaps, $"{path}.evidenceGaps", errors);
+            ValidateEnum(item.Confidence, $"{path}.confidence", ["High", "Medium", "Low"], errors);
+        });
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in targets)
+        {
+            if (item?.Target is null)
+                continue;
+
+            if (!seen.Add(item.Target))
+                errors.Add($"targetAssessment contains a duplicate entry for '{item.Target}'.");
+
+            if (!requiredTargets.Contains(item.Target, StringComparer.OrdinalIgnoreCase))
+                errors.Add($"targetAssessment contains an unsupported target '{item.Target}'.");
+        }
+
+        foreach (var required in requiredTargets)
+        {
+            if (!seen.Contains(required))
+                errors.Add($"targetAssessment is missing required target '{required}'.");
+        }
+
+        var recommended = targets.Count(item => string.Equals(item?.Verdict, "Recommended", StringComparison.Ordinal));
+        if (recommended != 1)
+            errors.Add("targetAssessment must mark exactly one target as Recommended.");
     }
 
     private static void ValidateScope(ScopeSummary? scope, List<string> errors)
@@ -205,6 +261,13 @@ public static class GeneratedReportContract
         public required List<MigrationRequirement> MigrationRequirements { get; init; }
         public required SourceEnvironment SourceEnvironment { get; init; }
         public required List<MigrationOption> PossibleMigrations { get; init; }
+
+        /// <summary>
+        /// Optional so that reports for engines without a mandated target catalogue, and reports
+        /// persisted before this section existed, continue to deserialize.
+        /// </summary>
+        public List<TargetAssessmentItem>? TargetAssessment { get; init; }
+
         public required List<MigrationToolingItem> MigrationTooling { get; init; }
         public required List<AzureSkuProposal> AzureSkuProposal { get; init; }
         public required List<RiskItem> KeyRisks { get; init; }
@@ -264,6 +327,17 @@ public static class GeneratedReportContract
         public required string Recommendation { get; init; }
         public required string Rationale { get; init; }
         public required List<string> Considerations { get; init; }
+    }
+
+    private sealed class TargetAssessmentItem
+    {
+        public required string Target { get; init; }
+        public required string Verdict { get; init; }
+        public required string FitSummary { get; init; }
+        public required List<string> Blockers { get; init; }
+        public required List<string> Remediation { get; init; }
+        public required List<string> EvidenceGaps { get; init; }
+        public required string Confidence { get; init; }
     }
 
     private sealed class MigrationToolingItem

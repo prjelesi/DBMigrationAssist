@@ -277,9 +277,10 @@ public class QuestionnairesController(
             var existing = response.Answers.FirstOrDefault(a => a.QuestionId == incoming.QuestionId);
             if (existing is null)
             {
-                response.Answers.Add(new Answer
+                db.Answers.Add(new Answer
                 {
                     ResponseId = id,
+                    Response = response,
                     QuestionId = incoming.QuestionId,
                     Value = incoming.Value
                 });
