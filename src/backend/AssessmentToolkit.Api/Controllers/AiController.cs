@@ -322,6 +322,7 @@ public class AiController(
             .Where(database => database.ProjectId == req.ProjectId &&
                 (!req.DatabaseId.HasValue || database.DatabaseId == req.DatabaseId))
             .ToListAsync(ct);
+        var requiredTargets = MigrationTargetCatalog.ForEngines(databases.Select(database => database.Engine));
         var targetEnvironmentId = targetDatabase?.EnvironmentId;
         var environments = await db.Environments.AsNoTracking()
             .Where(environment => environment.ProjectId == req.ProjectId &&
@@ -508,6 +509,27 @@ public class AiController(
             }
             """;
 
+        var targetAssessmentContract = requiredTargets.Count == 0
+            ? string.Empty
+            : $$"""
+                The report JSON must also include a "targetAssessment" array using this shape:
+                "targetAssessment": [ {
+                    "target": string (copied verbatim from the required target list below),
+                    "verdict": "Recommended|Viable|NotRecommended|Blocked",
+                    "fitSummary": string (how well the source fits this target, grounded in the evidence),
+                    "blockers": [string] (concrete findings preventing this target, empty when none),
+                    "remediation": [string] (what would unblock or de-risk this target, empty when none),
+                    "evidenceGaps": [string] (missing evidence that limits confidence, empty when none),
+                    "confidence": "High|Medium|Low"
+                } ]
+                Include exactly one entry for each of these targets, in this order, and no others:
+                {{string.Join("\n", requiredTargets.Select(target => $"- {target}"))}}
+                Assess every listed target even when one is obviously preferable; a target that is a poor fit must still
+                appear with verdict NotRecommended or Blocked and the findings that justify it. Prefer modernization
+                targets over rehosting when the evidence supports them, but never claim compatibility the evidence does
+                not show. Mark exactly one target as "Recommended" and give every other target a different verdict.
+                """;
+
                 var systemPrompt = $"""
                         {fixedSystemPrompt}
 
@@ -528,10 +550,13 @@ public class AiController(
                         migrationRequirements or sourceEnvironment.informationGaps. Treat database-scoped AWR parsed summaries
                         as performance evidence only for their recorded snapshot period. Do not extrapolate a short AWR period
                         to peak or steady-state demand without corroborating evidence.
-                        Compare Oracle on Azure VM, Azure Database for PostgreSQL, and Azure SQL only when relevant to the
-                        collected compatibility evidence. Rehosting preserves Oracle-specific behavior but does not prove
-                        modernization value. Heterogeneous targets require explicit treatment of wrapped code, unsupported
-                        objects, database links, HCC, partitioning, data types, scheduler jobs, and SQL/PLSQL dependencies.
+                        Rehosting preserves Oracle-specific behavior but does not prove modernization value. Heterogeneous
+                        targets require explicit treatment of wrapped code, unsupported objects, database links, HCC,
+                        partitioning, data types, scheduler jobs, and SQL/PLSQL dependencies. Oracle Database@Azure runs
+                        Exadata and Autonomous Database inside Azure datacenters under an Oracle-managed service, so it
+                        preserves Oracle features without an Azure VM rehost but carries its own commercial and regional
+                        constraints.
+                        {targetAssessmentContract}
                         Return ONLY valid JSON matching the fixed contract above.
                         """;
 
@@ -605,12 +630,13 @@ public class AiController(
             {promptEvidence}
             """;
 
-        var reportJson = await ai.CompleteAsync(systemPrompt, userPrompt, ct, maxOutputTokenCount: 8192);
+        var reportJson = await ai.CompleteAsync(systemPrompt, userPrompt, ct,
+            maxOutputTokenCount: requiredTargets.Count == 0 ? 8192 : 16384);
         if (reportJson is null) return StatusCode(502, new { error = "Report generation failed." });
 
         try
         {
-            reportJson = GeneratedReportContract.NormalizeAndValidate(reportJson);
+            reportJson = GeneratedReportContract.NormalizeAndValidate(reportJson, requiredTargets);
         }
         catch (Exception ex) when (ex is JsonException or ReportContractException)
         {

@@ -574,6 +574,22 @@ $env:POSTGRES_PASSWORD = Read-Host 'Local PostgreSQL password' -MaskInput
 
 The temporary agent container is removed automatically. Test records use unique `e2e-*` names so repeated runs do not conflict.
 
+### Worker database smoke test
+
+After building the current Worker image and starting a disposable Compose stack
+with API migrations complete, run:
+
+```powershell
+docker compose build worker
+.\tests\WorkerPostgresSmoke.ps1
+```
+
+This starts a separate temporary Worker container and requires a successful
+PostgreSQL agents/jobs status query, not merely a running process. Runtime
+assembly-loading errors or logged failures fail the test. The temporary Worker
+is removed automatically; the existing Worker container is not restarted.
+CI runs this check after the connected-agent test.
+
 ---
 
 ## Database account requirements

@@ -11,13 +11,14 @@ public class EnvironmentsController(AssessmentDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] Guid projectId) =>
-        Ok(await db.Environments.Where(e => e.ProjectId == projectId).ToListAsync());
+        Ok((await db.Environments.AsNoTracking()
+            .Where(e => e.ProjectId == projectId).ToListAsync()).Select(ToResponse));
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
         var env = await db.Environments.Include(e => e.Databases).FirstOrDefaultAsync(e => e.EnvironmentId == id);
-        return env is null ? NotFound() : Ok(env);
+        return env is null ? NotFound() : Ok(ToResponse(env));
     }
 
     [HttpPost]
@@ -37,7 +38,7 @@ public class EnvironmentsController(AssessmentDbContext db) : ControllerBase
 
         db.Environments.Add(env);
         await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(Get), new { id = env.EnvironmentId }, env);
+        return CreatedAtAction(nameof(Get), new { id = env.EnvironmentId }, ToResponse(env));
     }
 
     [HttpPatch("{id:guid}")]
@@ -53,7 +54,7 @@ public class EnvironmentsController(AssessmentDbContext db) : ControllerBase
         env.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync();
-        return Ok(env);
+        return Ok(ToResponse(env));
     }
 
     [HttpDelete("{id:guid}")]
@@ -65,6 +66,34 @@ public class EnvironmentsController(AssessmentDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return NoContent();
     }
+
+    private static object ToResponse(ProjectEnvironment environment) => new
+    {
+        environment.EnvironmentId,
+        environment.ProjectId,
+        environment.Name,
+        environment.Type,
+        environment.Location,
+        environment.ConnectivityZone,
+        environment.CreatedAt,
+        environment.UpdatedAt,
+        Databases = environment.Databases.Select(database => new
+        {
+            database.DatabaseId,
+            database.ProjectId,
+            database.EnvironmentId,
+            database.Name,
+            database.Engine,
+            database.Version,
+            database.HostName,
+            database.Port,
+            database.Criticality,
+            database.OwnerName,
+            database.MetadataJson,
+            database.CreatedAt,
+            database.UpdatedAt
+        })
+    };
 }
 
 public record CreateEnvironmentRequest(
