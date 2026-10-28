@@ -739,6 +739,8 @@ For Docker Compose, the Data Protection key ring is persisted in the `data_prote
 
 The API tests configured Foundry connectivity five seconds after startup and every 15 minutes afterward. Override the defaults with `AiFoundry__ConnectivityCheckStartupDelaySeconds` and `AiFoundry__ConnectivityCheckIntervalMinutes`. The System and AI Settings pages poll the resulting status automatically. Manual **Test Connection** remains available for immediate verification.
 
+The adapter retries explicit model-parameter rejections using `max_completion_tokens` instead of `max_tokens`, or the model's default temperature instead of a custom value. Deployment names can be arbitrary; no model-name naming convention is required. Connection-test responses include actionable HTTP failure details; full diagnostic details remain in the API logs.
+
 ### Verifying AI is active
 
 ```bash

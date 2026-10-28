@@ -1,7 +1,9 @@
 using Azure;
 using Azure.AI.OpenAI;
+using Azure.AI.OpenAI.Chat;
 using AssessmentToolkit.Data;
 using OpenAI.Chat;
+using System.ClientModel;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -136,17 +138,66 @@ public class AiAdapterService : IAiAdapterService
 
         try
         {
-            var chat = _client!.GetChatClient(_deployment);
-            var response = await chat.CompleteChatAsync(
-                [ChatMessage.CreateSystemMessage(systemPrompt), ChatMessage.CreateUserMessage(userPrompt)],
-                new ChatCompletionOptions { Temperature = 0.2f, MaxOutputTokenCount = maxOutputTokenCount },
-                ct);
-            return response.Value.Content[0].Text;
+            return await SendCompletionAsync(systemPrompt, userPrompt, ct, maxOutputTokenCount);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             _log.LogWarning(ex, "AI completion failed.");
             return null;
+        }
+    }
+
+    private async Task<string?> SendCompletionAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken ct,
+        int maxOutputTokenCount)
+    {
+        var chat = _client!.GetChatClient(_deployment);
+        var options = new ChatCompletionOptions { Temperature = 0.2f, MaxOutputTokenCount = maxOutputTokenCount };
+        var useCompletionTokens = false;
+
+        // Deployment names are user-defined; negotiate capabilities from explicit model rejections.
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                var response = await chat.CompleteChatAsync(
+                    [ChatMessage.CreateSystemMessage(systemPrompt), ChatMessage.CreateUserMessage(userPrompt)],
+                    options,
+                    ct);
+                return response.Value.Content.FirstOrDefault()?.Text;
+            }
+            catch (ClientResultException ex) when (attempt < 2 && ex.Status == 400)
+            {
+                if (!useCompletionTokens &&
+                    ex.Message.Contains("unsupported_parameter", StringComparison.OrdinalIgnoreCase) &&
+                    ex.Message.Contains("max_tokens", StringComparison.Ordinal) &&
+                    ex.Message.Contains("max_completion_tokens", StringComparison.Ordinal))
+                {
+#pragma warning disable AOAI001
+                    options.SetNewMaxCompletionTokensPropertyEnabled();
+#pragma warning restore AOAI001
+                    useCompletionTokens = true;
+                    _log.LogInformation("AI deployment requires max_completion_tokens; retrying with the supported token parameter.");
+                }
+                else if (options.Temperature is not null &&
+                    (ex.Message.Contains("unsupported_parameter", StringComparison.OrdinalIgnoreCase) ||
+                     ex.Message.Contains("unsupported_value", StringComparison.OrdinalIgnoreCase)) &&
+                    ex.Message.Contains("temperature", StringComparison.OrdinalIgnoreCase))
+                {
+                    options.Temperature = null;
+                    _log.LogInformation("AI deployment rejects the configured temperature; retrying with the model default.");
+                }
+                else
+                {
+                    throw;
+                }
+            }
         }
     }
 
@@ -156,17 +207,47 @@ public class AiAdapterService : IAiAdapterService
         if (!IsAvailable)
             return new(false, "AI Foundry is not configured.", testedAt);
 
-        var response = await CompleteAsync(
-            "You are a connectivity test. Follow the user's response format exactly.",
-            "Reply with exactly: Connection successful",
-            ct);
-        var succeeded = !string.IsNullOrWhiteSpace(response);
+        bool succeeded;
+        string message;
+        try
+        {
+            var response = await SendCompletionAsync(
+                "You are a connectivity test. Follow the user's response format exactly.",
+                "Reply with exactly: Connection successful",
+                ct,
+                2048);
+            succeeded = !string.IsNullOrWhiteSpace(response);
+            message = succeeded ? "Connection successful." : "The configured deployment did not return a response.";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (ClientResultException ex)
+        {
+            _log.LogWarning(ex, "AI connection test failed.");
+            succeeded = false;
+            message = ex.Status switch
+            {
+                400 => "Foundry rejected the model request (HTTP 400). Check the deployment's supported chat parameters; details are in the API logs.",
+                401 or 403 => $"Foundry denied access (HTTP {ex.Status}). Check the API key and resource access settings.",
+                404 => "Foundry could not find the deployment (HTTP 404). Check the endpoint and deployment name.",
+                429 => "Foundry rate limit or quota exceeded (HTTP 429). Retry later or check deployment capacity.",
+                _ => $"Foundry request failed (HTTP {ex.Status}). Check the API logs for details."
+            };
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "AI connection test failed.");
+            succeeded = false;
+            message = "The connection test failed. Check network connectivity and the API logs for details.";
+        }
 
         LastConnectionSucceeded = succeeded;
         LastConnectionTestedAt = testedAt;
         return new(
             succeeded,
-            succeeded ? "Connection successful." : "The configured deployment did not return a response.",
+            message,
             testedAt);
     }
 
