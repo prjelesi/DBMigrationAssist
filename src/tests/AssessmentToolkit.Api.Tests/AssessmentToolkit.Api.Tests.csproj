@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.32" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.22" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.32" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <!-- Keep the private build task patched in this project's own dependency graph. -->
